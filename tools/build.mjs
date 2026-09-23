@@ -76,6 +76,8 @@ ${appMin}</script>
 `;
 fs.mkdirSync(path.join(ROOT, "dist"), { recursive: true });
 fs.writeFileSync(path.join(ROOT, "dist/index.html"), html);
+fs.mkdirSync(path.join(ROOT, "dist/fonts"), { recursive: true });
+fs.copyFileSync(path.join(ROOT, "fonts/brush-poems.js"), path.join(ROOT, "dist/fonts/brush-poems.js"));   // 诗卷毛笔字，按需加载（缺了也能运行）
 
 const devTotal = ["index.html", "vendor/three-bundle.js", "data/poems.js", "data/landmask.js", "data/tour.js", "fonts/brush.css"].reduce((s, f) => s + fs.statSync(path.join(ROOT, f)).size, 0);
 console.log(`three 按需打包：${names.length} 个类 → ${kb(three.length)}（gzip ${kb(Buffer.from(T, "base64").length)}）`);
