@@ -7,6 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%275%27 fill=%27%23b1402c%27/%3E%3Cpath d=%27M6 22l6-9 4 5 3-4 7 8z%27 fill=%27%23f6ecde%27/%3E%3C/svg%3E">
 <title>山河诗卷</title>
 <meta name="description" content="三维水墨体素山河上的诗词地图：先秦至宋三百余首诗词，落在一百五十余处地标上。">
+<link rel="stylesheet" href="fonts/brush.css">
 <style>
 :root{
   --xuan:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85 .05' numOctaves='3' seed='4'/%3E%3CfeColorMatrix values='0 0 0 0 .42 0 0 0 0 .33 0 0 0 0 .2 0 0 0 .11 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
@@ -22,7 +23,7 @@
   --line:rgba(60,48,36,.16);
   /* 全站统一一种楷体（系统自带，不联网） */
   --kai:"KaiTi","STKaiti","Kaiti SC","Kaiti TC","楷体","楷体_GB2312","AR PL UKai CN","TW-Kai","BiauKai",serif;
-  --serif:var(--kai); --brush:var(--kai);
+  --serif:var(--kai); --brush:"ShanheBrush",var(--kai);
   --r:14px; --shadow:0 10px 34px rgba(40,30,18,.18),0 2px 6px rgba(40,30,18,.08);
   --safe-b:env(safe-area-inset-bottom,0px);
 }
@@ -68,7 +69,7 @@ body.ui-hidden .chrome *{pointer-events:none}
 #brand{top:max(16px,env(safe-area-inset-top));left:18px;display:flex;gap:12px;align-items:flex-start;pointer-events:none}
 .seal{width:40px;height:40px;background:var(--zhu);color:#f7eee0;display:grid;place-items:center;font-family:var(--brush);
   font-size:26px;border-radius:5px;box-shadow:inset 0 0 0 2px rgba(255,240,220,.35),0 3px 10px rgba(120,30,20,.25);flex:none}
-#brand h1{margin:0;font-family:var(--brush);font-weight:400;font-size:34px;line-height:1;letter-spacing:4px;color:var(--ink);
+#brand h1{margin:0;font-family:var(--brush);font-weight:400;font-size:36px;line-height:1;letter-spacing:4px;color:var(--ink);
   text-shadow:0 0 12px rgba(246,239,222,.9)}
 #brand p{margin:6px 0 0;font-size:12px;letter-spacing:2px;color:var(--ink2);text-shadow:0 0 8px rgba(246,239,222,.95)}
 .night #brand h1,.night #brand p{color:#efe4cb;text-shadow:0 0 10px rgba(10,16,30,.8)}
@@ -110,6 +111,57 @@ body.ui-hidden #showUi{opacity:.55;pointer-events:auto}
 .night #hint{color:#e6dcc4;text-shadow:0 0 8px rgba(0,0,0,.6)}
 #hint.gone{opacity:0}
 
+/* 题诗挂轴 */
+#verse{position:fixed;z-index:4;right:clamp(28px,5vw,80px);top:86px;display:flex;flex-direction:column;align-items:center;pointer-events:none;opacity:0;transition:opacity .8s ease;
+  filter:drop-shadow(0 14px 22px rgba(30,20,8,.3))}
+#verse.on{opacity:1}
+.vs-rod{display:block;height:10px;width:calc(100% + 10px);border-radius:5px;background:var(--wood);box-shadow:inset 0 0 0 1px rgba(40,20,8,.35);position:relative;z-index:2}
+.vs-rod.b{height:14px;width:calc(100% + 18px);border-radius:7px}
+.vs-rod.b::before,.vs-rod.b::after{content:"";position:absolute;top:-2px;width:12px;height:18px;border-radius:4px;background:var(--grain) 0 0/40px 120px,linear-gradient(180deg,#b88a55,#a57643);box-shadow:inset 0 0 0 1px rgba(60,35,15,.35)}
+.vs-rod.b::before{left:-10px}.vs-rod.b::after{right:-10px}
+.vs-mount{padding:30px 11px 20px;background:var(--brocade)}
+.vs-paper{writing-mode:vertical-rl;display:flex;flex-direction:column;gap:0;padding:22px 20px 18px;min-height:240px;
+  background:var(--xuan),linear-gradient(90deg,#efe4c9,#f8f1df 40%,#f3e9d2 75%,#ece0c3);box-shadow:inset 0 0 0 1px rgba(120,90,50,.3),inset 0 0 26px rgba(160,120,60,.16)}
+.vs-t{font-family:var(--brush);font-size:calc(var(--fz) * .72);letter-spacing:.18em;color:#1a1612;margin-left:.5em;line-height:1.3}
+.vs-a{font-size:14px;letter-spacing:.3em;color:#6a5e50;padding-top:2.2em;margin-left:1.1em;line-height:1.5}
+#verse p{margin:0 0 0 .32em;font-family:var(--brush);font-size:var(--fz);letter-spacing:.12em;line-height:1.28;color:#14110e;clip-path:inset(0 0 100% 0);opacity:.15}
+.vs-f{display:flex;flex-direction:row;justify-content:space-between;align-items:center;margin-right:.6em}
+.vs-pl{font-size:12.5px;letter-spacing:.3em;color:#7a6c5c;padding-top:2.5em}
+.vs-seal{margin-top:14px;padding:6px 4px;background:#b1402c;color:#f7ecdd;font-family:var(--brush);font-size:15px;letter-spacing:2px;line-height:1.05;border-radius:2px;box-shadow:inset 0 0 0 1.5px rgba(255,235,210,.45);opacity:0}
+#verse.on .vs-mount{animation:vsUnroll 1s cubic-bezier(.3,.7,.3,1) both}
+#verse.on .vs-rod.b{animation:vsRod 1s cubic-bezier(.3,.7,.3,1) both}
+#verse.on p{animation:brush var(--t) cubic-bezier(.35,.1,.3,1) forwards;animation-delay:var(--d)}
+#verse.on .vs-seal{animation:fadeIn .6s ease forwards;animation-delay:2.6s}
+@keyframes vsUnroll{from{clip-path:inset(0 0 100% 0)}to{clip-path:inset(0)}}
+@keyframes vsRod{from{transform:translateY(calc(-1 * var(--vh,360px)))}to{transform:none}}
+@keyframes brush{to{clip-path:inset(0 0 -2% 0);opacity:1}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+/* 巡游时收起控件 */
+#tourBar{position:fixed;z-index:6;left:0;right:0;bottom:calc(18px + var(--safe-b));margin:0 auto;width:max-content;display:flex;align-items:center;gap:6px;padding:5px 5px 5px 14px;border-radius:22px;
+  background:rgba(247,240,224,.82);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 8px 22px rgba(30,20,10,.18);opacity:0;visibility:hidden;transition:opacity .4s,visibility 0s linear .4s}
+body.touring:not(.dock-peek) #tourBar{opacity:1;visibility:visible;transition:opacity .4s}
+#tourBar .tb-dot{width:7px;height:7px;border-radius:50%;background:#b1402c;animation:pulse 1.8s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.25}}
+#tourBar .tb-t{font-size:13.5px;letter-spacing:3px;color:var(--ink2);margin-right:4px}
+#tourBar button{border:0;height:30px;padding:0 14px;border-radius:15px;font:inherit;font-size:13.5px;letter-spacing:2px;cursor:pointer;background:rgba(39,35,31,.07);color:var(--ink)}
+#tourBar button.stop{background:#b1402c;color:#f7ecdd}
+body.touring #search{opacity:0;pointer-events:none}
+body.touring:not(.dock-peek) #dock,body.touring:not(.dock-peek) #hint{opacity:0;pointer-events:none;transform:translateY(12px)}
+body.touring:not(.dock-peek) #dock *{pointer-events:none}
+.chip.combo{display:inline-flex;align-items:center;gap:7px;padding:0 12px 0 14px;background:rgba(39,35,31,.06);letter-spacing:2px}
+.chip.combo svg{transition:transform .25s;opacity:.6}
+.chip.combo[aria-expanded="true"]{background:var(--ink);color:var(--silk)}
+.chip.combo[aria-expanded="true"] svg{transform:rotate(180deg)}
+#ambPanel{position:fixed;z-index:12;left:0;top:0;padding:10px 12px 8px;border-radius:14px;background:rgba(247,240,224,.96);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 16px 40px rgba(30,20,10,.25),0 0 0 1px rgba(120,90,50,.15);
+  opacity:0;visibility:hidden;transform:translateY(6px);transition:opacity .22s,transform .22s,visibility 0s linear .22s}
+#ambPanel.on{opacity:1;visibility:visible;transform:none;transition:opacity .22s,transform .22s}
+#ambPanel::after{content:"";position:absolute;left:var(--ax,40px);bottom:-6px;width:12px;height:12px;background:inherit;transform:rotate(45deg);box-shadow:3px 3px 5px rgba(30,20,10,.08)}
+.ap-row{display:flex;align-items:center;gap:10px;padding:4px 0}
+.ap-row + .ap-row{border-top:1px dashed rgba(120,90,50,.18)}
+.ap-k{writing-mode:vertical-rl;font-size:11.5px;letter-spacing:2px;padding:3px 2px;background:#b1402c;color:#f7ecdd;border-radius:2px;line-height:1.1}
+.ap-v{display:flex;gap:2px}
+.ap-v .chip{min-width:42px;font-size:15px}
 #toast{left:50%;top:78px;transform:translate(-50%,-8px);padding:8px 16px;border-radius:18px;background:rgba(39,35,31,.86);color:var(--silk);
   font-size:13px;letter-spacing:1px;opacity:0;pointer-events:none}
 #toast.on{opacity:1;transform:translate(-50%,0)}
@@ -249,13 +301,14 @@ body.panel-open .sbar{opacity:1;pointer-events:auto}
   .chip{min-width:32px;padding:0 6px;font-size:13.5px;letter-spacing:0;height:30px}
   .ico{width:34px;height:30px}
   #hint{display:none}
+  #verse{right:12px;top:84px}.vs-mount{padding:16px 6px 10px}.vs-paper{padding:12px 10px 10px;min-height:140px}.vs-t{font-size:calc(var(--fz) * .78)}.vs-a{font-size:12px}.vs-pl{font-size:11px}.vs-seal{font-size:12px}
   #scroll{bottom:64px;width:calc(100vw - 44px);height:min(64vh,600px)}
   .seg.silk{width:32px}
   .qian{left:4px;width:24px;font-size:12px;line-height:24px;letter-spacing:2px}
   .yin{width:120px;padding-left:10px;padding-right:10px}.yin .yn{font-size:38px;letter-spacing:10px}.yin .ys{left:12px;width:32px;height:32px;font-size:12px}
   .core{padding:30px 20px 30px 18px}
-  .core p{font-size:25px;line-height:50px;letter-spacing:8px}.core .pt{font-size:29px;line-height:50px;letter-spacing:8px}.core .pa{font-size:16px;line-height:50px;padding-top:48px}
-  .ba{padding:32px 18px 30px 22px}.ba p{font-size:17.5px;line-height:38px}.ba .nt{font-size:16px;line-height:34px}
+  .core p{font-size:21px;line-height:44px;letter-spacing:6px}.core .pt{font-size:24px;line-height:44px;letter-spacing:6px}.core .pa{font-size:14.5px;line-height:44px;padding-top:40px}.core .seal2 span{font-size:14px;padding:6px 4px}
+  .ba{padding:32px 18px 30px 22px}.ba p{font-size:16px;line-height:34px}.ba .nt{font-size:15px;line-height:31px}.ba .bt{font-size:15.5px}
   .sbar{bottom:calc(14px + var(--safe-b))!important;gap:0;padding:4px}
   .sbar button{padding:0 9px;font-size:13.5px;letter-spacing:1px}
   .yin,.yin + .gs{display:none}
@@ -288,11 +341,12 @@ body.panel-open .sbar{opacity:1;pointer-events:auto}
 
 <div id="dock" class="chrome" role="toolbar" aria-label="视角与控制">
   <div class="grp" id="views"><span class="lab">视角</span></div>
-  <div class="grp" id="moods"><span class="lab">天色</span></div>
-  <div class="grp" id="seasons"><span class="lab">四季</span></div>
+  <div class="grp" id="ambGrp"><span class="lab">意境</span><button class="chip combo" id="bAmb" aria-haspopup="true" aria-expanded="false"><span id="ambTxt">春 · 昼 · 晴</span><svg viewBox="0 0 12 12" width="10" height="10"><path d="M2.5 7.5 6 4l3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button></div>
   <div class="grp" id="tools">
     <button class="ico" id="bReset" title="重置视角 (R)" aria-label="重置视角"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 12a8 8 0 1 0 2.4-5.7"/><path d="M4 4v4h4"/></svg></button>
     <button class="ico" id="bTour" title="镜头巡游 (T)" aria-label="镜头巡游"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M8 5.5v13l10-6.5z"/></svg></button>
+    <button class="ico" id="bVerse" title="巡游时题诗" aria-label="巡游题诗"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M17 4v16M12 4v11M7 4v7"/><rect x="5.5" y="15" width="4" height="4" rx=".6" fill="currentColor" stroke="none"/></svg></button>
+    <button class="ico" id="bFocus" title="点地名时自动推近镜头" aria-label="自动推镜"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16"/><circle cx="12" cy="12" r="2.6"/></svg></button>
     <button class="ico" id="bSound" title="环境音" aria-label="环境音"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10v4h4l5 4V6L8 10z"/><path class="w" d="M16.5 9a4 4 0 0 1 0 6M19 6.5a8 8 0 0 1 0 11" opacity=".35"/></svg></button>
     <button class="ico" id="bShot" title="保存画面 (P)" aria-label="保存画面"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-2.5h6L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></button>
     <button class="ico" id="bQual" title="画质：高 / 轻" aria-label="切换画质"><span class="q">高</span></button>
@@ -302,6 +356,13 @@ body.panel-open .sbar{opacity:1;pointer-events:auto}
 <button class="ico grp" id="showUi" title="显示界面 (H)" aria-label="显示界面"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
 <div id="hint" class="chrome">拖动观景 · 右键平移 · 滚轮远近 · 点地名读诗</div>
 <div id="toast" class="chrome"></div>
+<div id="ambPanel" role="dialog" aria-label="意境">
+  <div class="ap-row"><span class="ap-k">时辰</span><div class="ap-v" id="apMood"></div></div>
+  <div class="ap-row"><span class="ap-k">四季</span><div class="ap-v" id="apSeason"></div></div>
+  <div class="ap-row"><span class="ap-k">天气</span><div class="ap-v" id="apWeather"></div></div>
+</div>
+<div id="verse" aria-live="polite"><i class="vs-rod"></i><div class="vs-mount"><div class="vs-paper" id="vsPaper"></div></div><i class="vs-rod b"></i></div>
+<div id="tourBar"><span class="tb-dot"></span><span class="tb-t">巡游中</span><button id="tbDock" title="显示控件">控件</button><button id="tbStop" class="stop">停止</button></div>
 
 <div id="plist" role="dialog" aria-label="此处诗目">
   <i class="lead"></i>
@@ -337,6 +398,7 @@ setTimeout(function () { if (!window.__started) window.__fail("三维引擎未�
 </script>
 <script src="data/poems.js"></script>
 <script src="data/landmask.js"></script>
+<script src="data/tour.js"></script>
 <script src="vendor/three-bundle.js"></script>
 <script>
 "use strict";
@@ -1483,8 +1545,14 @@ const PIECES = {
     b.cbox(0, 0, d / 2, 0.14, 0.07, 0.12, "#d6d2c5"); b.cbox(0, 0.07, d / 2 - 0.02, 0.1, 0.03, 0.06, "#d6d2c5");
   },
   bridge(b) {
-    for (let q = -4; q <= 4; q++) { const hh = 0.13 - q * q * 0.0065; b.cbox(q * 0.055, -0.06, 0, 0.058, hh + 0.06, 0.12, q % 2 ? "#b8b3a6" : "#c4bfb2"); b.cbox(q * 0.055, hh, 0.055, 0.05, 0.03, 0.012, "#a7a194"); b.cbox(q * 0.055, hh, -0.055, 0.05, 0.03, 0.012, "#a7a194"); }
-    b.cbox(0, -0.06, 0, 0.12, 0.1, 0.125, "#2e3a3a");
+    /* 沿 x 长 0.5：桥面呈拱形，两端落岸；拱券下方是空的（只画桥面与拱圈） */
+    for (let q = -4; q <= 4; q++) {
+      const t = q / 4, hh = 0.02 + 0.09 * (1 - t * t), x = q * 0.0555;
+      b.cbox(x, hh, 0, 0.058, 0.022, 0.13, q % 2 ? "#bdb8ab" : "#c9c4b7");
+      b.cbox(x, hh + 0.022, 0.058, 0.05, 0.022, 0.012, "#a7a194"); b.cbox(x, hh + 0.022, -0.058, 0.05, 0.022, 0.012, "#a7a194");
+      if (Math.abs(q) >= 2) b.cbox(x, -0.05, 0, 0.058, hh + 0.05, 0.13, "#b3ad9f");
+    }
+    for (let q = -1; q <= 1; q++) b.cbox(q * 0.0555, 0.075 - Math.abs(q) * 0.012, 0, 0.058, 0.02, 0.132, "#9e988b");
   },
   bigpagoda(b) {
     let w = 0.34, y = 0;
@@ -1534,10 +1602,10 @@ function pieceGeo(name, opts) {
 }
 /* 实例收集 */
 const INST = new Map();
-function addInst(name, opts, x, y, z, rot, s, tint) {
+function addInst(name, opts, x, y, z, rot, s, tint, sx) {
   const key = name + JSON.stringify(opts || {});
   if (!INST.has(key)) INST.set(key, { geo: pieceGeo(name, opts), list: [] });
-  INST.get(key).list.push({ x, y, z, rot, s, tint });
+  INST.get(key).list.push({ x, y, z, rot, s, tint, sx });
 }
 const bldGroup = new THREE.Group(); scene.add(bldGroup);
 function flushInst(group, mat, map, shadow = true) {
@@ -1547,7 +1615,7 @@ function flushInst(group, mat, map, shadow = true) {
     if (!list.length) continue;
     const im = new THREE.InstancedMesh(geo, mat, list.length);
     list.forEach((it, n) => {
-      e.set(0, it.rot, 0); q.setFromEuler(e); v.set(it.x, it.y, it.z); sc.set(it.s, it.sy || it.s, it.s);
+      e.set(0, it.rot, 0); q.setFromEuler(e); v.set(it.x, it.y, it.z); sc.set(it.sx || it.s, it.sy || it.s, it.s);
       m4.compose(v, q, sc); im.setMatrixAt(n, m4);
       col.setRGB(...(it.tint || [1, 1, 1])); im.setColorAt(n, col);
     });
@@ -1632,6 +1700,30 @@ const LANDMARKS = {
   多景楼: { type: "tower", floors: 3, houses: 4, pav: 1, temple: 1 },
   黄州: { type: "town", R: 0.75, houses: 6, pav: 2, huts: 3 },
 };
+function bridgeSpots(p, n) {
+  const out = [], R = Math.ceil(2.4 / CS);
+  const land = (i, j) => i >= 0 && j >= 0 && i < W && j < H && !isWater(j * W + i);
+  const wet = (i, j) => i >= 0 && j >= 0 && i < W && j < H && isWater(j * W + i);
+  const cands = [];
+  for (let dj = -R; dj <= R; dj++) for (let di = -R; di <= R; di++) {
+    const i = p.i + di, j = p.j + dj;
+    if (!wet(i, j)) continue;
+    for (const [ax, az] of [[1, 0], [0, 1]]) {
+      for (const span of [1, 2]) {
+        if (span === 2 && !wet(i + ax, j + az)) continue;
+        const a = [i - ax, j - az], b = [i + ax * span, j + az * span];
+        if (!land(...a) || !land(...b)) continue;
+        const ya = TY[a[1] * W + a[0]], yb = TY[b[1] * W + b[0]];
+        if (Math.abs(ya - yb) > 0.25) continue;
+        const cx0 = X0 + (i + 0.5 + ax * (span - 1) / 2) * CS, cz0 = Z0 + (j + 0.5 + az * (span - 1) / 2) * CS;
+        cands.push({ x: cx0, z: cz0, y: Math.min(ya, yb) - 0.015, rot: ax ? 0 : Math.PI / 2, sx: (span * CS + CS * 0.5) / 0.5, d: di * di + dj * dj });
+      }
+    }
+  }
+  cands.sort((a, b) => a.d - b.d);
+  for (const c of cands) { if (out.length >= n) break; if (out.every((o) => Math.hypot(o.x - c.x, o.z - c.z) > 2.6)) out.push(c); }
+  return out;
+}
 function buildLandmark(p, L, y, put, face) {
   const R = L.R || 0.9, ring = (n, r0, r1, f) => { for (let q = 0; q < n; q++) { const a = q * 2.39996 + 0.4, r = lerp(r0, r1, (q + 0.5) / n); f(Math.cos(a) * r, Math.sin(a) * r, q); } };
   const tile = L.tile === "y" ? C.ytile : L.tile === "g" ? C.gtile : C.tile;
@@ -1666,10 +1758,7 @@ function buildLandmark(p, L, y, put, face) {
     for (let q = 0; q < (L.pagodas || 0); q++) put("pagoda", { levels: 7 }, q ? -0.85 : 0.8, q ? 0.5 : -0.6, 0, 1.05);
     if (L.temple) { put("hall", { w: 0.34, d: 0.22, h: 0.11 }, -0.75, -0.6, 0, 0.9); put("pagoda", { levels: 5 }, -1.0, -0.85, 0, 0.9); }
     ring(L.pav || 0, 0.9, 1.3, (x, z) => put("pavilion", {}, x, z, 0, 1.05));
-    if (water) for (let q = 0; q < (L.bridges || 0); q++) {
-      const bx = water[0] + (q - (L.bridges - 1) / 2) * 0.6 * Math.cos(face), bz = water[1] - (q - (L.bridges - 1) / 2) * 0.6 * Math.sin(face);
-      if (isWater(idx(bx, bz))) addInst("bridge", {}, bx, WY[idx(bx, bz)], bz, face + Math.PI / 2, 1.2, [1, 1, 1]);
-    }
+    for (const c of bridgeSpots(p, L.bridges || 0)) addInst("bridge", {}, c.x, c.y, c.z, c.rot, clamp(c.sx * 0.5, 1.3, 2.1), [1, 1, 1], c.sx);
     ring(18, 1.25, 1.9, (x, z) => EXTRA_TREES.push({ t: rng() < 0.6 ? "willow" : rng() < 0.5 ? "bamboo" : "broad", x: p.x + x, z: p.z + z }));
     p.foot = 1.15; p.top = 0.85;
   } else if (L.type === "tower") {
@@ -1893,16 +1982,16 @@ function buildClouds() {
    11. 天色（氛围）
    ================================================================ */
 const MOODS = {
-  day:   { name: "晴", sun: [0.32, 0.62, 0.72], sunC: "#fff3e2", sunI: 3.1, hemiS: "#e4eff2", hemiG: "#c6a978", hemiI: 1.12, fog: "#e2e6dc", dens: 0.0015, top: "#6ea7c6", hor: "#ede6d0", glow: 0.35, mist: 0.02, night: 0, exp: 1.02, bloom: 0.18, tint: "#ffffff" },
   dawn:  { name: "晨", sun: [0.85, 0.2, 0.25], sunC: "#ffd6aa", sunI: 2.0, hemiS: "#d9dde6", hemiG: "#b39c86", hemiI: 1.0, fog: "#ebe3da", dens: 0.0026, top: "#94b0d0", hor: "#f2dccb", glow: 0.6, mist: 0.16, night: 0, exp: 1.02, bloom: 0.22, tint: "#f2e6e6" },
+  day:   { name: "昼", sun: [0.32, 0.62, 0.72], sunC: "#fff3e2", sunI: 3.1, hemiS: "#e4eff2", hemiG: "#c6a978", hemiI: 1.12, fog: "#e2e6dc", dens: 0.0015, top: "#6ea7c6", hor: "#ede6d0", glow: 0.35, mist: 0.02, night: 0, exp: 1.02, bloom: 0.18, tint: "#ffffff" },
   dusk:  { name: "暮", sun: [-0.78, 0.17, 0.3], sunC: "#ffb070", sunI: 2.5, hemiS: "#c4c8d6", hemiG: "#a47f60", hemiI: 0.85, fog: "#e6c7a0", dens: 0.0022, top: "#8298b0", hor: "#f2c38e", glow: 0.9, mist: 0.08, night: 0.25, exp: 1.02, bloom: 0.3, tint: "#c9a88a" },
   night: { name: "夜", sun: [0.35, 0.6, -0.5], sunC: "#b4c6ff", sunI: 0.55, hemiS: "#4a5d80", hemiG: "#1f252e", hemiI: 0.55, fog: "#26324a", dens: 0.0026, top: "#0c1424", hor: "#2d3c5a", glow: 0.25, mist: 0.1, night: 1, exp: 1.12, bloom: 0.55, tint: "#33475e" },
 };
 const SEASONS = { spring: "春", summer: "夏", autumn: "秋", winter: "冬" }, SKEYS = Object.keys(SEASONS);
 let seasonKey = (() => { try { return SEASONS[localStorage.getItem("shs")] ? localStorage.getItem("shs") : "spring"; } catch (e) { return "spring"; } })(), seasonFrom = new THREE.Vector4(1, 0, 0, 0), seasonT = 1;
-function setSeason(key, instant) {
-  seasonKey = key; try { localStorage.setItem("shs", key); } catch (e) {} seasonFrom = GU.uSeason.value.clone(); seasonT = instant || REDUCED ? 1 : 0;
-  document.querySelectorAll("#seasons .chip").forEach((b) => b.classList.toggle("on", b.dataset.k === key));
+function setSeason(key, instant, persist = true) {
+  seasonKey = key; if (persist) try { localStorage.setItem("shs", key); } catch (e) {} seasonFrom = GU.uSeason.value.clone(); seasonT = instant || REDUCED ? 1 : 0;
+  syncAmbience(); driftSeason();
   if (seasonT >= 1) tickSeason(0, true);
 }
 function tickSeason(dt, force) {
@@ -1913,7 +2002,40 @@ function tickSeason(dt, force) {
 }
 const moodCur = {}; let moodFrom = null, moodTo = null, moodT = 1, moodKey = (() => { try { return MOODS[localStorage.getItem("shm")] ? localStorage.getItem("shm") : "day"; } catch (e) { return "day"; } })();
 function moodVals(m) { return { sun: new THREE.Vector3(...m.sun).normalize(), sunC: new THREE.Color(m.sunC), hemiS: new THREE.Color(m.hemiS), hemiG: new THREE.Color(m.hemiG), fog: new THREE.Color(m.fog), tint: new THREE.Color(m.tint), top: new THREE.Color(m.top), hor: new THREE.Color(m.hor), sunI: m.sunI, hemiI: m.hemiI, dens: m.dens, glow: m.glow, mist: m.mist, night: m.night, exp: m.exp, bloom: m.bloom }; }
+/* —— 天气：晴 / 雨（冬季为雪），叠加在时辰之上 —— */
+const WEATHERS = { clear: "晴", wet: "雨" };
+let weatherKey = (() => { try { return WEATHERS[localStorage.getItem("shw")] ? localStorage.getItem("shw") : "clear"; } catch (e) { return "clear"; } })();
+let weatherAmt = weatherKey === "wet" ? 1 : 0;
+const wetName = () => (seasonKey === "winter" ? "雪" : "雨");
+function setWeather(key, instant, persist = true) {
+  weatherKey = key; if (persist) try { localStorage.setItem("shw", key); } catch (e) {}
+  if (instant || REDUCED) { weatherAmt = key === "wet" ? 1 : 0; applyMood(moodCur); }
+  syncAmbience();
+}
+function tickWeather(dt) {
+  const to = weatherKey === "wet" ? 1 : 0;
+  if (weatherAmt === to) return;
+  weatherAmt = to > weatherAmt ? Math.min(to, weatherAmt + dt / 2.2) : Math.max(to, weatherAmt - dt / 2.2);
+  applyMood(moodCur);
+}
+function weatherize(v) {
+  const w = smooth(0, 1, weatherAmt); if (w <= 0) return v;
+  const snow = seasonKey === "winter";
+  const e = { ...v };
+  const l = v.fog.r * 0.3 + v.fog.g * 0.59 + v.fog.b * 0.11;
+  const grey = new THREE.Color(l * 0.94, l * 0.98, l * 1.03).multiplyScalar(snow ? 1.06 : 0.9);
+  e.fog = v.fog.clone().lerp(grey, 0.7 * w);
+  e.top = v.top.clone().lerp(grey, 0.78 * w); e.hor = v.hor.clone().lerp(grey, 0.65 * w);
+  e.dens = v.dens * (1 + (snow ? 1.1 : 1.5) * w); e.mist = v.mist + 0.2 * w;
+  e.sunI = v.sunI * (1 - 0.68 * w); e.glow = v.glow * (1 - 0.9 * w); e.hemiI = v.hemiI * (1 - 0.08 * w);
+  e.tint = v.tint.clone().multiplyScalar(1 - 0.18 * w); e.bloom = v.bloom * (1 - 0.5 * w);
+  return e;
+}
 function applyMood(v) {
+  Object.assign(moodCur, v);
+  renderMood(weatherize(v));
+}
+function renderMood(v) {
   sun.color.copy(v.sunC); sun.intensity = v.sunI; hemi.color.copy(v.hemiS); hemi.groundColor.copy(v.hemiG); hemi.intensity = v.hemiI;
   scene.fog.color.copy(v.fog); moodDens = v.dens;
   renderer.setClearColor(v.fog);
@@ -1926,11 +2048,10 @@ function applyMood(v) {
   cloudMat.uniforms.uLit.value.set(1, 1, 1).lerp(v.sunC, 0.35).multiplyScalar(0.28 + 0.72 * Math.min(1, v.sunI / 2.5) * (1 - v.night * 0.6));
   cloudMat.uniforms.uShade.value.copy(v.hemiS).multiplyScalar(0.72).lerp(v.fog, 0.3).multiplyScalar(1 - v.night * 0.4);
   cloudMat.uniforms.uOp.value = 0.62 - v.night * 0.3;
-  Object.assign(moodCur, v);
 }
-function setMood(key, instant) {
-  moodKey = key; try { localStorage.setItem("shm", key); } catch (e) {} document.body.classList.toggle("night", key === "night");
-  document.querySelectorAll("#moods .chip").forEach((b) => b.classList.toggle("on", b.dataset.k === key));
+function setMood(key, instant, persist = true) {
+  moodKey = key; if (persist) try { localStorage.setItem("shm", key); } catch (e) {} document.body.classList.toggle("night", key === "night");
+  syncAmbience();
   moodFrom = { ...moodCur, tint: moodCur.tint.clone(), sun: moodCur.sun.clone(), sunC: moodCur.sunC.clone(), hemiS: moodCur.hemiS.clone(), hemiG: moodCur.hemiG.clone(), fog: moodCur.fog.clone(), top: moodCur.top.clone(), hor: moodCur.hor.clone() };
   moodTo = moodVals(MOODS[key]); moodT = instant || REDUCED ? 1 : 0;
   if (moodT >= 1) applyMood(moodTo);
@@ -2031,7 +2152,8 @@ const VIEWS = [
   { k: "bs", name: "边塞", lng: 101.0, lat: 38.3, dist: 32, polar: 1.33, az: Math.PI - 0.75 },
 ];
 if (innerWidth < innerHeight) VIEWS.forEach((v) => { if (v.k !== "qg") v.dist *= 1.35; });
-const HOME = VIEWS[1];
+const HOME = { k: "home", name: "山河", lng: 113.5, lat: 29.8, dist: 122, polar: 1.3, az: 0.74 };
+if (innerWidth < innerHeight) HOME.dist *= 1.35;
 function viewPose(v) {
   const x = wx(v.lng), z = wz(v.lat), y = Math.max(0.3, groundAt(x, z));
   const t = new THREE.Vector3(x, y, z);
@@ -2039,12 +2161,12 @@ function viewPose(v) {
   return { target: t, pos: t.clone().add(off) };
 }
 let fly = null;
-function flyTo(target, pos, dur = 1.8) {
+function flyTo(target, pos, dur = 1.8, liftMax = 0.25) {
   if (REDUCED) dur = 0.01;
-  fly = { t: 0, dur, t0: controls.target.clone(), p0: camera.position.clone(), t1: target, p1: pos };
+  fly = { t: 0, dur, liftMax, t0: controls.target.clone(), p0: camera.position.clone(), t1: target, p1: pos };
 }
 function flyView(v, dur) { const { target, pos } = viewPose(v); flyTo(target, pos, dur); document.querySelectorAll("#views .chip").forEach((b) => b.classList.toggle("on", b.dataset.k === v.k)); }
-function flyPlace(p, shift) {
+function placePose(p, shift, opt = {}) {
   /* 选一个能看清整组建筑的角度：16 个方位 × 4 个俯角逐一试射线，
      同时考虑为诗目让位的横移，取遮挡最少、离当前视角最近的那个 */
   const foot = p.foot || 0.6;
@@ -2052,14 +2174,14 @@ function flyPlace(p, shift) {
   const pts = [new THREE.Vector3(p.x, p.y + (p.top || 0.5) * 0.7, p.z)];
   for (let a = 0; a < 6; a++) pts.push(new THREE.Vector3(p.x + Math.cos(a * 1.047) * foot, p.y + 0.18, p.z + Math.sin(a * 1.047) * foot));
   const cur = new THREE.Spherical().setFromVector3(camera.position.clone().sub(controls.target));
-  const R = clamp(7 + foot * 5, 7.5, 17);
+  const R = opt.R || clamp(7 + foot * 5, 7.5, 17);
   const desk = innerWidth > 760;
   const pose = (th, ph) => {
     const off = new THREE.Vector3().setFromSpherical(new THREE.Spherical(R, ph, th));
     const t = t0.clone(), pos = t0.clone().add(off);
-    if (desk && shift) { const sh = new THREE.Vector3(Math.cos(th), 0, -Math.sin(th)).multiplyScalar(R * (shift === "list" ? 0.16 : 0.3)); t.add(sh); pos.add(sh); }
-    else if (!desk) { t.y -= R * 0.12; pos.y -= R * 0.12; }
-    const dy = Math.max(0.3, groundAt(t.x, t.z)) - t.y; t.y += dy; pos.y += dy;
+    if (desk && shift) { const sh = new THREE.Vector3(Math.cos(th), 0, -Math.sin(th)).multiplyScalar(R * (shift === "list" ? 0.16 : shift === "tour" ? 0.12 : 0.3)); t.add(sh); pos.add(sh); }
+    else if (!desk && shift !== "tour") { t.y -= R * 0.12; pos.y -= R * 0.12; }
+    const dy = shift === "tour" ? 0 : Math.max(0.3, groundAt(t.x, t.z)) - t.y; t.y += dy; pos.y += dy;
     return { t, pos };
   };
   const occl = (c) => {
@@ -2073,14 +2195,15 @@ function flyPlace(p, shift) {
     return hit;
   };
   let best = null;
-  for (let k = 0; k < 16; k++) for (const ph of [1.0, 0.9, 0.78, 0.64]) {
+  for (let k = 0; k < 16; k++) for (const ph of opt.phis || [1.0, 0.9, 0.78, 0.64]) {
     let d = (k * Math.PI) / 8; if (d > Math.PI) d -= 2 * Math.PI;
     const th = cur.theta + d, P = pose(th, ph), h = occl(P.pos);
     const score = h * 100 + Math.abs(d) * 3 + (1.0 - ph) * 8;
     if (!best || score < best.score) best = { score, ...P };
   }
-  flyTo(best.t, best.pos, 1.6);
+  return best;
 }
+function flyPlace(p, shift) { const b = placePose(p, shift); flyTo(b.t, b.pos, 1.6); }
 function tickFly(dt) {
   if (!fly) return;
   fly.t = Math.min(1, fly.t + dt / fly.dur); const e = fly.t < 0.5 ? 4 * fly.t ** 3 : 1 - (-2 * fly.t + 2) ** 3 / 2;
@@ -2088,7 +2211,7 @@ function tickFly(dt) {
   /* 以球坐标插值，镜头弧线运动，不穿山 */
   const s0 = new THREE.Spherical().setFromVector3(fly.p0.clone().sub(fly.t0)), s1 = new THREE.Spherical().setFromVector3(fly.p1.clone().sub(fly.t1));
   let dth = s1.theta - s0.theta; if (dth > Math.PI) dth -= 2 * Math.PI; if (dth < -Math.PI) dth += 2 * Math.PI;
-  const lift = Math.sin(e * Math.PI) * Math.min(0.25, controls.target.distanceTo(fly.t1) * 0 + fly.t0.distanceTo(fly.t1) * 0.004);
+  const lift = Math.sin(e * Math.PI) * Math.min(fly.liftMax, fly.t0.distanceTo(fly.t1) * 0.006);
   const s = new THREE.Spherical(lerp(s0.radius, s1.radius, e) * (1 + lift * 2), lerp(s0.phi, s1.phi, e) - lift * 0.6, s0.theta + dth * e);
   camera.position.copy(controls.target).add(new THREE.Vector3().setFromSpherical(s));
   if (fly.t >= 1) fly = null;
@@ -2101,21 +2224,114 @@ function constrainCamera() {
   const t = controls.target;
   const cxT = clamp(t.x, BOUND.x0, BOUND.x1), czT = clamp(t.z, BOUND.z0, BOUND.z1);
   if (cxT !== t.x || czT !== t.z) { const d = new THREE.Vector3(cxT - t.x, 0, czT - t.z); t.add(d); camera.position.add(d); }
-  if (!fly) { const gy = Math.max(0.3, groundAt(t.x, t.z)); const dy = (gy - t.y) * 0.06; t.y += dy; camera.position.y += dy; }
+  if (!fly && !touring) { const gy = Math.max(0.3, groundAt(t.x, t.z)); const dy = (gy - t.y) * 0.06; t.y += dy; camera.position.y += dy; }
   let minY = -Infinity;
   for (const [ox, oz] of [[0, 0], [0.7, 0], [-0.7, 0], [0, 0.7], [0, -0.7]]) minY = Math.max(minY, groundAt(camera.position.x + ox, camera.position.z + oz));
   minY += 0.9; if (camera.position.y < minY) camera.position.y = minY;
 }
 
 /* 巡游 */
-let touring = false, tourIdx = 0, tourClock = 0;
-function startTour() { touring = true; $("#bTour").classList.add("on"); tourClock = 0; flyView(VIEWS[tourIdx = (tourIdx + 1) % VIEWS.length], 3.5); }
-function stopTour() { if (!touring) return; touring = false; $("#bTour").classList.remove("on"); }
+/* 巡游：按片区编排。每个片区按诗的多少选两三处，片区之间换季节、时辰、天气；
+   片区内短距滑移，片区之间升高远渡，落定后缓缓环绕（起止都有缓冲）。 */
+const TOUR = (() => {
+  const plan = window.TOUR_PLAN || [], out = [{ home: true, region: "山河", season: "spring", mood: "dawn", weather: "clear", dwell: 6 }];
+  const byId = (id) => POEMS.find((q) => q.id === id);
+  const regions = plan.map((R) => {
+    const shots = R.stops.map((st) => { const qs = st.poems.map(byId).filter(Boolean); const p = qs.length && qs[0].place; return p && { place: p, verses: qs, lng: p.lng, lat: p.lat }; }).filter(Boolean);
+    if (R.wall) shots.push({ view: { lng: 116.35, lat: 40.2, dist: 24, polar: 1.2, az: 0.55 }, verses: [byId(R.wall)].filter(Boolean), label: "长城", lng: 116.35, lat: 40.2 });
+    return { R, shots, c: { lng: shots.reduce((s, x) => s + x.lng, 0) / shots.length, lat: shots.reduce((s, x) => s + x.lat, 0) / shots.length } };
+  });
+  /* 片区内排序：穷举排列，使「上一站 → 本片区各站 → 下一片区中心」总路程最短，镜头不折返 */
+  const dist = (a, b) => Math.hypot(a.lng - b.lng, a.lat - b.lat);
+  const perms = (arr) => (arr.length <= 1 ? [arr] : arr.flatMap((x, i) => perms(arr.filter((_, j) => j !== i)).map((p) => [x, ...p])));
+  let cur = { lng: 116, lat: 29 };
+  regions.forEach(({ R, shots }, ri) => {
+    const next = regions[ri + 1] ? regions[ri + 1].c : { lng: 116, lat: 29 };
+    let best = null, bd = Infinity;
+    for (const pm of perms(shots)) {
+      let d = dist(cur, pm[0]); for (let i = 1; i < pm.length; i++) d += dist(pm[i - 1], pm[i]); d += dist(pm[pm.length - 1], next);
+      if (d < bd) { bd = d; best = pm; }
+    }
+    best.forEach((sh, i) => out.push(Object.assign(sh, { region: R.region, season: R.season, mood: R.mood, weather: R.weather, first: i === 0 })));
+    cur = best[best.length - 1];
+  });
+  return out;
+})();
+let verseOn = (() => { try { return localStorage.getItem("shv") !== "0"; } catch (e) { return true; } })();
+let touring = false, tourIdx = -1, tour = null, tourLoop = 0;
+const verseEl = $("#verse");
+/** 题诗：一幅小立轴，题目、作者、末两句（多为点题），毛笔楷书，自上而下展开 */
+function showVerse(shot) {
+  if (!verseOn || shot.home || !shot.verses || !shot.verses.length) return;
+  const q = shot.verses[tourLoop % shot.verses.length];
+  const lines = q.l.slice(-2), mob = innerWidth <= 760;
+  const maxLen = Math.max(...lines.map((l) => [...l].length));
+  const availH = Math.min(mob ? innerHeight * 0.34 : innerHeight * 0.58, 470) - 50;
+  const fz = Math.round(clamp(availH / (maxLen * 1.12), mob ? 17 : 24, mob ? 24 : 40));
+  const place = shot.label || shot.place.name;
+  let n = 0;
+  const cols = lines.map((l) => { const len = [...l].length, h = `<p style="--d:${1.1 + n * 0.08}s;--t:${len * 0.12 + 0.5}s">${esc(l)}</p>`; n += len + 3; return h; }).join("");
+  $("#vsPaper").innerHTML = `<div class="vs-t">${esc(q.t)}</div><div class="vs-a">〔${esc(q.d)}〕${esc(q.a)}</div>${cols}<div class="vs-f"><span class="vs-pl">${esc(shot.region === place ? place : shot.region + " · " + place)}</span><span class="vs-seal">${esc(q.a)}</span></div>`;
+  $("#vsPaper").style.setProperty("--fz", fz + "px");
+  placeVerseRod(); void verseEl.offsetWidth; verseEl.classList.add("on");
+}
+function hideVerse() { verseEl.classList.remove("on"); }
+function placeVerseRod() { const m = verseEl.querySelector(".vs-mount"); if (m) verseEl.style.setProperty("--vh", m.offsetHeight + "px"); }
+function tourGo(i) {
+  if (i >= TOUR.length) tourLoop++;
+  tourIdx = i % TOUR.length; const shot = TOUR[tourIdx];
+  hideVerse(); document.querySelectorAll(".lbl.sel").forEach((e) => e.classList.remove("sel"));
+  /* 换片区：季节、时辰、天气随之变化（在飞行途中渐变） */
+  if (moodKey !== shot.mood) setMood(shot.mood, false, false);
+  if (seasonKey !== shot.season) setSeason(shot.season, false, false);
+  if (weatherKey !== shot.weather) setWeather(shot.weather, false, false);
+  let pose;
+  if (shot.home) pose = viewPose(HOME);
+  else if (shot.view) pose = viewPose(shot.view);
+  else {
+    const p = shot.place;
+    const b = placePose(p, "tour", { R: clamp(8.5 + (p.foot || 0.6) * 5, 9, 18), phis: [1.1, 1.0, 0.9, 0.78] });
+    pose = { target: b.t, pos: b.pos };
+  }
+  const far = fly ? 0 : controls.target.distanceTo(pose.target);
+  const cross = shot.first || shot.home;
+  tour = { shot, phase: "fly", clock: 0 };
+  flyTo(pose.target, pose.pos, REDUCED ? 0.01 : cross ? clamp(4.5 + far * 0.03, 5, 8.5) : clamp(3.5 + far * 0.05, 3.8, 5.5), cross ? 0.85 : 0.2);
+}
+function startTour() {
+  closeAll(); touring = true; $("#bTour").classList.add("on"); hideHint(); toggleAmb(false);
+  document.body.classList.add("touring"); document.body.classList.remove("dock-peek");
+  toast("巡游开始 · 拖动或点击任意处即可接管镜头");
+  tourGo(tourIdx + 1);
+}
+function stopTour() {
+  if (!touring) return; touring = false; tour = null; hideVerse(); $("#bTour").classList.remove("on");
+  document.body.classList.remove("touring", "dock-peek");
+  if (!selPlace) ringMat.opacity = 0;
+}
 function tickTour(dt) {
-  if (!touring) return;
-  tourClock += dt;
-  if (!fly) { const off = camera.position.clone().sub(controls.target); off.applyAxisAngle(new THREE.Vector3(0, 1, 0), dt * 0.035); camera.position.copy(controls.target).add(off); }
-  if (tourClock > 26) { tourClock = 0; flyView(VIEWS[tourIdx = (tourIdx + 1) % VIEWS.length], 4); }
+  if (!touring || !tour) return;
+  if (tour.phase === "fly") {
+    if (fly) return;
+    tour.phase = "dwell"; tour.clock = 0;
+    const p = tour.shot.place;
+    if (p) { p.el.classList.add("sel"); ring.position.set(p.x, p.y + 0.03, p.z); showDetail(p); }
+    return;
+  }
+  tour.clock += dt;
+  const dwell = tour.shot.dwell || (verseOn ? 12 : 8);
+  if (tour.clock > 0.4 && tour.clock < dwell - 1.6 && !verseEl.classList.contains("on")) showVerse(tour.shot);
+  if (tour.clock > dwell - 1.6) hideVerse();
+  if (!REDUCED) {
+    /* 环绕：速度随时间缓起缓落，避免镜头突然起步或刹停 */
+    const k = smooth(0, 2.2, tour.clock) * (1 - smooth(dwell - 2.2, dwell, tour.clock));
+    const off = camera.position.clone().sub(controls.target);
+    off.applyAxisAngle(new THREE.Vector3(0, 1, 0), dt * k * (tour.shot.home ? 0.012 : 0.032));
+    off.multiplyScalar(1 - dt * k * (tour.shot.home ? 0.003 : 0.008));
+    camera.position.copy(controls.target).add(off);
+  }
+  if (tour.shot.place) { ringMat.opacity = 0.3 + 0.18 * Math.sin(GU.uTime.value * 2.0); ring.visible = true; }
+  if (tour.clock > dwell) tourGo(tourIdx + 1);
 }
 
 /* 太阳/阴影随镜头走 */
@@ -2253,6 +2469,196 @@ function tickWallLine() {
   wallLine.material.linewidth = 2.2 + smooth(95, 400, d) * 1.6;
 }
 
+/* —— 近景细节 —— */
+const detailGroup = new THREE.Group(); scene.add(detailGroup);
+let detail = null;
+const DETAIL_GEO = {};
+function detailGeo(name) {
+  if (DETAIL_GEO[name]) return DETAIL_GEO[name];
+  const b = new VB();
+  if (name.startsWith("man")) {
+    const robe = { man0: "#2f4a5c", man1: "#8a5a36", man2: "#9c3b2b", man3: "#d9d2c0", man4: "#4b6b4f" }[name];
+    b.cbox(0, 0, 0, 0.034, 0.05, 0.026, robe); b.cbox(0, 0.05, 0, 0.028, 0.02, 0.022, robe);
+    b.cbox(0, 0.07, 0, 0.018, 0.018, 0.018, "#e0bf9a"); b.cbox(0, 0.088, 0, 0.022, 0.008, 0.022, "#1f1c1a"); b.cbox(0, 0.096, 0, 0.01, 0.01, 0.01, "#1f1c1a");
+  } else if (name === "lamp") {
+    b.cbox(0, 0, 0, 0.01, 0.13, 0.01, "#4a3426"); b.cbox(0.025, 0.12, 0, 0.05, 0.006, 0.006, "#4a3426");
+    b.cbox(0.045, 0.085, 0, 0.026, 0.034, 0.026, C.lantern, 1); b.cbox(0.045, 0.12, 0, 0.012, 0.004, 0.012, "#c9a24c");
+  } else if (name === "bird") {
+    b.box(-0.05, 0, -0.006, 0, 0.004, 0.006, "#26221f", 0, 0.35); b.box(0, 0, -0.006, 0.05, 0.004, 0.006, "#26221f", 0, -0.35); b.cbox(0, -0.004, 0, 0.012, 0.008, 0.02, "#26221f");
+  } else if (name === "tuft") {
+    for (let q = 0; q < 5; q++) { const a = q * 1.3; b.cbox(Math.cos(a) * 0.012, 0, Math.sin(a) * 0.012, 0.005, 0.03 + (q % 3) * 0.01, 0.005, "#6f9a55"); }
+    b.cbox(0.012, 0.035, 0, 0.012, 0.01, 0.012, "#e7a3b3"); b.cbox(-0.01, 0.028, 0.01, 0.01, 0.008, 0.01, "#f1e2a0");
+  }
+  return (DETAIL_GEO[name] = b.geometry());
+}
+const smokeMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false,
+  uniforms: { uTime: GU.uTime, uAmt: { value: 1 } },
+  vertexShader: `attribute vec4 aSeed; uniform float uTime; varying float vA; varying vec2 vQ;
+    void main(){ vQ = position.xy; float t = fract(uTime * 0.12 + aSeed.w);
+      vec3 wp = aSeed.xyz + vec3(sin(t * 5.0 + aSeed.w * 9.0) * 0.05 + t * 0.25, t * 1.1, t * 0.08);
+      vec4 mv = viewMatrix * vec4(wp, 1.0); mv.xy += position.xy * (0.05 + t * 0.22);
+      vA = smoothstep(0.0, 0.15, t) * (1.0 - smoothstep(0.5, 1.0, t)); gl_Position = projectionMatrix * mv; }`,
+  fragmentShader: `uniform float uAmt; varying float vA; varying vec2 vQ; void main(){ float a = smoothstep(0.5, 0.0, length(vQ)) * vA * 0.32 * uAmt; if (a < 0.005) discard; gl_FragColor = vec4(vec3(0.93, 0.92, 0.9), a); }`,
+});
+function showDetail(p) {
+  if (detail && detail.p === p) return;
+  clearDetail();
+  const R = mulberry32(p.id * 7 + 3), S = p.foot || 0.6, y0 = p.y;
+  const spots = [];
+  for (let k = 0; k < 80 && spots.length < 36; k++) {
+    const a = R() * 6.283, r = (0.25 + R() * 1.1) * Math.max(0.8, S);
+    const x = p.x + Math.cos(a) * r, z = p.z + Math.sin(a) * r, kk = idx(x, z);
+    if (isWater(kk) || Math.abs(TY[kk] - y0) > 0.35) continue;
+    spots.push([x, TY[kk], z]);
+  }
+  const map = new Map(), add = (name, x, y, z, rot = 0, s = 1) => { if (!map.has(name)) map.set(name, { geo: detailGeo(name), list: [] }); map.get(name).list.push({ x, y, z, rot, s, tint: [1, 1, 1] }); };
+  const walkers = [];
+  spots.forEach(([x, y, z], i) => {
+    if (i < 9) { const nm = "man" + (i % 5); add(nm, x, y, z, R() * 6.28, 1); walkers.push({ nm, i: map.get(nm).list.length - 1, x, y, z, dir: R() * 6.28, ph: R() * 6.28, sp: 0.15 + R() * 0.2, walk: R() < 0.6 }); }
+    else if (i < 13) add("lamp", x, y, z, R() * 6.28, 1.2);
+    else add("tuft", x, y, z, R() * 6.28, 1 + R() * 0.8);
+  });
+  const meshes = flushInst(detailGroup, bldMat, map, true);
+  /* 飞鸟 */
+  const birds = new THREE.InstancedMesh(detailGeo("bird"), bldMat, 6); birds.frustumCulled = false; detailGroup.add(birds);
+  /* 炊烟：一两户人家 */
+  const nS = 2, per = 14, seeds = new Float32Array(nS * per * 4);
+  for (let c = 0; c < nS; c++) { const a = R() * 6.28, r = S * (0.3 + R() * 0.4); const sx = p.x + Math.cos(a) * r, sz = p.z + Math.sin(a) * r;
+    for (let q = 0; q < per; q++) seeds.set([sx, y0 + 0.2, sz, q / per + R() * 0.02], (c * per + q) * 4); }
+  const sg = new THREE.InstancedBufferGeometry(), pl = new THREE.PlaneGeometry(1, 1);
+  sg.index = pl.index; sg.attributes.position = pl.attributes.position; sg.setAttribute("aSeed", new THREE.InstancedBufferAttribute(seeds, 4)); sg.instanceCount = nS * per;
+  const smoke = new THREE.Mesh(sg, smokeMat); smoke.frustumCulled = false; smoke.renderOrder = 5; detailGroup.add(smoke);
+  detail = { p, meshes, walkers, birds, smoke, R: S + 0.6, ph: R() * 6.28 };
+  shadowDirty = true;
+}
+function clearDetail() {
+  if (!detail) return;
+  for (const m of detail.meshes) { detailGroup.remove(m); m.dispose(); }
+  detailGroup.remove(detail.birds); detail.birds.dispose(); detailGroup.remove(detail.smoke); detail.smoke.geometry.dispose();
+  detail = null;
+}
+const _m4 = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _p = new THREE.Vector3(), _s = new THREE.Vector3();
+function tickDetail(dt) {
+  if (!detail) return;
+  const d = camera.position.distanceTo(_p.set(detail.p.x, detail.p.y, detail.p.z));
+  detailGroup.visible = d < 45;
+  if (!detailGroup.visible || REDUCED) return;
+  const t = GU.uTime.value;
+  /* 行人：来回踱步 */
+  const byMesh = new Map(detail.meshes.map((m) => [m.name.replace("{}", ""), m]));
+  for (const w of detail.walkers) {
+    if (!w.walk) continue;
+    const m = byMesh.get(w.nm); if (!m) continue;
+    const u = Math.sin(t * w.sp + w.ph) * 0.18;
+    const x = w.x + Math.cos(w.dir) * u, z = w.z + Math.sin(w.dir) * u;
+    const facing = -w.dir + (Math.cos(t * w.sp + w.ph) > 0 ? 0 : Math.PI) + Math.PI / 2;
+    _e.set(0, facing, 0); _q.setFromEuler(_e); _p.set(x, w.y + Math.abs(Math.sin(t * 6 + w.ph)) * 0.004, z);
+    m.setMatrixAt(w.i, _m4.compose(_p, _q, _s.set(1, 1, 1))); m.instanceMatrix.needsUpdate = true;
+  }
+  /* 飞鸟：绕地点盘旋、振翅 */
+  const b = detail.birds, P = detail.p;
+  for (let i = 0; i < b.count; i++) {
+    const a = t * 0.35 + i * 0.5 + detail.ph, r = detail.R + (i % 3) * 0.25;
+    _p.set(P.x + Math.cos(a) * r, P.y + 1.2 + (i % 2) * 0.25 + Math.sin(t * 0.8 + i) * 0.08, P.z + Math.sin(a) * r);
+    _e.set(0, -a, 0); _q.setFromEuler(_e);
+    b.setMatrixAt(i, _m4.compose(_p, _q, _s.set(1.4, 1 + Math.sin(t * 9 + i * 2) * 0.9, 1.4)));
+  }
+  b.instanceMatrix.needsUpdate = true;
+  smokeMat.uniforms.uAmt.value = 1 - weatherAmt * 0.6;
+}
+
+/* —— 飘落与雨雪：以镜头为中心的一个立方体里循环，世界坐标固定（镜头移动时不会「粘」在镜头上） —— */
+const DRIFT_VS = `attribute vec4 aSeed; uniform float uTime, uSize, uAmt, uFall, uScale, uDens, uStretch; uniform vec3 uCenter; uniform vec2 uWind;
+  varying vec2 vQ; varying float vA; varying float vS;
+  void main(){
+    vQ = position.xy; vS = aSeed.w;
+    vec3 base = aSeed.xyz * uSize;
+    base.y -= uTime * uFall * (0.75 + 0.5 * aSeed.w);
+    base.x += uTime * uWind.x + sin(uTime * 0.9 + aSeed.w * 20.0) * uSize * 0.012 * (1.0 - uStretch);
+    base.z += uTime * uWind.y + cos(uTime * 0.7 + aSeed.x * 17.0) * uSize * 0.012 * (1.0 - uStretch);
+    vec3 d = mod(base - uCenter + uSize * 0.5, uSize) - uSize * 0.5;
+    vec3 wp = uCenter + d * vec3(1.0, 0.62, 1.0);
+    vec3 e = 0.5 - abs(d / uSize);
+    float edge = smoothstep(0.0, 0.1, min(min(e.x, e.y), e.z));
+    vec4 mv = viewMatrix * vec4(wp, 1.0);
+    float ang = uTime * (0.6 + aSeed.w * 1.4) + aSeed.x * 6.28;
+    float flip = mix(cos(uTime * (1.1 + aSeed.z) + aSeed.y * 9.0), 1.0, uStretch);
+    vec2 c = position.xy * vec2(flip, 1.0);
+    c = mix(mat2(cos(ang), -sin(ang), sin(ang), cos(ang)) * c, c * vec2(0.06, 1.0) + vec2(c.y * -uWind.x * 0.4, 0.0), uStretch);
+    mv.xy += c * uScale * (0.7 + 0.6 * aSeed.w);
+    vA = edge * uAmt * step(aSeed.w, uDens) * smoothstep(0.6 + uStretch * 1.4, 2.2 + uStretch * 3.0, -mv.z);
+    gl_Position = projectionMatrix * mv;
+  }`;
+const LEAF_FS = `uniform float uKind; uniform vec3 uCol, uCol2; varying vec2 vQ; varying float vA; varying float vS;
+  void main(){
+    if (vA < 0.01) discard;
+    vec2 q = vQ; float a = 0.0, shade = 0.0;
+    if (uKind < 0.5) {            /* 樱瓣：卵形，顶端一缺 */
+      float d = length(q * vec2(1.55, 1.0) - vec2(0.0, -0.04));
+      a = smoothstep(0.47, 0.4, d) * (1.0 - smoothstep(0.1, 0.0, abs(q.x) - q.y * 0.12) * step(0.28, q.y));
+      shade = q.y;
+    } else if (uKind < 1.5) {     /* 竹叶：披针形，中有一脉 */
+      float hw = 0.12 * pow(max(0.0, 1.0 - pow(abs(q.y * 2.0), 2.0)), 0.7);
+      a = smoothstep(hw, hw - 0.03, abs(q.x + q.y * q.y * 0.15));
+      shade = 1.0 - smoothstep(0.0, 0.015, abs(q.x + q.y * q.y * 0.15)) * 0.5;
+    } else {                      /* 枫叶：五裂 */
+      float r = length(q), t = atan(q.x, q.y);
+      float rad = 0.3 + 0.13 * cos(t * 5.0) + 0.03 * cos(t * 15.0);
+      a = smoothstep(rad, rad - 0.035, r) + smoothstep(0.02, 0.0, abs(q.x)) * step(q.y, -0.25) * step(-0.46, q.y);
+      shade = r * 2.0;
+    }
+    vec3 c = mix(uCol, uCol2, clamp(shade * 0.8 + vS * 0.4, 0.0, 1.0));
+    gl_FragColor = vec4(c, clamp(a, 0.0, 1.0) * vA * 0.92);
+  }`;
+const PRECIP_FS = `uniform float uStretch; uniform vec3 uCol; varying vec2 vQ; varying float vA; varying float vS;
+  void main(){
+    if (vA < 0.01) discard;
+    float a = uStretch > 0.5 ? (1.0 - abs(vQ.x) * 2.0) * smoothstep(-0.5, 0.4, vQ.y) * 0.2 : smoothstep(0.5, 0.1, length(vQ)) * 0.9;
+    gl_FragColor = vec4(uCol, a * vA);
+  }`;
+function makeDrift(n, fs, extra) {
+  const g = new THREE.InstancedBufferGeometry(), pl = new THREE.PlaneGeometry(1, 1);
+  g.index = pl.index; g.attributes.position = pl.attributes.position;
+  const R = mulberry32(n), seeds = new Float32Array(n * 4); for (let i = 0; i < n * 4; i++) seeds[i] = R();
+  g.setAttribute("aSeed", new THREE.InstancedBufferAttribute(seeds, 4)); g.instanceCount = n;
+  const m = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, vertexShader: DRIFT_VS, fragmentShader: fs,
+    uniforms: Object.assign({ uTime: GU.uTime, uSize: { value: 20 }, uAmt: { value: 0 }, uFall: { value: 1 }, uScale: { value: 0.1 }, uDens: { value: 1 }, uStretch: { value: 0 }, uCenter: { value: new THREE.Vector3() }, uWind: { value: new THREE.Vector2(0.3, 0.1) } }, extra) });
+  const mesh = new THREE.Mesh(g, m); mesh.frustumCulled = false; mesh.renderOrder = 6; mesh.layers.set(2);
+  scene.add(mesh); return mesh;
+}
+/* 季节 → 飘落物 */
+const DRIFT_KINDS = { spring: [0, "#f6c9d3", "#e98fa6", 1.0], summer: [1, "#8fb26a", "#4f7d3e", 0.5], autumn: [2, "#e0772f", "#b0321f", 0.9], winter: [0, "#fff", "#fff", 0] };
+let leaves = null, precip = null, leafAmt = 0, leafKind = null;
+function buildDrift() {
+  leaves = makeDrift(160, LEAF_FS, { uKind: { value: 0 }, uCol: { value: new THREE.Color() }, uCol2: { value: new THREE.Color() } });
+  precip = makeDrift(1600, PRECIP_FS, { uCol: { value: new THREE.Color("#dfe6ea") } });
+  camera.layers.enable(2);
+}
+function driftSeason() { /* 由 tickDrift 渐隐后换装 */ }
+function tickDrift(dt) {
+  if (!leaves) return;
+  const d = camera.position.distanceTo(controls.target), size = clamp(d * 0.62, 6, 46);
+  const fwd = new THREE.Vector3(); camera.getWorldDirection(fwd);
+  const center = camera.position.clone().addScaledVector(fwd, size * 0.42);
+  const qual = QUALITY === "low" ? 0.55 : 1;
+  /* 飘叶 */
+  const want = DRIFT_KINDS[seasonKey], lm = leaves.material.uniforms;
+  if (leafKind !== seasonKey) { leafAmt = Math.max(0, leafAmt - dt / 0.8); if (leafAmt === 0) { leafKind = seasonKey; lm.uKind.value = want[0]; lm.uCol.value.set(want[1]); lm.uCol2.value.set(want[2]); } }
+  else leafAmt = Math.min(1, leafAmt + dt / 1.2);
+  const leafOn = REDUCED ? 0 : leafAmt * DRIFT_KINDS[leafKind || seasonKey][3] * (1 - smooth(0.3, 0.9, weatherAmt) * 0.7) * (1 - smooth(70, 130, d));
+  lm.uAmt.value = leafOn; leaves.visible = leafOn > 0.01;
+  lm.uSize.value = size; lm.uCenter.value.copy(center); lm.uScale.value = size * (lm.uKind.value === 1 ? 0.013 : 0.0085);
+  lm.uFall.value = size * 0.028; lm.uWind.value.set(size * 0.02, size * 0.008); lm.uDens.value = (seasonKey === "summer" ? 0.45 : 0.7) * qual;
+  /* 雨雪 */
+  const pm = precip.material.uniforms, snow = seasonKey === "winter";
+  const pOn = REDUCED ? 0 : smooth(0, 1, weatherAmt);
+  pm.uAmt.value = pOn; precip.visible = pOn > 0.01;
+  pm.uSize.value = Math.min(size, 24); pm.uCenter.value.copy(camera.position).addScaledVector(fwd, Math.min(size, 24) * 0.4);
+  pm.uStretch.value = snow ? 0 : 1; pm.uScale.value = Math.min(size, 24) * (snow ? 0.006 : 0.018);
+  pm.uFall.value = Math.min(size, 24) * (snow ? 0.05 : 0.9); pm.uWind.value.set(Math.min(size, 24) * (snow ? 0.02 : 0.08), 0.02);
+  pm.uDens.value = (snow ? 0.55 : 0.75) * qual; pm.uCol.value.set(snow ? "#ffffff" : moodKey === "night" ? "#8a9ab8" : "#d5dde2");
+}
+
 /* 选中标记：地上一圈淡朱光环 */
 const ringMat = new THREE.MeshBasicMaterial({ color: 0xd4553a, transparent: true, opacity: 0, depthWrite: false, fog: false });
 const ring = new THREE.Mesh(new THREE.RingGeometry(0.62, 0.72, 48), ringMat);
@@ -2263,19 +2669,21 @@ ring.rotation.x = -Math.PI / 2; ring.renderOrder = 5; scene.add(ring);
    ================================================================ */
 const plist = $("#plist"), plo = $("#plo"), scrollEl = $("#scroll"), track = $("#track"), sbar = $("#sbar");
 let curPlace = null, curPoem = 0, scrollOpen = false, listOpen = false;
+let autoFocus = (() => { try { return localStorage.getItem("shf") !== "0"; } catch (e) { return true; } })();
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const CN = "〇一二三四五六七八九十";
 const cnum = (n) => (n <= 10 ? CN[n] : n < 20 ? "十" + CN[n - 10] : CN[Math.floor(n / 10)] + "十" + (n % 10 ? CN[n % 10] : ""));
 function selectPlace(p) {
-  curPlace = p; selPlace = p;
+  curPlace = p; selPlace = p; showDetail(p);
   document.querySelectorAll(".lbl.sel").forEach((e) => e.classList.remove("sel")); p.el.classList.add("sel");
   ring.position.set(p.x, p.y + 0.03, p.z); ring.scale.setScalar(Math.min(1.5, 0.9 + p.poems.length * 0.04));
   stopTour(); hideHint();
 }
 /** 点地标：一首直接展卷；多首先列诗目 */
-function openPlace(p, poemIdx) {
+/** force：搜索、链接等「导航」类入口总会把镜头带过去；点地名则看「自动推镜」开关 */
+function openPlace(p, poemIdx, force) {
   selectPlace(p);
-  flyPlace(p, p.poems.length > 1 && poemIdx == null ? "list" : true);
+  if (autoFocus || force) flyPlace(p, p.poems.length > 1 && poemIdx == null ? "list" : true);
   if (poemIdx != null || p.poems.length === 1) { openPoem(p, poemIdx || 0); return; }
   hideScroll(true);
   showList(p);
@@ -2387,7 +2795,7 @@ function setHash(q) { try { history.replaceState(null, "", q ? "#/p/" + q.id : l
 function openFromHash() {
   const m = /^#\/p\/(.+)$/.exec(location.hash); if (!m) return false;
   const q = POEMS.find((x) => x.id === decodeURIComponent(m[1])); if (!q) return false;
-  openPlace(q.place, q.place.poems.indexOf(q)); return true;
+  openPlace(q.place, q.place.poems.indexOf(q), true); return true;
 }
 function stepPoem(d) { if (!curPlace || !scrollOpen) return; curPoem = (curPoem + d + curPlace.poems.length) % curPlace.poems.length; renderPoem(); }
 /* 滚轮横读、按住拖动 */
@@ -2420,7 +2828,7 @@ qEl.addEventListener("keydown", (e) => {
   if (e.key === "Escape") { qEl.value = ""; doSearch(); qEl.blur(); }
 });
 resEl.addEventListener("click", (e) => { const b = e.target.closest("button[data-n]"); if (b) pickHit(hits[+b.dataset.n]); });
-function pickHit(h) { qEl.value = ""; doSearch(); qEl.blur(); openPlace(h.p, h.n); }
+function pickHit(h) { qEl.value = ""; doSearch(); qEl.blur(); openPlace(h.p, h.n, true); }
 
 /* ================================================================
    18. 环境音（默认关闭，点击后才生成）
@@ -2480,16 +2888,44 @@ function toggleAudio() {
 let toastT;
 function toast(s) { const t = $("#toast"); t.textContent = s; t.classList.add("on"); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("on"), 2200); }
 function hideHint() { $("#hint").classList.add("gone"); }
+function syncAmbience() {
+  const mn = MOODS[moodKey] ? MOODS[moodKey].name : "", sn = SEASONS[seasonKey] || "", wn = weatherKey === "wet" ? wetName() : "晴";
+  const t = document.getElementById("ambTxt"); if (t) t.textContent = `${sn} · ${mn} · ${wn}`;
+  document.querySelectorAll("#apMood .chip").forEach((b) => b.classList.toggle("on", b.dataset.k === moodKey));
+  document.querySelectorAll("#apSeason .chip").forEach((b) => b.classList.toggle("on", b.dataset.k === seasonKey));
+  document.querySelectorAll("#apWeather .chip").forEach((b) => { b.classList.toggle("on", b.dataset.k === weatherKey); if (b.dataset.k === "wet") b.textContent = wetName(); });
+}
+function toggleAmb(open) {
+  const p = $("#ambPanel"), b = $("#bAmb"), on = open ?? !p.classList.contains("on");
+  p.classList.toggle("on", on); b.setAttribute("aria-expanded", on ? "true" : "false");
+  if (on) {
+    const r = b.getBoundingClientRect(), w = p.offsetWidth, h = p.offsetHeight;
+    const x = Math.round(clamp(r.left + r.width / 2 - w / 2, 10, innerWidth - w - 10));
+    p.style.left = x + "px"; p.style.top = Math.round(r.top - h - 12) + "px"; p.style.setProperty("--ax", Math.round(r.left + r.width / 2 - x - 6) + "px");
+  }
+}
 function buildUI() {
   const vg = $("#views");
-  VIEWS.forEach((v, n) => { const b = document.createElement("button"); b.className = "chip" + (v === HOME ? " on" : ""); b.dataset.k = v.k; b.textContent = v.name; b.title = `${v.name}（${n + 1}）`; b.onclick = () => { stopTour(); flyView(v); }; vg.appendChild(b); });
-  const mg = $("#moods");
-  Object.entries(MOODS).forEach(([k, m]) => { const b = document.createElement("button"); b.className = "chip" + (k === moodKey ? " on" : ""); b.dataset.k = k; b.textContent = m.name; b.onclick = () => setMood(k); mg.appendChild(b); });
-  const sg = $("#seasons");
-  SKEYS.forEach((k) => { const b = document.createElement("button"); b.className = "chip" + (k === seasonKey ? " on" : ""); b.dataset.k = k; b.textContent = SEASONS[k]; b.title = SEASONS[k] + "景"; b.onclick = () => setSeason(k); sg.appendChild(b); });
+  VIEWS.forEach((v, n) => { const b = document.createElement("button"); b.className = "chip"; b.dataset.k = v.k; b.textContent = v.name; b.title = `${v.name}（${n + 1}）`; b.onclick = () => { stopTour(); flyView(v); }; vg.appendChild(b); });
+  const mk = (host, entries, fn) => entries.forEach(([k, name]) => { const b = document.createElement("button"); b.className = "chip"; b.dataset.k = k; b.textContent = name; b.onclick = () => fn(k); $(host).appendChild(b); });
+  mk("#apMood", Object.entries(MOODS).map(([k, m]) => [k, m.name]), (k) => setMood(k));
+  mk("#apSeason", SKEYS.map((k) => [k, SEASONS[k]]), (k) => setSeason(k));
+  mk("#apWeather", Object.entries(WEATHERS), (k) => setWeather(k));
+  $("#bAmb").onclick = (e) => { e.stopPropagation(); toggleAmb(); };
+  $("#ambPanel").addEventListener("pointerdown", (e) => e.stopPropagation());
+  addEventListener("pointerdown", () => toggleAmb(false));
+  syncAmbience();
   $("#bReset").onclick = () => { stopTour(); closeAll(); flyView(HOME); };
   $("#bTour").onclick = () => (touring ? stopTour() : startTour());
   $("#bSound").onclick = toggleAudio;
+  $("#tbStop").onclick = () => stopTour();
+  $("#tbDock").onclick = () => document.body.classList.add("dock-peek");
+  const syncVerse = () => { $("#bVerse").classList.toggle("on", verseOn); $("#bVerse").title = verseOn ? "巡游题诗：开（巡游时在画上题写诗句）" : "巡游题诗：关"; };
+  syncVerse();
+  $("#bVerse").onclick = () => { verseOn = !verseOn; try { localStorage.setItem("shv", verseOn ? "1" : "0"); } catch (e) {} syncVerse(); if (!verseOn) hideVerse(); else if (touring && tour && tour.phase === "dwell") showVerse(tour.shot); toast(verseOn ? "巡游题诗：已开启" : "巡游题诗：已关闭"); };
+  const syncFocus = () => { $("#bFocus").classList.toggle("on", autoFocus); $("#bFocus").title = autoFocus ? "自动推镜：开（点地名时镜头自动推近）" : "自动推镜：关（点地名时镜头不动）"; };
+  syncFocus();
+  $("#bFocus").onclick = () => { autoFocus = !autoFocus; try { localStorage.setItem("shf", autoFocus ? "1" : "0"); } catch (e) {} syncFocus(); toast(autoFocus ? "自动推镜：已开启" : "自动推镜：已关闭，镜头由你掌控"); };
   $("#bShot").onclick = saveShot;
   $("#bQual").onclick = () => {
     QUALITY = QORDER[(QORDER.indexOf(QUALITY) + 1) % QORDER.length]; applyQuality();
@@ -2506,6 +2942,7 @@ function buildUI() {
     else if (k === "t") $("#bTour").click();
     else if (k === "p") saveShot();
     else if (k >= "1" && k <= "6") { stopTour(); flyView(VIEWS[+k - 1]); }
+    else if (k === "escape" && $("#ambPanel").classList.contains("on")) toggleAmb(false);
     else if (k === "escape") { if (scrollOpen && curPlace && curPlace.poems.length > 1) backToList(); else if (scrollOpen || listOpen) closeAll(); else if (document.body.classList.contains("ui-hidden")) hideT(); }
     else if ((k === "arrowleft" || k === "arrowright") && scrollOpen && curPlace && curPlace.poems.length > 1) stepPoem(k === "arrowright" ? 1 : -1);
     else if (k === "/") { e.preventDefault(); qEl.focus(); }
@@ -2567,8 +3004,8 @@ const clock = new THREE.Clock();
 let frames = 0, perfAcc = 0, perfN = 0, perfChecked = false;
 function renderFrame(dt) {
   GU.uTime.value += REDUCED ? dt * 0.3 : dt;
-  tickMood(dt); tickSeason(dt); tickFly(dt); tickTour(dt); tickKeys(dt);
-  controls.update(); constrainCamera(); tickSun(); tickLOD(); tickWallLine();
+  tickMood(dt); tickSeason(dt); tickWeather(dt); tickTour(dt); tickFly(dt); tickKeys(dt);
+  controls.update(); constrainCamera(); tickSun(); tickLOD(); tickWallLine(); tickDrift(dt); tickDetail(dt);
   sky.position.copy(camera.position);
   if (boatMesh && !REDUCED && labelFrame % 2 === 0) {
     const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), s = new THREE.Vector3(1, 1, 1);
@@ -2576,7 +3013,7 @@ function renderFrame(dt) {
     BOATS.forEach((b, n) => { e.set(Math.sin(t * 1.3 + b.ph) * 0.05, b.rot + Math.sin(t * 0.1 + b.ph) * 0.2, Math.cos(t * 1.1 + b.ph) * 0.04); q.setFromEuler(e); v.set(b.x, b.y + Math.sin(t * 1.5 + b.ph) * 0.01, b.z); m4.compose(v, q, s); boatMesh.setMatrixAt(n, m4); });
     boatMesh.instanceMatrix.needsUpdate = true;
   }
-  if (selPlace) { ringMat.opacity = 0.55 + 0.25 * Math.sin(GU.uTime.value * 2.4); ring.rotation.z += dt * 0.3; } else ringMat.opacity = Math.max(0, ringMat.opacity - dt * 2);
+  if (selPlace) { ringMat.opacity = 0.55 + 0.25 * Math.sin(GU.uTime.value * 2.4); ring.rotation.z += dt * 0.3; } else if (!(touring && tour && tour.place)) ringMat.opacity = Math.max(0, ringMat.opacity - dt * 2);
   ring.visible = ringMat.opacity > 0.01;
   composer.render(dt);
   if (!document.body.classList.contains("ui-hidden")) updateLabels();
@@ -2628,10 +3065,10 @@ document.addEventListener("visibilitychange", () => { if (audio) (document.hidde
     const bm = new Map([["boat", { geo: pieceGeo("boat"), list: BOATS.map((b) => ({ ...b, s: 1.1 })) }]]);
     boatMesh = flushInst(bldGroup, bldMat, bm, true)[0];
     await stage("植树 · 点苔", 88);
-    buildFlora(); buildClouds(); buildWallLine();
+    buildFlora(); buildClouds(); buildWallLine(); buildDrift();
     await stage("落款", 95);
     buildComposer(); buildLabels(); buildGeoLabels(); buildUI();
-    moodCur.sun = null; applyMood(moodVals(MOODS[moodKey])); setMood(moodKey, true); setSeason(seasonKey, true);
+    moodCur.sun = null; applyMood(moodVals(MOODS[moodKey])); setMood(moodKey, true); setSeason(seasonKey, true); setWeather(weatherKey, true, false);
     applyQuality();
     controls.maxDistance = Math.max(115, natDist() * 1.1);
     const v0 = viewPose(HOME); controls.target.copy(v0.target); camera.position.copy(v0.pos); controls.update();
@@ -2644,7 +3081,7 @@ document.addEventListener("visibilitychange", () => { if (audio) (document.hidde
     loop();
     setTimeout(openFromHash, 400);
     addEventListener("hashchange", () => { if (!curPlace || !location.hash.includes(curPlace.poems[curPoem].id)) openFromHash(); });
-    window.__app = { THREE, scene, camera, controls, renderer, PLACES, VIEWS, flyView, setMood, setSeason, GU, openPlace, openPoem, closeAll, get listOpen() { return listOpen; }, get scrollOpen() { return scrollOpen; }, applyQuality, get quality() { return QUALITY; }, viewPose,
+    window.__app = { THREE, scene, camera, controls, renderer, PLACES, VIEWS, flyView, setMood, setSeason, setWeather, GU, TOUR, tourAt(i) { startTour(); tourGo(i); }, startTour, stopTour, HOME, get autoFocus() { return autoFocus; }, openPlace, openPoem, closeAll, get listOpen() { return listOpen; }, get scrollOpen() { return scrollOpen; }, applyQuality, get quality() { return QUALITY; }, viewPose,
       setView(v) { const { target, pos } = viewPose(v); controls.target.copy(target); camera.position.copy(pos); fly = null; controls.update(); },
       cell(lng, lat) { const k = idx(wx(lng), wz(lat)); return { y: TY[k], m: Math.round(y2m(TY[k])), kind: KIND[k], snow: SNOW[k], col: [...TOPC.slice(k * 3, k * 3 + 3)].map((v) => +v.toFixed(2)) }; },
       bench(n = 60) { const gl = renderer.getContext(); composer.render(); gl.finish(); const t = performance.now(); for (let i = 0; i < n; i++) { if (window.__benchShadow) renderer.shadowMap.needsUpdate = true; composer.render(); } gl.finish(); return +((performance.now() - t) / n).toFixed(2); },

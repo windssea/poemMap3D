@@ -6,11 +6,12 @@
   "type": "module",
   "scripts": {
     "data": "node tools/build-data.mjs",
-    "build": "node tools/build.mjs",
+    "build": "node tools/build-tour.mjs && node tools/build-font.mjs && node tools/build.mjs",
     "serve": "node tools/serve.mjs 5188"
   },
   "devDependencies": {
     "esbuild": "0.25.10",
+    "subset-font": "^2.9.0",
     "three": "0.160.0"
   }
 }

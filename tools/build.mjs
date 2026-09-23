@@ -42,7 +42,10 @@ const style = src.match(/<style>([\s\S]*?)<\/style>/)[1];
 const body = src.match(/<body>([\s\S]*?)<script>/)[1];
 const early = src.match(/<script>\s*(\/\* 早期错误兜底[\s\S]*?)<\/script>/)[1];
 const app = src.match(/<script>\s*("use strict";[\s\S]*?)<\/script>\s*<\/body>/)[1];
-const head = src.match(/<head>([\s\S]*?)<style>/)[1].replace(/\n\s*/g, "");
+const head = src.match(/<head>([\s\S]*?)<style>/)[1].replace(/<link rel="stylesheet" href="fonts\/brush\.css">/, "").replace(/\n\s*/g, "");
+/* 书法字体（data URI）与巡游路线一并内联 */
+const brushCss = fs.readFileSync(path.join(ROOT, "fonts/brush.css"), "utf8").replace(/^\/\*[\s\S]*?\*\/\s*/, "").trim();
+const tourJs = fs.readFileSync(path.join(ROOT, "data/tour.js"), "utf8").replace(/^\/\*[\s\S]*?\*\/\s*/, "").replace(/\s*\n\s*/g, "").trim();
 
 const css = (await esbuild.transform(style, { loader: "css", minify: true })).code;
 const appMin = (await esbuild.transform(`function APP(){${app}}`, { loader: "js", minify: true, target: "es2020", legalComments: "none" })).code;
@@ -60,9 +63,10 @@ const[t,d]=await Promise.all([gun(T3),gun(PD)]);(0,eval)(t);window.POEM_DATA=JSO
 
 const html = `<!doctype html>
 <html lang="zh-CN">
-<head>${head}<style>${css}</style></head>
+<head>${head}<style>${brushCss}${css}</style></head>
 <body>${body.replace(/\n\s+/g, "\n")}<script>${earlyMin}</script>
 <script>${mask}</script>
+<script>${tourJs}</script>
 <script>const T3="${T}";
 const PD="${D}";
 ${boot}
@@ -73,7 +77,7 @@ ${appMin}</script>
 fs.mkdirSync(path.join(ROOT, "dist"), { recursive: true });
 fs.writeFileSync(path.join(ROOT, "dist/index.html"), html);
 
-const devTotal = ["index.html", "vendor/three-bundle.js", "data/poems.js", "data/landmask.js"].reduce((s, f) => s + fs.statSync(path.join(ROOT, f)).size, 0);
+const devTotal = ["index.html", "vendor/three-bundle.js", "data/poems.js", "data/landmask.js", "data/tour.js", "fonts/brush.css"].reduce((s, f) => s + fs.statSync(path.join(ROOT, f)).size, 0);
 console.log(`three 按需打包：${names.length} 个类 → ${kb(three.length)}（gzip ${kb(Buffer.from(T, "base64").length)}）`);
 console.log(`诗词数据：${kb(Buffer.byteLength(poems))} → gzip ${kb(Buffer.from(D, "base64").length)}`);
 console.log(`源码版合计：${kb(devTotal)}　单文件发行版 dist/index.html：${kb(Buffer.byteLength(html))}`);
