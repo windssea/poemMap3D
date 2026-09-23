@@ -956,17 +956,19 @@ function withMist(mat, extra, season) {
 const SEASON_GLSL = `
 uniform vec4 uSeason; uniform vec2 uSnowZ; varying float vUpY;
 float sh21(vec2 p){ return fract(sin(dot(p, vec2(41.3, 289.1))) * 43758.5453); }
-vec3 applySeason(vec3 c, vec3 wp, float up, float kind){
+vec3 applySeason(vec3 c, vec3 wp, float up, float kind, float tree){
   if (uSeason.x + uSeason.y + uSeason.z + uSeason.w < 0.5) return c;
   float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
   float green = clamp((c.g - max(c.r, c.b)) / max(c.g, 0.02) * 2.4, 0.0, 1.0);
   float n = sh21(floor(wp.xz * (kind > 0.5 ? 2.6 : 0.9)));
   vec3 sp = mix(c, c * vec3(1.14, 1.12, 0.7) + vec3(0.012, 0.018, 0.0), green * 0.7);
-  if (kind == 1.0 && n > 0.64) sp = mix(sp, vec3(0.83, 0.33, 0.42) * (0.55 + l * 2.2), green * 0.9);
+  if (kind == 1.0 && tree > 0.8 && n > 0.55) sp = mix(sp, vec3(0.86, 0.4, 0.5) * (0.55 + l * 2.2), green * 0.9);
   vec3 su = mix(c, c * vec3(0.78, 1.0, 0.84), green * 0.55);
   vec3 gold = mix(vec3(0.7, 0.38, 0.05), vec3(0.6, 0.11, 0.035), n * n);
-  vec3 au = mix(c, gold * (0.32 + l * 2.3), green * (kind == 1.0 ? 0.92 : 0.62));
-  vec3 wi = mix(c, vec3(l) * vec3(1.0, 0.96, 0.9) * 1.08, green * 0.75);
+  float everg = kind == 1.0 ? step(tree, 0.4) : 0.0;
+  vec3 au = mix(c, gold * (0.32 + l * 2.3), green * (kind == 1.0 ? 0.92 : 0.62) * (1.0 - everg));
+  au = mix(au, c * vec3(0.86, 0.95, 0.88), everg);
+  vec3 wi = mix(c, vec3(l) * vec3(1.0, 0.96, 0.9) * 1.08, green * 0.75 * (1.0 - everg * 0.85));
   float north = 1.0 - smoothstep(uSnowZ.x, uSnowZ.y, wp.z);
   float snow = smoothstep(0.55, 0.9, up) * clamp(0.5 + north * 0.5 + smoothstep(1.2, 4.5, wp.y) * 0.5 - (kind == 2.0 ? 0.1 : 0.0), 0.0, 1.0) * (0.78 + 0.22 * n);
   wi = mix(wi, vec3(0.9, 0.92, 0.95), snow);
@@ -982,7 +984,11 @@ function seasonize(sh, kind) {
   sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nvarying float vUpY;")
     .replace("#include <begin_vertex>", "#include <begin_vertex>\n{ vec3 sN = objectNormal;\n#ifdef USE_INSTANCING\n sN = mat3(instanceMatrix) * sN;\n#endif\n vUpY = normalize(mat3(modelMatrix) * sN).y; }");
   sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\n" + SEASON_GLSL)
-    .replace("#include <color_fragment>", "#include <color_fragment>\n diffuseColor.rgb = applySeason(diffuseColor.rgb, vFogWorld, vUpY, " + kind.toFixed(1) + ");");
+    .replace("#include <color_fragment>", "#include <color_fragment>\n diffuseColor.rgb = applySeason(diffuseColor.rgb, vFogWorld, vUpY, " + kind.toFixed(1) + ", " + (kind === 1 ? "vTree" : "1.0") + ");");
+  if (kind === 1) {
+    sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nattribute float aGlow; varying float vTree;").replace("#include <begin_vertex>", "#include <begin_vertex>\nvTree = aGlow;");
+    sh.fragmentShader = sh.fragmentShader.replace("uniform vec4 uSeason;", "varying float vTree; uniform vec4 uSeason;");
+  }
 }
 scene.fog = new THREE.FogExp2(0xe6dcc4, 0.0055);
 
@@ -1858,34 +1864,110 @@ function buildPlaces() {
 
 /* —— 树、石、苇 —— */
 function treeGeo(type) {
-  const b = new VB();
+  const b = new VB(), EV = 0.2, DE = 0.6, FL = 1.0;   // 树种标记：常绿 / 落叶 / 春天开花
   if (type !== "reed") b.cbox(0, -0.14, 0, type === "rock" ? 0.16 : 0.035, 0.14, type === "rock" ? 0.12 : 0.035, type === "rock" ? "#5d6769" : "#4a3a2c");
   if (type === "pine") {
     b.cbox(0, 0, 0, 0.035, 0.12, 0.035, "#4a3a2c");
-    b.cbox(0, 0.08, 0, 0.22, 0.06, 0.22, "#2d5343"); b.cbox(0, 0.14, 0, 0.16, 0.06, 0.16, "#315b48", 0, 0.4); b.cbox(0, 0.2, 0, 0.1, 0.06, 0.1, "#36624c"); b.cbox(0, 0.26, 0, 0.045, 0.05, 0.045, "#3a674f");
+    b.cbox(0, 0.08, 0, 0.22, 0.06, 0.22, "#2d5343", EV); b.cbox(0, 0.14, 0, 0.16, 0.06, 0.16, "#315b48", EV, 0.4); b.cbox(0, 0.2, 0, 0.1, 0.06, 0.1, "#36624c", EV); b.cbox(0, 0.26, 0, 0.045, 0.05, 0.045, "#3a674f", EV);
   } else if (type === "broad") {
     b.cbox(0, 0, 0, 0.04, 0.1, 0.04, "#56402e");
-    b.cbox(0, 0.08, 0, 0.2, 0.14, 0.2, "#4d8058"); b.cbox(0.05, 0.15, 0.03, 0.14, 0.1, 0.14, "#5a8d60"); b.cbox(-0.05, 0.12, -0.04, 0.12, 0.1, 0.12, "#467552");
+    b.cbox(0, 0.08, 0, 0.2, 0.14, 0.2, "#4d8058", FL); b.cbox(0.05, 0.15, 0.03, 0.14, 0.1, 0.14, "#5a8d60", FL); b.cbox(-0.05, 0.12, -0.04, 0.12, 0.1, 0.12, "#467552", FL);
   } else if (type === "willow") {
     b.cbox(0, 0, 0, 0.035, 0.14, 0.035, "#5a4a36");
-    b.cbox(0, 0.13, 0, 0.24, 0.06, 0.24, "#7ea45f");
-    for (let q = 0; q < 8; q++) { const a = q / 8 * 6.283; b.cbox(Math.cos(a) * 0.11, 0.04, Math.sin(a) * 0.11, 0.03, 0.1, 0.03, "#8bb068"); }
+    b.cbox(0, 0.13, 0, 0.24, 0.06, 0.24, "#7ea45f", DE);
+    for (let q = 0; q < 8; q++) { const a = q / 8 * 6.283; b.cbox(Math.cos(a) * 0.11, 0.04, Math.sin(a) * 0.11, 0.03, 0.1, 0.03, "#8bb068", DE); }
   } else if (type === "maple") {
     b.cbox(0, 0, 0, 0.04, 0.1, 0.04, "#56402e");
-    b.cbox(0, 0.08, 0, 0.19, 0.12, 0.19, "#b4553a"); b.cbox(0.04, 0.15, 0.02, 0.12, 0.09, 0.12, "#c46a3e");
+    b.cbox(0, 0.08, 0, 0.19, 0.12, 0.19, "#b4553a", DE); b.cbox(0.04, 0.15, 0.02, 0.12, 0.09, 0.12, "#c46a3e", DE);
   } else if (type === "bamboo") {
-    for (let q = 0; q < 6; q++) { const a = q * 2.1, r = 0.03 + (q % 3) * 0.025; b.cbox(Math.cos(a) * r, 0, Math.sin(a) * r, 0.014, 0.26 + (q % 3) * 0.05, 0.014, "#6f9a5a"); b.cbox(Math.cos(a) * r, 0.2 + (q % 3) * 0.04, Math.sin(a) * r, 0.07, 0.06, 0.07, "#5f9152"); }
+    for (let q = 0; q < 6; q++) { const a = q * 2.1, r = 0.03 + (q % 3) * 0.025; b.cbox(Math.cos(a) * r, 0, Math.sin(a) * r, 0.014, 0.26 + (q % 3) * 0.05, 0.014, "#6f9a5a", EV); b.cbox(Math.cos(a) * r, 0.2 + (q % 3) * 0.04, Math.sin(a) * r, 0.07, 0.06, 0.07, "#5f9152", EV); }
   } else if (type === "rock") {
     b.cbox(0, -0.03, 0, 0.18, 0.1, 0.14, "#6b7678"); b.cbox(0.06, -0.03, 0.04, 0.1, 0.14, 0.09, "#5d6769", 0, 0.5); b.cbox(-0.05, -0.03, -0.02, 0.09, 0.06, 0.1, "#77807d", 0, -0.3);
   } else if (type === "reed") {
-    for (let q = 0; q < 7; q++) { const a = q * 2.4, r = 0.02 + (q % 3) * 0.03; b.cbox(Math.cos(a) * r, 0, Math.sin(a) * r, 0.01, 0.08 + (q % 3) * 0.03, 0.01, q % 2 ? "#a7a36a" : "#8f9a5c"); }
-    b.cbox(0, 0, 0, 0.12, 0.02, 0.12, "#7f8a55");
+    for (let q = 0; q < 7; q++) { const a = q * 2.4, r = 0.02 + (q % 3) * 0.03; b.cbox(Math.cos(a) * r, 0, Math.sin(a) * r, 0.01, 0.08 + (q % 3) * 0.03, 0.01, q % 2 ? "#a7a36a" : "#8f9a5c", DE); }
+    b.cbox(0, 0, 0, 0.12, 0.02, 0.12, "#7f8a55", DE);
   }
   return b.geometry();
 }
 const floraMat = withMist(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0 }), null, 1);
 const floraGroup = new THREE.Group(); scene.add(floraGroup);
 let floraMeshes = [];
+/** 某格的草木密度与树种（全局草木与近景加密共用同一套规则） */
+function floraInfo(i, j) {
+  if (i < 1 || j < 1 || i >= W - 1 || j >= H - 1) return null;
+  const k = j * W + i, x = cx(i), z = cz(j), y = TY[k], lat = latOf(z), m = y2m(y);
+  if (isWater(k) || NOTREE[k]) return null;
+  let wn = 0; for (const o of [1, -1, W, -W]) if (isWater(k + o)) wn++;
+  const kd = KIND[k];
+  if (SNOW[k] || kd === 1 || kd === 3 || kd === 4 || m > 3400 || lat > 50) return null;
+  if (aridity(x, lat) > 0.5 && !wn) return null;
+  let dens = 0;
+  if (kd === 2) dens = 0.05; else if (kd === 5) dens = 0.03; else if (kd === 6) dens = 0.1;
+  else if (m < 250) dens = lat < 33 ? 0.22 : 0.08;
+  else if (m < 1800) dens = lat < 35 ? 0.85 : 0.5;
+  else dens = 0.45;
+  if (lat > 43 && m < 1500 && kd === 0) dens = Math.max(dens, 0.55);
+  if (wn) dens = Math.max(dens, 0.35);
+  dens *= smooth(-0.15, 0.3, fbm(nD, x * 0.055, z * 0.055, 3));    // 成片 · 留白
+  return { k, x, z, y, lat, m, wn, dens };
+}
+function pickTree(f, R) {
+  if (f.wn && f.lat < 36 && R() < 0.55) return "willow";
+  if (f.m > 1100 || f.lat > 38) return R() < 0.85 ? "pine" : "broad";
+  if (f.lat < 31 && f.m < 500 && R() < 0.14) return "bamboo";
+  if (f.m > 500 && f.m < 1500 && R() < 0.03) return "maple";
+  return R() < 0.6 ? "broad" : "pine";
+}
+/* —— 近景加密：镜头推近时，在视点周围按同一规则补种，越近越密；按画质设上限 —— */
+const NEAR_TYPES = ["pine", "broad", "willow", "maple", "bamboo"];
+const NEAR_CAP = { high: 9000, mid: 6000, low: 2500 };
+const nearFlora = { meshes: {}, center: null, q: null, r: 0 };
+function buildNearFlora() {
+  for (const t of NEAR_TYPES) {
+    const m = new THREE.InstancedMesh(treeGeo(t), floraMat, NEAR_CAP.high);
+    m.count = 0; m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false; m.layers.set(1);
+    floraGroup.add(m); nearFlora.meshes[t] = m;
+  }
+}
+const _nm = new THREE.Matrix4(), _nq = new THREE.Quaternion(), _ne = new THREE.Euler(), _np = new THREE.Vector3(), _ns = new THREE.Vector3(), _nc = new THREE.Color();
+function refreshNearFlora(center, radius) {
+  const cap = NEAR_CAP[QUALITY], ci = gi(center.x), cj = gj(center.z), rc = Math.ceil(radius / CS);
+  const cells = [];
+  for (let dj = -rc; dj <= rc; dj++) for (let di = -rc; di <= rc; di++) { const d2 = di * di + dj * dj; if (d2 <= rc * rc) cells.push([d2, ci + di, cj + dj]); }
+  cells.sort((a, b) => a[0] - b[0]);
+  const cnt = {}; NEAR_TYPES.forEach((t) => (cnt[t] = 0));
+  let total = 0;
+  for (const [d2, i, j] of cells) {
+    if (total >= cap) break;
+    const f = floraInfo(i, j); if (!f) continue;
+    const R = mulberry32((i * 73856093) ^ (j * 19349663));
+    /* 近处另有一层「林团」：平原上的村树、竹丛也成片出现，其间仍留空地 */
+    const grove = smooth(-0.22, 0.32, fbm(nB, f.x * 0.16, f.z * 0.16, 3));
+    const base = Math.max(f.dens, (f.lat < 36 ? 0.45 : 0.32) * grove);
+    if (base <= 0.02) continue;
+    /* 越近越密：内圈 5 倍、外圈渐减到 1.6 倍 */
+    const near = 1 - Math.sqrt(d2) / rc;
+    let n = Math.floor(base * (1.6 + 3.4 * near) * 2.4 * CS * CS + R());
+    while (n-- > 0 && total < cap) {
+      const t = pickTree(f, R);
+      const tx = f.x + (R() - 0.5) * (CS - 0.26), tz = f.z + (R() - 0.5) * (CS - 0.26);
+      if (FLAT[idx(tx, tz)] && R() < 0.9) continue;
+      const g = 0.85 + R() * 0.3, s = (0.7 + R() * 0.6) * (t === "pine" && f.m > 1500 ? 1.2 : 1);
+      _ne.set(0, R() * 6.28, 0); _nq.setFromEuler(_ne); _np.set(tx, f.y, tz); _ns.set(s, s, s);
+      const m = nearFlora.meshes[t]; m.setMatrixAt(cnt[t], _nm.compose(_np, _nq, _ns)); m.setColorAt(cnt[t], _nc.setRGB(g, g * (0.95 + R() * 0.1), g));
+      cnt[t]++; total++;
+    }
+  }
+  for (const t of NEAR_TYPES) { const m = nearFlora.meshes[t]; m.count = cnt[t]; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; m.visible = cnt[t] > 0; }
+  nearFlora.center = center.clone(); nearFlora.q = QUALITY; nearFlora.r = radius; shadowDirty = true;
+}
+function tickNearFlora() {
+  if (!nearFlora.meshes.pine) return;
+  const t = controls.target, d = camera.position.distanceTo(t);
+  if (d > 40) { if (nearFlora.center) { NEAR_TYPES.forEach((k) => (nearFlora.meshes[k].visible = false)); nearFlora.center = null; shadowDirty = true; } return; }
+  const radius = clamp(d * 1.15, 9, 26);
+  if (!nearFlora.center || nearFlora.q !== QUALITY || nearFlora.center.distanceTo(t) > radius * 0.3 || Math.abs(nearFlora.r - radius) > radius * 0.35) refreshNearFlora(t, radius);
+}
 function buildFlora() {
   const map = new Map(); const types = ["pine", "broad", "willow", "maple", "bamboo", "rock", "reed"];
   const TILE = +(QS.get("tile") || 48);
@@ -1907,26 +1989,12 @@ function buildFlora() {
       put(t, { x: x + (R() - 0.5) * (CS - 0.3), y, z: z + (R() - 0.5) * (CS - 0.3), rot: R() * 6.28, s: 0.7 + R() * 0.9, tint: [0.9 + R() * 0.2, 0.9 + R() * 0.2, 0.9 + R() * 0.2] });
     }
     if (slope > 2.5 && !SNOW[k] && R() < 0.05) put("rock", { x, y, z, rot: R() * 6.28, s: 1 + R(), tint: [1, 1, 1] });
-    if (SNOW[k] || kd === 1 || kd === 3 || kd === 4 || m > 3400 || lat > 50) continue;
-    if (aridity(x, lat) > 0.5 && !wn) continue;
-    let dens = 0;
-    if (kd === 2) dens = 0.05; else if (kd === 5) dens = 0.03; else if (kd === 6) dens = 0.1;
-    else if (m < 250) dens = lat < 33 ? 0.22 : 0.08;
-    else if (m < 1800) dens = lat < 35 ? 0.85 : 0.5;
-    else dens = 0.45;
-    if (lat > 43 && m < 1500 && kd === 0) dens = Math.max(dens, 0.55);
-    if (wn) dens = Math.max(dens, 0.35);
-    const cl = fbm(nD, x * 0.055, z * 0.055, 3);
-    dens *= smooth(-0.15, 0.3, cl);                    // 成片 · 留白
+    const f = floraInfo(i, j); if (!f) continue;
+    let dens = f.dens;
     if (flatNear(i, j)) dens = Math.max(dens, 0.35);
     let nT = Math.floor(dens * 2.4 * CS * CS + R());
     while (nT-- > 0 && count < cap) {
-      let t;
-      if (wn && lat < 36 && R() < 0.55) t = "willow";
-      else if (m > 1100 || lat > 38) t = R() < 0.85 ? "pine" : "broad";
-      else if (lat < 31 && m < 500 && R() < 0.14) t = "bamboo";
-      else if (m > 500 && m < 1500 && R() < 0.03) t = "maple";
-      else t = R() < 0.6 ? "broad" : "pine";
+      const t = pickTree(f, R);
       const tx = x + (R() - 0.5) * (CS - 0.26), tz = z + (R() - 0.5) * (CS - 0.26);   // 留在本格内，不悬在台阶边
       if (NOTREE[idx(tx, tz)] || (FLAT[idx(tx, tz)] && R() < 0.85)) continue;
       const g = 0.85 + R() * 0.3;
@@ -2004,9 +2072,9 @@ function buildClouds() {
    11. 天色（氛围）
    ================================================================ */
 const MOODS = {
-  dawn:  { name: "晨", sun: [0.85, 0.2, 0.25], sunC: "#ffd6aa", sunI: 2.0, hemiS: "#d9dde6", hemiG: "#b39c86", hemiI: 1.0, fog: "#ebe3da", dens: 0.0026, top: "#94b0d0", hor: "#f2dccb", glow: 0.6, mist: 0.16, night: 0, exp: 1.02, bloom: 0.22, tint: "#f2e6e6" },
-  day:   { name: "昼", sun: [0.32, 0.62, 0.72], sunC: "#fff3e2", sunI: 3.1, hemiS: "#e4eff2", hemiG: "#c6a978", hemiI: 1.12, fog: "#e2e6dc", dens: 0.0015, top: "#6ea7c6", hor: "#ede6d0", glow: 0.35, mist: 0.02, night: 0, exp: 1.02, bloom: 0.18, tint: "#ffffff" },
-  dusk:  { name: "暮", sun: [-0.78, 0.17, 0.3], sunC: "#ffb070", sunI: 2.5, hemiS: "#c4c8d6", hemiG: "#a47f60", hemiI: 0.85, fog: "#e6c7a0", dens: 0.0022, top: "#8298b0", hor: "#f2c38e", glow: 0.9, mist: 0.08, night: 0.25, exp: 1.02, bloom: 0.3, tint: "#c9a88a" },
+  dawn:  { name: "晨", sun: [0.8, 0.38, 0.3], sunC: "#ffd6aa", sunI: 2.0, hemiS: "#d9dde6", hemiG: "#b39c86", hemiI: 1.0, fog: "#ebe3da", dens: 0.0026, top: "#94b0d0", hor: "#f2dccb", glow: 0.6, mist: 0.16, night: 0, exp: 1.02, bloom: 0.22, tint: "#f2e6e6" },
+  day:   { name: "昼", sun: [0.3, 0.85, 0.55], sunC: "#fff3e2", sunI: 3.1, hemiS: "#e4eff2", hemiG: "#c6a978", hemiI: 1.12, fog: "#e2e6dc", dens: 0.0015, top: "#6ea7c6", hor: "#ede6d0", glow: 0.35, mist: 0.02, night: 0, exp: 1.02, bloom: 0.18, tint: "#ffffff" },
+  dusk:  { name: "暮", sun: [-0.75, 0.33, 0.3], sunC: "#ffb070", sunI: 2.5, hemiS: "#c4c8d6", hemiG: "#a47f60", hemiI: 0.85, fog: "#e6c7a0", dens: 0.0022, top: "#8298b0", hor: "#f2c38e", glow: 0.9, mist: 0.08, night: 0.25, exp: 1.02, bloom: 0.3, tint: "#c9a88a" },
   night: { name: "夜", sun: [0.35, 0.6, -0.5], sunC: "#b4c6ff", sunI: 0.55, hemiS: "#4a5d80", hemiG: "#1f252e", hemiI: 0.55, fog: "#26324a", dens: 0.0026, top: "#0c1424", hor: "#2d3c5a", glow: 0.25, mist: 0.1, night: 1, exp: 1.12, bloom: 0.55, tint: "#33475e" },
 };
 const SEASONS = { spring: "春", summer: "夏", autumn: "秋", winter: "冬" }, SKEYS = Object.keys(SEASONS);
@@ -3119,7 +3187,7 @@ let frames = 0, perfAcc = 0, perfN = 0, perfChecked = false;
 function renderFrame(dt) {
   GU.uTime.value += REDUCED ? dt * 0.3 : dt;
   tickMood(dt); tickSeason(dt); tickWeather(dt); tickTour(dt); tickFly(dt); tickKeys(dt);
-  controls.update(); constrainCamera(); tickSun(); tickLOD(); tickWallLine(); tickDrift(dt); tickDetail(dt);
+  controls.update(); constrainCamera(); tickSun(); tickLOD(); if (lodFrame % 6 === 3) tickNearFlora(); tickWallLine(); tickDrift(dt); tickDetail(dt);
   sky.position.copy(camera.position);
   if (boatMesh && !REDUCED && labelFrame % 2 === 0) {
     const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), s = new THREE.Vector3(1, 1, 1);
@@ -3180,7 +3248,7 @@ document.addEventListener("visibilitychange", () => { if (audio) (document.hidde
     const bm = new Map([["boat", { geo: pieceGeo("boat"), list: BOATS.map((b) => ({ ...b, s: 1.1 })) }]]);
     boatMesh = flushInst(bldGroup, bldMat, bm, false)[0];
     await stage("植树 · 点苔", 88);
-    buildFlora(); buildClouds(); buildWallLine(); buildDrift();
+    buildFlora(); buildNearFlora(); buildClouds(); buildWallLine(); buildDrift();
     await stage("落款", 95);
     buildComposer(); buildLabels(); buildGeoLabels(); buildUI();
     moodCur.sun = null; applyMood(moodVals(MOODS[moodKey])); setMood(moodKey, true); setSeason(seasonKey, true); setWeather(weatherKey, true, false);
@@ -3197,7 +3265,7 @@ document.addEventListener("visibilitychange", () => { if (audio) (document.hidde
     setTimeout(openFromHash, 400);
     setTimeout(loadPoemFont, 3500);
     addEventListener("hashchange", () => { if (!curPlace || !location.hash.includes(curPlace.poems[curPoem].id)) openFromHash(); });
-    window.__app = { THREE, scene, camera, controls, renderer, PLACES, VIEWS, flyView, setMood, setSeason, setWeather, GU, TOUR, tourPlan, groundAt, tourAt(i) { startTour(); tourGo(i); }, startTour, stopTour, HOME, get autoFocus() { return autoFocus; }, openPlace, openPoem, closeAll, get listOpen() { return listOpen; }, get scrollOpen() { return scrollOpen; }, applyQuality, get quality() { return QUALITY; }, viewPose,
+    window.__app = { THREE, scene, camera, controls, renderer, PLACES, VIEWS, flyView, setMood, setSeason, setWeather, GU, TOUR, tourPlan, groundAt, nearFlora, tourAt(i) { startTour(); tourGo(i); }, startTour, stopTour, HOME, get autoFocus() { return autoFocus; }, openPlace, openPoem, closeAll, get listOpen() { return listOpen; }, get scrollOpen() { return scrollOpen; }, applyQuality, get quality() { return QUALITY; }, viewPose,
       setView(v) { const { target, pos } = viewPose(v); controls.target.copy(target); camera.position.copy(pos); fly = null; controls.update(); },
       cell(lng, lat) { const k = idx(wx(lng), wz(lat)); return { y: TY[k], m: Math.round(y2m(TY[k])), kind: KIND[k], snow: SNOW[k], col: [...TOPC.slice(k * 3, k * 3 + 3)].map((v) => +v.toFixed(2)) }; },
       bench(n = 60) { const gl = renderer.getContext(); composer.render(); gl.finish(); const t = performance.now(); for (let i = 0; i < n; i++) { if (window.__benchShadow) renderer.shadowMap.needsUpdate = true; composer.render(); } gl.finish(); return +((performance.now() - t) / n).toFixed(2); },
