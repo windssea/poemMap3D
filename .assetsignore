@@ -1,0 +1,19 @@
+
+# 排除 Node.js 依赖
+node_modules/
+
+# 排除 Git 和开发配置
+.git/
+.github/
+.gitignore
+.assetsignore
+wrangler.jsonc
+wrangler.toml
+package.json
+package-lock.json
+
+# 不公开开发工具（如果网站需要 tools，请删除这行）
+tools/
+
+# 不公开项目说明
+README.md
