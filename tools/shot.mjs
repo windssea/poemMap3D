@@ -56,7 +56,7 @@ async function main() {
     console.log("EVAL>", JSON.stringify(r.result.value ?? r.exceptionDetails?.exception?.description ?? r.result.description));
     await sleep(+opt("step", 2500));
   }
-  if (out) { const s = await send("Page.captureScreenshot", { format: "png" }); fs.writeFileSync(out, Buffer.from(s.data, "base64")); console.log("saved", out); }
+  if (out) { const cl = opt("clip"); const s = await send("Page.captureScreenshot", cl ? { format: "png", clip: (([x, y, width, height]) => ({ x, y, width, height, scale: 1 }))(cl.split(",").map(Number)) } : { format: "png" }); fs.writeFileSync(out, Buffer.from(s.data, "base64")); console.log("saved", out); }
   logs.forEach((l) => console.log(l));
 }
 main().catch((e) => console.error("ERR", e.message)).finally(() => { try { chrome.kill(); } catch (e) {} setTimeout(() => { try { fs.rmSync(profile, { recursive: true, force: true }); } catch (e) {} process.exit(0); }, 500); });

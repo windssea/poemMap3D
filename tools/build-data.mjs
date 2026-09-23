@@ -63,9 +63,39 @@ GEO.features.forEach((f) => {
     if (r.length >= 4) rings.push(r.map(([x, y]) => [Math.round(x * 100) / 100, Math.round(y * 100) / 100]));
   });
 });
-fs.writeFileSync(path.join(OUT, "land.js"),
+if (process.env.KEEP_RINGS) fs.writeFileSync(path.join(OUT, "land.js"),
   "/* 中国陆地轮廓（精简自 DataV 行政区划，由 tools/build-data.mjs 生成） */\nwindow.LAND_RINGS=" +
   JSON.stringify(rings) + ";\n");
 
 console.log("poems", poems.length, "authors", Object.keys(authors).length, "rings", rings.length,
   "sizes", fs.statSync(path.join(OUT, "poems.js")).size, fs.statSync(path.join(OUT, "land.js")).size);
+
+/* —— 陆地掩膜：0.04° 栅格，逐行扫描线填充 → 行程编码 → gzip → base64（取代 88KB 的多边形） —— */
+{
+  const zlib = await import("node:zlib");
+  const R = 0.04, L0 = 72, L1 = 135.5, B0 = 16.5, B1 = 54;
+  const cols = Math.round((L1 - L0) / R), rows = Math.round((B1 - B0) / R);
+  const mask = new Uint8Array(cols * rows);
+  for (let r = 0; r < rows; r++) {
+    const lat = B1 - (r + 0.5) * R;              // 第 0 行在北
+    for (const ring of rings) {
+      const xs = [];
+      for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+        const [xi, yi] = ring[i], [xj, yj] = ring[j];
+        if ((yi > lat) !== (yj > lat)) xs.push(xi + (lat - yi) / (yj - yi) * (xj - xi));
+      }
+      xs.sort((a, b) => a - b);
+      for (let k = 0; k + 1 < xs.length; k += 2) {
+        const c0 = Math.max(0, Math.ceil((xs[k] - L0) / R - 0.5)), c1 = Math.min(cols - 1, Math.floor((xs[k + 1] - L0) / R - 0.5));
+        for (let c = c0; c <= c1; c++) mask[r * cols + c] = 1;
+      }
+    }
+  }
+  const bytes = [];
+  const varint = (n) => { while (n >= 128) { bytes.push((n & 127) | 128); n >>>= 7; } bytes.push(n); };
+  for (let r = 0; r < rows; r++) { let cur = 0, run = 0; for (let c = 0; c < cols; c++) { const v = mask[r * cols + c]; if (v === cur) run++; else { varint(run); cur = v; run = 1; } } varint(run); }
+  const gz = zlib.gzipSync(Buffer.from(bytes), { level: 9 }).toString("base64");
+  fs.writeFileSync(path.join(OUT, "landmask.js"),
+    `/* 中国陆地掩膜（${R}° 栅格，经 ${L0}–${L1}、纬 ${B0}–${B1}；行程编码 + gzip，由 tools/build-data.mjs 生成） */\nwindow.LAND_MASK={r:${R},l0:${L0},b1:${B1},cols:${cols},rows:${rows},gz:"${gz}"};\n`);
+  console.log("landmask", cols, "x", rows, "runs bytes", bytes.length, "file", fs.statSync(path.join(OUT, "landmask.js")).size);
+}

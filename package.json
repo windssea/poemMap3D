@@ -1,0 +1,16 @@
+{
+  "name": "shanhe-shijuan",
+  "version": "3.0.0",
+  "private": true,
+  "description": "山河诗卷 · 三维水墨诗词地图（纯静态、离线）",
+  "type": "module",
+  "scripts": {
+    "data": "node tools/build-data.mjs",
+    "build": "node tools/build.mjs",
+    "serve": "node tools/serve.mjs 5188"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.10",
+    "three": "0.160.0"
+  }
+}
