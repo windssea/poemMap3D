@@ -114,6 +114,9 @@ body.ui-hidden .chrome *{pointer-events:none}
 .ico:hover{background:rgba(60,48,36,.08);color:var(--ink)}
 .ico.on{background:var(--zhu);color:#fff}
 .ico svg{width:18px;height:18px}
+#bDock svg{transition:transform .3s}
+body.dock-min #dock > .grp:not(.tg){display:none}
+body.dock-min #bDock svg{transform:rotate(180deg)}
 .ico .q{font-size:15px}
 body.panel-open #search{opacity:0;pointer-events:none}
 #showUi{position:fixed;right:16px;bottom:calc(16px + var(--safe-b));z-index:6;opacity:0;pointer-events:none;transition:opacity .4s}
@@ -329,6 +332,18 @@ body.trail-on #dock,body.trail-on #search,body.trail-on #hint{opacity:0;pointer-
 #trailPanel.mini{bottom:auto}
 #trailPanel.mini #trList,#trailPanel.mini .tr-b{display:none}
 .tr-s{white-space:nowrap;font-size:13.5px;color:var(--c);letter-spacing:2px;margin-top:4px}
+/* 紧凑布局（手机、平板、触屏）：播放时顶部一条；结束后年谱收在底部，展开也只占三分之一屏 */
+#trailPanel.compact{left:10px;right:auto;width:min(420px,calc(100vw - 20px));top:auto;bottom:calc(10px + var(--safe-b));height:34vh;padding:5px}
+#trailPanel.compact.mini{top:10px;bottom:auto;height:auto}
+#trailPanel.compact.fold{height:auto}
+#trailPanel.compact.fold #trList,#trailPanel.compact.fold .tr-b{display:none}
+#trailPanel.compact.mini .tr-y,#trailPanel.compact.mini .tr-seal,#trailPanel.compact.fold .tr-y{display:none}
+#trailPanel.compact.mini .tr-h,#trailPanel.compact.fold .tr-h{padding:7px 44px 7px 10px}
+#trailPanel.compact.mini .tr-n,#trailPanel.compact.fold .tr-n{font-size:20px;letter-spacing:4px}
+#trailPanel.compact.mini .tr-s{margin-top:1px}
+#trailPanel.compact #trList span{font-size:16px}#trailPanel.compact #trList p{font-size:13px;line-height:1.5}
+#trailPanel.compact .tr-fold{display:block}
+#trailPanel.compact.mini .tr-fold{display:none}
 .tr-fold{display:none;position:absolute;right:46px;top:10px;height:30px;padding:0 11px;border-radius:15px;border:0;background:rgba(60,48,36,.08);font:inherit;font-size:13px;letter-spacing:2px;color:var(--ink2);cursor:pointer}
 .tr-card{position:absolute;left:0;top:0;width:0;height:0;pointer-events:none;opacity:0;transition:opacity .6s ease}
 .tr-card.on{opacity:1}
@@ -390,15 +405,6 @@ body.trail-on #dock,body.trail-on #search,body.trail-on #hint{opacity:0;pointer-
   .sbar{bottom:calc(14px + var(--safe-b))!important;gap:0;padding:4px}
   .sbar button{padding:0 9px;font-size:13.5px;letter-spacing:1px}
   .yin,.yin + .gs{display:none}
-  #trailPanel{left:10px;right:10px;top:auto;bottom:calc(10px + var(--safe-b));width:auto;height:42vh;padding:5px}
-  #trailPanel.mini,#trailPanel.fold{height:auto}
-  #trailPanel.fold #trList,#trailPanel.fold .tr-b{display:none}
-  #trailPanel.mini .tr-y,#trailPanel.mini .tr-seal{display:none}
-  #trailPanel.mini .tr-h,#trailPanel.fold .tr-h{padding:7px 44px 7px 10px}
-  #trailPanel.mini .tr-n{font-size:20px;letter-spacing:4px}
-  #trailPanel.mini .tr-s{margin-top:1px}
-  .tr-fold{display:block}
-  #trailPanel.mini .tr-fold{display:none}
   .tr-card span{font-size:20px;letter-spacing:3px}.tr-card p{font-size:13px;line-height:1.5}.tr-card b{font-size:13px}.tr-card .tc{max-width:62vw}
   #plist{left:10px!important;right:10px;top:auto!important;bottom:calc(10px + var(--safe-b));width:auto;padding:7px;transform:none!important}
   #plist .lead{display:none}
@@ -430,6 +436,7 @@ body.trail-on #dock,body.trail-on #search,body.trail-on #hint{opacity:0;pointer-
 </div>
 
 <div id="dock" class="chrome" role="toolbar" aria-label="视角与控制">
+  <div class="grp tg"><button class="ico" id="bDock" title="收起工具栏" aria-label="收起工具栏" aria-expanded="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button></div>
   <div class="grp" id="views"><span class="lab">视角</span></div>
   <div class="grp" id="ambGrp"><span class="lab">意境</span><button class="chip combo" id="bAmb" aria-haspopup="true" aria-expanded="false"><span id="ambTxt">春 · 昼 · 晴</span><svg viewBox="0 0 12 12" width="10" height="10"><path d="M2.5 7.5 6 4l3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button></div>
   <div class="grp" id="tools">
@@ -601,7 +608,7 @@ const lngOf = (x) => 60 + inv(WARP.X, x, false) / 100;
 const latOf = (z) => inv(WARP.Z, z, true) / 100;
 /** 某处的相对比例（腹地 1，边远 0.42） */
 const scaleAt = (lng, lat) => (denX(lng) + denZ(lat)) / 2;
-const LNG0 = 72, LNG1 = 135.5, LAT0 = 16.5, LAT1 = 54;
+const LNG0 = 72, LNG1 = 135.5, LAT0 = 12, LAT1 = 54;   // 南缘留足海面：海南岛不落进边缘雾带
 const X0 = wx(LNG0), Z0 = wz(LAT1);
 const W = Math.floor((wx(LNG1) - X0) / CS), H = Math.floor((wz(LAT0) - Z0) / CS);
 const N = W * H;
@@ -1118,8 +1125,8 @@ THREE.ShaderChunk.fog_fragment = `#ifdef USE_FOG
  float fMist = uMist * exp( - fH * 0.8 ) * ( 1.0 - exp( - fDist * 0.012 ) );
  fogFactor = clamp( 1.0 - ( 1.0 - fogFactor ) * ( 1.0 - fMist ), 0.0, 1.0 );
  fogFactor = max( fogFactor, smoothstep( uFar.x, uFar.y, fDist ) );
- vec2 fEg = min( vFogWorld.xz - uEdge.xy, uEdge.zw - vFogWorld.xz );
- fogFactor = max( fogFactor, 1.0 - smoothstep( 0.0, 40.0, min( fEg.x, fEg.y ) ) );
+ vec4 fE4 = vec4( vFogWorld.xz - uEdge.xy, uEdge.zw - vFogWorld.xz ) / vec4( 40.0, 40.0, 40.0, 14.0 );   // 南缘（海面）雾带窄一些
+ fogFactor = max( fogFactor, 1.0 - smoothstep( 0.0, 1.0, min( min( fE4.x, fE4.y ), min( fE4.z, fE4.w ) ) ) );
  gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );
 #endif`;
 withMist.n = 0;
@@ -3386,12 +3393,13 @@ function flyPlace(p, shift) { const b = placePose(p, shift); flyTo(b.t, b.pos, 1
 controls.addEventListener("start", () => { fly = null; stopTour(); hideHint(); if (trail) trail.follow = false; });
 
 /* 地面约束：目标贴地、镜头不入山 */
-const BOUND = { x0: wx(75), x1: wx(134), z0: wz(52), z1: wz(18) };
+const BOUND = { x0: wx(75), x1: wx(134), z0: wz(52), z1: wz(16.5) };
 function constrainCamera() {
   const t = controls.target;
   const cxT = clamp(t.x, BOUND.x0, BOUND.x1), czT = clamp(t.z, BOUND.z0, BOUND.z1);
   if (cxT !== t.x || czT !== t.z) { const d = new THREE.Vector3(cxT - t.x, 0, czT - t.z); t.add(d); camera.position.add(d); }
-  if (!fly && !touring) { const gy = Math.max(0.3, groundAt(t.x, t.z)); const dy = (gy - t.y) * 0.06; t.y += dy; camera.position.y += dy; }
+  /* 足迹播放时目标高度由足迹镜头管：这里再把目标往脚下地面拉，会在庐山这类台阶陡变处上下拉扯，造成抖动 */
+  if (!fly && !touring && !trailPlaying()) { const gy = Math.max(0.3, groundAt(t.x, t.z)); const dy = (gy - t.y) * 0.06; t.y += dy; camera.position.y += dy; }
   let minY = -Infinity;
   for (const [ox, oz] of [[0, 0], [0.7, 0], [-0.7, 0], [0, 0.7], [0, -0.7]]) minY = Math.max(minY, groundAt(camera.position.x + ox, camera.position.z + oz));
   minY += 0.9; if (camera.position.y < minY) { if (touring || fly) window.__pushes = (window.__pushes || 0) + Math.min(1, minY - camera.position.y); camera.position.y = minY; }
@@ -4075,7 +4083,22 @@ const trailGlowMat = (c1) => new THREE.ShaderMaterial({
       gl_FragColor = vec4(uC * 1.15, clamp(a * 0.5, 0.0, 1.0));
     }`,
 });
-/** 代表作：此人在该站附近（1.3° 内，名字对得上的放宽）的诗里，名气最高且还没用过的一首 */
+/** 各站的诗：先把此人的每首诗归到最近的一站（地名对得上的优先），各站按名气排序；
+ *  同一地点第一次到访取最有名的一首，第二次取第二有名的，以此类推；该地没有诗就不题 */
+function trailVerses(poet, stops) {
+  const names = [...new Set(stops.map((s) => s[1]))], pos = {}, pool = {};
+  stops.forEach(([, n, lng, lat]) => { pos[n] = [lng, lat]; pool[n] = []; });
+  for (const q of POEMS) {
+    if (q.a !== poet) continue;
+    let best = null, bd = 1e9;
+    for (const n of names) { const d = Math.hypot(q.lng - pos[n][0], q.lat - pos[n][1]) - ((q.pn + q.t).includes(n) ? 0.8 : 0); if (d < bd) { bd = d; best = n; } }
+    if (best && bd < 0.6) pool[best].push(q);
+  }
+  for (const n of names) pool[n].sort((a, b) => fameOf(b) - fameOf(a));
+  const seen = {};
+  return stops.map(([, n]) => { seen[n] = (seen[n] ?? -1) + 1; return pool[n][seen[n]] || null; });
+}
+/** （旧）代表作：此人在该站附近的诗里，名气最高且还没用过的一首 */
 function trailVerse(poet, name, lng, lat, used) {
   let best = null, bs = -1e9;
   for (const q of POEMS) {
@@ -4087,7 +4110,8 @@ function trailVerse(poet, name, lng, lat, used) {
   }
   return best;
 }
-const TRAIL_BREATH = 1.2, TRAIL_READ = 6.8, TRAIL_BARE = 3.0;   // 到站先喘口气再题诗；题诗停留；无诗的站停留
+const TRAIL_BREATH = 0.9, TRAIL_READ = 5.4, TRAIL_BARE = 2.2;   // 到站先喘口气再题诗；题诗停留；无诗的站停留
+const trCompact = () => innerWidth <= 1024 || innerHeight <= 560 || matchMedia("(pointer:coarse)").matches;
 function startTrail(poet) {
   const T = TRAILS[poet]; if (!T) return;
   loadPoemFont();
@@ -4124,7 +4148,7 @@ function startTrail(poet) {
   });
   const head = document.createElement("div"); head.className = "tr-head"; head.style.setProperty("--c", T.css); labelsEl.appendChild(head);
   const card = document.createElement("div"); card.className = "tr-card"; labelsEl.appendChild(card);
-  const usedQ = new Set(), verses = T.stops.map(([y, n, lng, lat]) => { const q = trailVerse(poet, n, lng, lat, usedQ); if (q) usedQ.add(q); return q; });
+  const verses = trailVerses(poet, T.stops);
   /* 意境：一生分作春夏秋冬，天气以晴为主（固定种子） */
   const RR = mulberry32(poet.length * 977 + T.stops.length);
   const amb = T.stops.map((_, i) => ({ season: SKEYS[Math.min(3, Math.floor(i * 4 / T.stops.length))], mood: RR() < 0.7 ? "day" : RR() < 0.5 ? "dawn" : "dusk", weather: RR() < 0.18 ? "wet" : "clear" }));
@@ -4135,6 +4159,7 @@ function startTrail(poet) {
   $("#trName").textContent = poet; $("#trYears").textContent = T.years + " · " + T.stops.length + " 站";
   $("#trList").innerHTML = T.stops.map(([y, n, , , t], i) => `<li data-i="${i}"><b>${y}</b><div><span>${esc(n)}</span><p>${esc(t)}</p></div></li>`).join("");
   trailPanel.style.setProperty("--c", T.css);
+  trailPanel.classList.toggle("compact", trCompact());
   trailPanel.classList.add("on", "mini"); document.body.classList.add("trail-on");
   if (REDUCED) { trailFinish(0.01); return; }
   /* 开场：先飞到第一站的中景 */
@@ -4143,7 +4168,7 @@ function startTrail(poet) {
 function trailFinish(dur) {
   if (!trail) return;
   trailPanel.classList.remove("mini"); trail.card.classList.remove("on");
-  trailPanel.classList.toggle("fold", innerWidth <= 760); syncFold();   // 手机上年谱先收起，把画面让给全程
+  trailPanel.classList.toggle("fold", trailPanel.classList.contains("compact")); syncFold();   // 紧凑布局下年谱先收起，把画面让给全程
   { const sv = trail.saved; if (sv) { setSeason(sv.season === "winter" ? "spring" : sv.season, false, false); setMood(sv.mood === "night" ? "day" : sv.mood, false, false); setWeather("clear", false, false); } }
   trail.done = true; trail.phase = "done"; trail.prog = trail.P.length - 1; trail.frac = 1; hideVerse();
   flyTrailFit(dur);
@@ -4152,7 +4177,7 @@ function trailFinish(dur) {
 function flyTrailFit(dur) {
   if (!trail) return;
   /* 实测取景：把每站投影到屏幕，调距离与中心，直到全部落在年谱右侧的空白区 */
-  const mob = innerWidth <= 760, polar = 0.98, az = 0.25;
+  const mob = trailPanel.classList.contains("compact"), polar = 0.98, az = 0.25;
   const L = mob ? 16 : 390, R = innerWidth - (mob ? 16 : 120), T = mob ? 70 : 110, B = mob ? innerHeight - (trailPanel.classList.contains("fold") ? 90 : innerHeight * 0.46) : innerHeight - 90;
   const cam = camera.clone(); cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix();
   const pts = trail.P.concat(trail.pts.filter((_, i) => i % 6 === 0));
@@ -4241,20 +4266,36 @@ function tickTrail(dt) {
       trail.losT = 0.4;
       const look = trail.phase === "stay" ? trail.P[trail.prog] : headP;
       const ok = (az, ph) => !orbitBlocked(look.clone().add(new THREE.Vector3().setFromSphericalCoords(trail.fdist, ph, az)), look);
-      if (!ok(trail.fazT ?? trail.faz, trail.fphT ?? 1.0)) {
-        let found = null;
-        for (const ph of [1.0, 0.85, 0.7, 0.55]) { for (const d of [0, 0.4, -0.4, 0.8, -0.8, 1.3, -1.3, 1.9, -1.9, 2.6, -2.6, 3.1]) if (ok(0.35 + d, ph)) { found = [0.35 + d, ph]; break; } if (found) break; }
-        if (found) { trail.fazT = found[0]; trail.fphT = found[1]; }
-      } else if ((trail.fazT ?? 0.35) !== 0.35 && ok(0.35, 1.0)) { trail.fazT = 0.35; trail.fphT = 1.0; }
+      /* 避让带迟滞：被挡才换角度，且优先离当前最近的角度；换过之后至少保持 2.5 秒；
+         回到默认角度要默认角度连续 2 秒不被挡——不在两个角度之间来回跳 */
+      trail.hold = Math.max(0, (trail.hold || 0) - 0.4);
+      const curA = trail.fazT ?? 0.35, curP = trail.fphT ?? 1.0;
+      if (!ok(curA, curP)) {
+        const cand = [];
+        for (const ph of [1.0, 0.85, 0.7, 0.55]) for (const d of [0, 0.4, -0.4, 0.8, -0.8, 1.3, -1.3, 1.9, -1.9, 2.6, -2.6, 3.1]) cand.push([0.35 + d, ph]);
+        cand.sort((a, b) => Math.abs(a[0] - curA) + Math.abs(a[1] - curP) * 2 - Math.abs(b[0] - curA) - Math.abs(b[1] - curP) * 2);
+        const found = cand.find(([a, p]) => ok(a, p));
+        if (found) { trail.fazT = found[0]; trail.fphT = found[1]; trail.hold = 2.5; }
+        trail.okDef = 0;
+      } else if (curA !== 0.35 || curP !== 1.0) {
+        trail.okDef = ok(0.35, 1.0) ? (trail.okDef || 0) + 0.4 : 0;
+        if (trail.hold <= 0 && trail.okDef >= 2) { trail.fazT = 0.35; trail.fphT = 1.0; }
+      }
     }
-    trail.faz = lerp(trail.faz, trail.fazT ?? 0.35, 1 - Math.exp(-dt * 1.1));
-    trail.fph = lerp(trail.fph ?? 1.0, trail.fphT ?? 1.0, 1 - Math.exp(-dt * 1.1));
+    trail.faz = lerp(trail.faz, trail.fazT ?? 0.35, 1 - Math.exp(-dt * 0.7));
+    trail.fph = lerp(trail.fph ?? 1.0, trail.fphT ?? 1.0, 1 - Math.exp(-dt * 0.7));
     const tgt = trail.phase === "stay" ? trail.P[trail.prog] : headP.clone().setY(lerp(headP.y, trail.P[trail.prog].y, 0.6));
     trail.sm = trail.sm || tgt.clone(); trail.sm.lerp(tgt, 1 - Math.exp(-dt * 3));
     const k = 1 - Math.exp(-dt * 1.6);
     const side = innerWidth > 760 ? trail.fdist * 0.13 : 0, rgt = _v.set(Math.cos(trail.faz), 0, -Math.sin(trail.faz));   // 相机右方向（水平）
     controls.target.lerp(_tmpT.copy(trail.sm).addScaledVector(rgt, side), k);
-    camera.position.lerp(controls.target.clone().add(new THREE.Vector3().setFromSphericalCoords(trail.fdist, trail.fph, trail.faz)), k);
+    /* 镜头高度：取目标机位周围一圈地面的最高处（平滑过的）再抬一些，镜头自己就不会钻山，
+       不必靠逐帧的贴地钳制把它顶起来——那是高山处（庐山）抖动的来源 */
+    const camW = controls.target.clone().add(new THREE.Vector3().setFromSphericalCoords(trail.fdist, trail.fph, trail.faz));
+    let gmax = -Infinity; for (const [ox, oz] of [[0, 0], [1.6, 0], [-1.6, 0], [0, 1.6], [0, -1.6], [1.1, 1.1], [-1.1, 1.1], [1.1, -1.1], [-1.1, -1.1]]) gmax = Math.max(gmax, groundAt(camW.x + ox, camW.z + oz));
+    trail.safeY = trail.safeY == null ? gmax : lerp(trail.safeY, gmax, 1 - Math.exp(-dt * (gmax > trail.safeY ? 3 : 0.8)));
+    camW.y = Math.max(camW.y, trail.safeY + 1.4);
+    camera.position.lerp(camW, k);
   }
   /* —— 年谱高亮 —— */
   const done = trail.done ? N : trail.prog;
@@ -4275,7 +4316,7 @@ function tickTrail(dt) {
     if (m.el._t !== txt) { m.el.innerHTML = txt; m.el._t = txt; }
   }
   /* 站点说明卡：启程即换成下一站，随笔头一起飞，到站停在地点旁——读的时间是整段行程加停留 */
-  const st = trail.done ? -1 : trail.phase === "move" ? trail.prog + 1 : trail.phase === "stay" ? trail.prog : trail.phase === "paused" ? trail.pauseI ?? trail.prog : -1;
+  const st = trail.done ? -1 : trail.phase === "move" ? (trail.clock < trail.segDur * 0.4 ? trail.prog : -1) : trail.phase === "stay" ? trail.prog : trail.phase === "paused" ? trail.pauseI ?? trail.prog : -1;
   if (st !== trail.cardI) {
     trail.cardI = st;
     if (st >= 0) {
@@ -4632,7 +4673,7 @@ function syncTourPanel() {
 }
 function toggleTourPanel(open, anchor) {
   const p = $("#tourPanel"), on = open ?? !p.classList.contains("on");
-  p.classList.toggle("on", on); if (on) { toggleAmb(false); syncTourPanel(); placePop(p, anchor || $("#bTourSet")); }
+  p.classList.toggle("on", on); $("#bTourSet").classList.toggle("on", on); $("#bTourSet").setAttribute("aria-expanded", on ? "true" : "false"); if (on) { toggleAmb(false); syncTourPanel(); placePop(p, anchor || $("#bTourSet")); }
 }
 function toggleAmb(open) {
   const p = $("#ambPanel"), b = $("#bAmb"), on = open ?? !p.classList.contains("on");
@@ -4674,6 +4715,10 @@ function buildUI() {
   $("#bTourSet").onclick = (e) => { e.stopPropagation(); toggleTourPanel(undefined, $("#bTourSet")); };
   $("#tbSet").onclick = (e) => { e.stopPropagation(); toggleTourPanel(undefined, $("#tbSet")); };
   $("#tourPanel").addEventListener("pointerdown", (e) => e.stopPropagation());
+  for (const id of ["#bTourSet", "#tbSet", "#bAmb"]) { const b = $(id); if (b) b.addEventListener("pointerdown", (e) => e.stopPropagation()); }
+  { const setDock = (min) => { document.body.classList.toggle("dock-min", min); const b = $("#bDock"); b.title = b.ariaLabel = min ? "展开工具栏" : "收起工具栏"; b.setAttribute("aria-expanded", min ? "false" : "true"); try { localStorage.setItem("shdock", min ? "1" : "0"); } catch (e) {} if (min) { toggleTourPanel(false); toggleAmb(false); } };
+    let m0 = false; try { m0 = localStorage.getItem("shdock") === "1"; } catch (e) {} setDock(m0);
+    $("#bDock").onclick = (e) => { e.stopPropagation(); setDock(!document.body.classList.contains("dock-min")); }; }
   addEventListener("pointerdown", () => toggleTourPanel(false));
   $("#ambPanel").addEventListener("pointerdown", (e) => e.stopPropagation());
   addEventListener("pointerdown", () => toggleAmb(false));
