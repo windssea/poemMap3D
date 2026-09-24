@@ -897,13 +897,17 @@ async function buildHeights() {
     /* 水面不许陡：从河口往上游推，每 0.5 单位最多升 0.0125；山地里河道改为下切成谷 */
     for (let s = lvl.length - 2; s >= 0; s--) lvl[s] = Math.min(lvl[s], lvl[s + 1] + 0.036);
     const nS = samples.length;
+    if (!KEEP) { KEEP = new Uint8Array(N); for (const p of PLACES) { const i0 = gi(wx(p.lng)), j0 = gj(wz(p.lat)); for (let dj = -4; dj <= 4; dj++) for (let di = -4; di <= 4; di++) { const ii = i0 + di, jj = j0 + dj; if (ii >= 0 && jj >= 0 && ii < W && jj < H) KEEP[jj * W + ii] = 1; } } }
     const hwOf = (t) => Math.max(CS * 0.74, lerp(w0 * 0.75, w1, Math.pow(t, 3)));
-    forPolyline(pts, Math.max(hwOf(0), hwOf(1)) + 3.2, (k, d, t) => {
-      const hw = hwOf(t);
+    forPolyline(pts, Math.max(hwOf(0), hwOf(1)) * 1.5 + 3.2, (k, d, t) => {
+      /* 岸线：半宽随低频噪声伸缩（±35%），并叠一点高频，岸边不再是笔直的格线 */
+      const kx = cx(k % W), kz = cz((k / W) | 0);
+      const f = 1 + 0.35 * nA(kx * 0.09 + 11, kz * 0.09) + 0.12 * nB(kx * 0.4, kz * 0.4);
+      const hw = hwOf(t) * (KEEP[k] ? 1 : f);   // 地名格附近岸线保持原样，保证地名坐标不动
       const s = clamp(Math.round(t * (nS - 1)), 0, nS - 1), L = lvl[s];
       if (!LAND[k]) return;
       if (d < hw) {
-        const bed = L - 0.35 - 0.4 * (1 - d / hw);
+        const bed = L - 0.16 - 0.55 * smooth(0.25, 1, 1 - d / hw);   // 近岸浅滩、河心深
         TY[k] = Math.min(TY[k], bed);
         WY[k] = isNaN(WY[k]) ? L : Math.min(WY[k], L);
       } else {
@@ -981,6 +985,7 @@ function shapeTerrain() {
   erode(4, 0.35);
 }
 
+let KEEP = null;
 /* 地标落位：避开水面、整平一块小台地 */
 function sitePlaces() {
   for (const p of PLACES) {
@@ -1019,6 +1024,12 @@ function finalizeHeights() {
       if (m > -Infinity && TY[k] < m + 0.12) TY[k] = Math.ceil((m + 0.12) / Q) * Q;
     }
   for (let k = 0; k < N; k++) if (!isNaN(WY[k]) && TY[k] > WY[k] - 0.1) TY[k] = Math.floor((WY[k] - 0.1) / Q) * Q;
+  /* 浅滩：挨着陆地的水格，河床抬到水面下一点（水色显浅） */
+  for (let j = 1; j < H - 1; j++) for (let i = 1; i < W - 1; i++) {
+    const k = j * W + i; if (isNaN(WY[k]) || !LAND[k]) continue;
+    let shore = false; for (const o of [1, -1, W, -W]) if (isNaN(WY[k + o])) shore = true;
+    if (shore) TY[k] = Math.max(TY[k], Math.floor((WY[k] - 0.14) / Q) * Q);
+  }
 }
 const idx = (x, z) => clamp(gj(z), 0, H - 1) * W + clamp(gi(x), 0, W - 1);
 /* 名胜微缩景：粗格 → 所属微缩景序号+1；微缩景内部用细网格 */
@@ -1409,7 +1420,7 @@ const WaterShader = {
   uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, {
     color: { value: new THREE.Color(0xffffff) }, tDiffuse: { value: null }, textureMatrix: { value: new THREE.Matrix4() },
     tDepth: { value: null }, uGrid: { value: new THREE.Vector4() }, uTime: { value: 0 }, uReflect: { value: 1 },
-    uDeep: { value: new THREE.Color("#1c5d80") }, uShallow: { value: new THREE.Color("#63ab9c") },
+    uDeep: { value: new THREE.Color("#263e47") }, uShallow: { value: new THREE.Color("#5f9f93") }, uMid: { value: new THREE.Color("#276b83") },
     uSkyTop: { value: new THREE.Color() }, uSkyHor: { value: new THREE.Color() }, uSunDir: { value: new THREE.Vector3() }, uSunCol: { value: new THREE.Color() },
     uMist: { value: 0 }, uNight: { value: 0 }, uTint: { value: new THREE.Color(1, 1, 1) },
   }]),
@@ -1421,7 +1432,7 @@ const WaterShader = {
       #include <fog_vertex>
     }`,
   fragmentShader: `uniform sampler2D tDiffuse, tDepth; uniform vec4 uGrid; uniform float uTime, uReflect, uNight;
-    uniform vec3 uDeep, uShallow, uSkyTop, uSkyHor, uSunDir, uSunCol, uTint; varying vec4 vUv; varying vec3 vWorld;
+    uniform vec3 uDeep, uShallow, uMid, uSkyTop, uSkyHor, uSunDir, uSunCol, uTint; varying vec4 vUv; varying vec3 vWorld;
     #include <common>
     #include <fog_pars_fragment>
     vec2 wv(vec2 p, vec2 d, float f, float a, float s){ float ph = dot(p, d) * f + uTime * s; return d * cos(ph) * a * f; }
@@ -1443,21 +1454,25 @@ const WaterShader = {
       if (uReflect > 0.5) {
         vec2 uv = vUv.xy / vUv.w + n.xz * 0.045;
         vec3 rc = texture2D(tDiffuse, uv).rgb;
-        refl = mix(rc, sky, smoothstep(1.2, 3.0, vWorld.y));
+        refl = mix(rc, sky, max(smoothstep(1.2, 3.0, vWorld.y), smoothstep(12.0, 40.0, dist)));   // 远处倒影淡出为天色，免得云影成斑
       }
       float depth = texture2D(tDepth, (p - uGrid.xy) / uGrid.zw).r * 4.0;
-      vec3 body = mix(uShallow, uDeep, smoothstep(0.1, 1.6, depth));
+      vec3 body = mix(mix(uShallow, uMid, smoothstep(0.08, 0.6, depth)), uDeep, smoothstep(0.7, 2.6, depth));
       body *= uTint;
-      float k = mix(0.1, 0.82, fres);
+      float k = mix(0.05, 0.36, fres);   // 反射收敛：以水色为主，不做写实镜面
       vec3 col = mix(body, refl, k);
-      /* 水纹：千里江山图式的细密波线，近处可见 */
-      float wl = vn(vec2(p.x * 1.6 + uTime * 0.05, p.y * 5.5)) * 0.65 + vn(p * 3.1 - uTime * 0.04) * 0.35;
-      float line = smoothstep(0.035, 0.0, abs(fract(wl * 5.0) - 0.5) - 0.44);
-      col *= 1.0 - line * 0.07 * (1.0 - smoothstep(6.0, 45.0, dist));
-      float foam = (1.0 - smoothstep(0.0, 0.35, depth)) * (0.55 + 0.45 * sin(uTime * 0.9 + depth * 26.0 + vn(p * 3.0) * 6.0));
-      col = mix(col, mix(uSkyHor, vec3(0.95, 0.93, 0.87), 0.6), foam * 0.22 * (1.0 - smoothstep(10.0, 90.0, dist)));
+      /* 体素化波纹：按 1/10 单位取样，一块块亮暗交替，缓慢流动 */
+      vec2 pq = floor(p * 10.0) / 10.0;
+      float wl = vn(vec2(pq.x * 4.0 + uTime * 0.12, pq.y * 11.0)) * 0.6 + vn(pq * 7.0 - uTime * 0.09) * 0.4;
+      float band = step(0.8, fract(wl * 3.0));
+      float near = 1.0 - smoothstep(4.0, 26.0, dist);
+      col = mix(col, col * 1.1 + vec3(0.02), band * 0.22 * near);
+      float twinkle = step(0.994, h21(pq * 10.0 + floor(uTime * 1.5)));
+      col += vec3(0.18) * twinkle * near * (1.0 - uNight);
+      float foam = (1.0 - smoothstep(0.0, 0.09, depth)) * (0.55 + 0.45 * sin(uTime * 0.9 + depth * 26.0 + vn(p * 3.0) * 6.0));
+      col = mix(col, mix(uSkyHor, vec3(0.95, 0.93, 0.87), 0.6), foam * 0.18 * (1.0 - smoothstep(8.0, 50.0, dist)));
       float sp = pow(max(dot(R, normalize(uSunDir)), 0.0), 350.0);
-      col += uSunCol * sp * 3.0;
+      col += uSunCol * sp * 1.2;
       gl_FragColor = vec4(col, 1.0);
       #include <fog_fragment>
     }`,
@@ -1755,6 +1770,21 @@ const PIECES = {
     }
     b.cbox(0, y, 0, w * 0.9, 0.06, w * 0.9, "#8e7a5a"); b.cbox(0, y + 0.06, 0, 0.035, 0.16, 0.035, C.gold); b.cbox(0, y + 0.1, 0, 0.07, 0.014, 0.07, C.gold);
   },
+  /* 岳阳楼：三层四柱、盔顶（屋面先外凸再内收，形如头盔） */
+  yueyang(b) {
+    let w = 0.4, y = 0;
+    b.cbox(0, 0, 0, w + 0.24, 0.1, w + 0.24, C.stone); b.cbox(0, 0.1, 0, w + 0.16, 0.02, w + 0.16, C.stone2); y = 0.12;
+    for (let f = 0; f < 3; f++) {
+      const h = f === 0 ? 0.13 : 0.1;
+      y = body(b, 0, y, 0, w, w * 0.8, h, C.wall, 5);
+      b.cbox(0, y - h * 0.55, 0, w + 0.06, 0.014, w * 0.8 + 0.06, C.col);
+      if (f < 2) { y = roof(b, 0, y, 0, w, w * 0.8, C.gtile, 2, false, 0, 0.07) - 0.02; w *= 0.88; }
+    }
+    /* 盔顶：层宽 1.00 → 1.10 → 1.02 → 0.80 → 0.50 → 0.22 */
+    for (const [k, t] of [[1.18, 0.02], [1.24, 0.025], [1.14, 0.03], [0.9, 0.03], [0.58, 0.03], [0.26, 0.025]]) { b.cbox(0, y, 0, w * k, t, w * 0.8 * k, C.gtile); y += t; }
+    b.cbox(0, y, 0, 0.03, 0.06, 0.03, C.gold);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.cbox(sx * w * 0.62, y - 0.13, sz * w * 0.5, 0.04, 0.03, 0.04, C.ridge);
+  },
   /* 白塔（瘦西湖） */
   stupa(b) {
     b.cbox(0, 0, 0, 0.36, 0.06, 0.36, "#e3dfd3"); b.cbox(0, 0.06, 0, 0.3, 0.06, 0.3, "#efece4");
@@ -1810,11 +1840,30 @@ const bldMat = withMist(new THREE.MeshStandardMaterial({ vertexColors: true, rou
     .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\ntotalEmissiveRadiance += vec3(1.0, 0.62, 0.3) * vGlow * uNight * 3.2;");
 }, 2);
 const PGEO = {};
+/** 远景简化几何：按原几何的包围盒，下六成墙身、上四成屋顶 */
+function simpleGeo(g) {
+  g.computeBoundingBox(); const bb = g.boundingBox, b = new VB(), h = bb.max.y - Math.max(0, bb.min.y);
+  const cxm = (bb.min.x + bb.max.x) / 2, czm = (bb.min.z + bb.max.z) / 2, w = bb.max.x - bb.min.x, d = bb.max.z - bb.min.z;
+  b.cbox(cxm, Math.max(0, bb.min.y), czm, w * 0.72, h * 0.6, d * 0.72, C.wall2);
+  b.cbox(cxm, Math.max(0, bb.min.y) + h * 0.55, czm, w, h * 0.22, d, C.tile); b.cbox(cxm, Math.max(0, bb.min.y) + h * 0.77, czm, w * 0.55, h * 0.23, d * 0.55, C.tile);
+  return b.geometry();
+}
+let bldFar = false;
+function tickBldLOD() {
+  const far = camera.position.distanceTo(controls.target) > 95;
+  if (far === bldFar) return; bldFar = far;
+  for (const m of bldGroup.children) {
+    if (!m.isInstancedMesh || /^(wall|wallTower|boat|bridge|waterfall)/.test(m.name)) continue;
+    if (!m.userData.lod) m.userData.lod = [m.geometry, simpleGeo(m.geometry)];
+    m.geometry = m.userData.lod[far ? 1 : 0];
+  }
+  shadowDirty = true;
+}
 function pieceGeo(name, opts) {
   const key = name + JSON.stringify(opts || {});
   if (!PGEO[key]) {
     const b = new VB(); PIECES[name](b, opts);
-    if (!/^(boat|bridge|wall|wallTower|cwall|ctower|fiveBridge|waterfall|rockery)$/.test(name)) {
+    if (!/^(boat|bridge|wall|wallTower|cwall|ctower|fiveBridge|waterfall|rockery|yueyang)$/.test(name)) {
       /* 取贴地一层的外轮廓，向下补一段台基 */
       let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
       for (let i = 0; i < b.p.length; i += 3) if (b.p[i + 1] <= 0.06) { x0 = Math.min(x0, b.p[i]); x1 = Math.max(x1, b.p[i]); z0 = Math.min(z0, b.p[i + 2]); z1 = Math.max(z1, b.p[i + 2]); }
@@ -1937,7 +1986,7 @@ const DIORAMAS = [
     for (const [u, v, r] of [[-0.46, -0.22, 0.5], [0.36, -0.48, 0.46], [0.08, 0.5, 0.5], [-0.62, 0.62, 0.34]]) P.hillTrees("pine", u, v, r, 9);
   } },
   { names: ["岳阳楼", "洞庭湖"], ops: [{ t: "lake", u: -0.46, v: 0, rx: 0.62, rz: 0.96 }, { t: "isle", u: -0.52, v: 0.26, r: 0.15 }, { t: "hill", u: -0.52, v: 0.26, r: 0.15, h: 0.22 }, { t: "flat", u: 0.46, v: 0, r: 0.36, sq: 1, pave: 1 }], build(P) {
-    P.put("terrace", { w: 0.7, d: 0.7 }, 0.3, 0, 0, 1.3); P.put("tower", { floors: 3, w: 0.36 }, 0.3, 0, -Math.PI / 2, 1.45, 0.105);
+    P.put("terrace", { w: 0.7, d: 0.7 }, 0.3, 0, 0, 1.3); P.put("yueyang", {}, 0.3, 0, -Math.PI / 2, 1.5, 0.105);
     P.grid(0.55, 0.9, -0.5, 0.5, 0.18, 0.2); P.put("pavilion", {}, 0.3, -0.5, 0, 1);
     P.hillTrees("broad", -0.52, 0.26, 0.15, 6); P.boats(5);
   } },
@@ -2395,8 +2444,16 @@ function buildPlaces() {
       case "pavilion": put("pavilion", {}, 0, 0, 0, 1.25); put("hut", {}, -0.32, -0.2, 0, 0.8); p.top = 0.55 * S; break;
       case "home": put("hut", {}, 0, 0, 0, 1.1); put("hut", { w: 0.2 }, 0.3, -0.25, Math.PI / 2, 0.8); p.top = 0.4 * S; break;
       case "peak": put("pavilion", {}, 0, 0, 0, 1.1); put("hall", { w: 0.26, d: 0.18, h: 0.1 }, 0.2, -0.25, 0, 0.8); p.top = 0.5 * S; break;
-      case "water": put("house", {}, 0, 0); put("pavilion", {}, 0.34, 0.18, 0, 0.9); put("house", { w: 0.24 }, -0.34, -0.1, 0, 0.8); p.top = 0.45 * S; break;
-      default: put("house", {}, 0, 0); put("house", { w: 0.24, h: 0.12 }, 0.32, -0.2, Math.PI / 2, 0.9); put("hall", { w: 0.3, d: 0.2, h: 0.11 }, -0.3, -0.25, 0, 0.8); p.top = 0.5 * S;
+      case "water": put(p.id % 2 ? "house" : "hut", {}, 0, 0); put("pavilion", {}, 0.34, 0.18, 0, 0.9); if (c > 1) put("house", { w: 0.24 }, -0.34, -0.1, 0, 0.8); p.top = 0.45 * S; break;
+      default: {
+        const v = p.id % 4;
+        if (v === 0) put("house", {}, 0, 0);
+        else if (v === 1) { put("hut", {}, 0, 0, 0, 1.1); put("pavilion", {}, 0.34, -0.22, 0, 0.8); }
+        else if (v === 2) { put("house", { w: 0.24, h: 0.12 }, 0, 0); put("house", { w: 0.22, h: 0.12 }, 0.3, -0.18, Math.PI / 2, 0.85); }
+        else put("hall", { w: 0.3, d: 0.2, h: 0.11 }, 0, 0, 0, 0.95);
+        if (c > 1) put("house", { w: 0.22 + (p.id % 3) * 0.03 }, -0.32, -0.22, 0, 0.85);
+        p.top = 0.5 * S;
+      }
     }
     if (water && (k === "water" || k === "city" || k === "tower" || rng() < 0.5)) {
       BOATS.push({ x: water[0] + (rng() - 0.5) * 0.4, z: water[1] + (rng() - 0.5) * 0.4, y: water[2], rot: rng() * 6.28, ph: rng() * 6.28 });
@@ -2697,7 +2754,7 @@ function slotPos(f, R, taken) {
 const NEAR_KEYS = [];
 for (const t of ["pine", "lpine", "broad", "peach"]) for (let v = 0; v < VoxelTree.variants(t); v++) NEAR_KEYS.push(t + ":" + v);
 /* 地表点缀：草簇、灌丛、小石、裸土、落叶——只在近景，且只在部分格子 */
-const DECO_KEYS = ["tuft", "tuft2", "shrub", "stone", "soil", "leaf"];
+const DECO_KEYS = ["tuft", "tuft2", "shrub", "stone", "soil", "leaf", "pebble", "reeds"];
 const DECO_CAP = { high: 5000, mid: 3200, low: 1200 };
 function decoGeo(k) {
   const b = new VB(), V = 0.02, blade = (x, z, h, col) => b.cbox(x * V, 0, z * V, 0.5 * V, h * V, 0.5 * V, col);
@@ -2705,6 +2762,8 @@ function decoGeo(k) {
   else if (k === "shrub") { b.cbox(0, 0, 0, 3.6 * V, 2.4 * V, 3.2 * V, "#3f6a45"); b.cbox(1 * V, 1.6 * V, 0.6 * V, 2.4 * V, 1.8 * V, 2.2 * V, "#4f7c50"); b.cbox(-1.2 * V, 0.4 * V, -1 * V, 2 * V, 1.6 * V, 2 * V, "#46724a"); }
   else if (k === "stone") { b.cbox(0, -0.2 * V, 0, 2.6 * V, 1.4 * V, 2 * V, "#7c8584"); b.cbox(1.4 * V, -0.2 * V, 1 * V, 1.4 * V, 0.9 * V, 1.2 * V, "#6b7373"); }
   else if (k === "soil") { b.cbox(0, 0, 0, 3.2 * V, 0.15 * V, 2.4 * V, "#9a8a64"); b.cbox(1.4 * V, 0, 1 * V, 2 * V, 0.2 * V, 1.6 * V, "#8f8260", 0, 0.5); b.cbox(-1.2 * V, 0, 0.8 * V, 1.2 * V, 0.18 * V, 1.2 * V, "#a39570", 0, 0.3); }
+  else if (k === "pebble") { for (let q = 0; q < 6; q++) { const a = q * 2.1, r = 0.8 + q * 0.6, c = ["#8e958f", "#a7aaa0", "#7b8280"][q % 3]; b.cbox(Math.cos(a) * r * V, -0.1 * V, Math.sin(a) * r * V, (0.9 + (q % 3) * 0.4) * V, 0.6 * V, (0.8 + (q % 2) * 0.4) * V, c, 0, a); } }
+  else if (k === "reeds") { for (let q = 0; q < 9; q++) { const a = q * 2.4, r = 0.5 + (q % 4) * 0.7; b.cbox(Math.cos(a) * r * V, -0.3 * V, Math.sin(a) * r * V, 0.45 * V, (3.5 + (q % 3) * 1.5) * V, 0.45 * V, q % 3 ? "#a6a16a" : "#8f9a5c"); if (q % 3 === 0) b.cbox(Math.cos(a) * r * V, (3.4 + (q % 3) * 1.5) * V, Math.sin(a) * r * V, 0.8 * V, 1.1 * V, 0.8 * V, "#c9b98a"); } }
   else if (k === "leaf") { for (let q = 0; q < 5; q++) { const a = q * 1.9, r = 1 + q * 0.5; b.cbox(Math.cos(a) * r * V, 0, Math.sin(a) * r * V, 0.9 * V, 0.2 * V, 0.9 * V, ["#b48a4a", "#a8703c", "#c29a58"][q % 3], 0, a); } }
   return b.geometry();
 }
@@ -2733,7 +2792,7 @@ function refreshNearFlora(center, radius) {
   cells.sort((a, b) => a[0] - b[0]);
   const cnt = {}; for (const k in nearFlora.meshes) cnt[k] = 0;
   const fullR = Math.min(12, radius * 0.55), dcap = DECO_CAP[QUALITY]; let dcount = 0;
-  const decoAt = (k, x, y, z, R) => { const mk = "deco:" + k, m = nearFlora.meshes[mk]; if (!m || cnt[mk] >= 2500 || dcount >= dcap) return; const L = landAt(x, z); if (L.water || Math.abs(L.y - y) > 0.05) return; const sc = 0.8 + R() * 0.7; _ne.set(0, R() * 6.28, 0); _nq.setFromEuler(_ne); _np.set(x, y + (k === "soil" ? 0.003 : 0), z); _ns.set(sc, sc, sc); m.setMatrixAt(cnt[mk], _nm.compose(_np, _nq, _ns)); m.setColorAt(cnt[mk], _nc.setRGB(1, 1, 1)); cnt[mk]++; dcount++; };
+  const decoAt = (k, x, y, z, R) => { const mk = "deco:" + k, m = nearFlora.meshes[mk]; if (!m || cnt[mk] >= 2500 || dcount >= dcap) return; const L = landAt(x, z); if (L.water ? !(k === "reeds" || k === "pebble") : Math.abs(L.y - y) > 0.05) return; if (L.water) y = L.y - 0.02; const sc = 0.8 + R() * 0.7; _ne.set(0, R() * 6.28, 0); _nq.setFromEuler(_ne); _np.set(x, y + (k === "soil" ? 0.003 : 0), z); _ns.set(sc, sc, sc); m.setMatrixAt(cnt[mk], _nm.compose(_np, _nq, _ns)); m.setColorAt(cnt[mk], _nc.setRGB(1, 1, 1)); cnt[mk]++; dcount++; };
   let total = 0;
   for (const [d2, i, j] of cells) {
     if (total >= cap) break;
@@ -2746,8 +2805,8 @@ function refreshNearFlora(center, radius) {
     const near = 1 - Math.sqrt(d2) / rc;
     let n = Math.min(9, Math.floor(base * (1.6 + 3.4 * near) * 2.4 * CS * CS + R())), taken = 0;
     /* 地表点缀：约三成格子，按分区挑种类 */
-    if (dcount < dcap && R() < (f.zone === "cliff" ? 0.15 : 0.32)) {
-      const zk = f.zone === "riverside" ? ["stone", "tuft", "tuft2"] : f.zone === "mountain" || f.zone === "cliff" ? ["stone", "shrub", "tuft2"] : f.zone === "plateau" ? ["stone", "tuft2"] : ["tuft", "tuft", "shrub", "soil", "leaf", "tuft2"];
+    if (dcount < dcap && R() < (f.zone === "cliff" ? 0.15 : f.zone === "riverside" ? 0.6 : 0.32)) {
+      const zk = f.zone === "riverside" ? ["pebble", "reeds", "tuft", "pebble", "reeds"] : f.zone === "mountain" || f.zone === "cliff" ? ["stone", "shrub", "tuft2"] : f.zone === "plateau" ? ["stone", "tuft2"] : ["tuft", "tuft", "shrub", "soil", "leaf", "tuft2"];
       for (let q = 0, nq = 1 + Math.floor(R() * 3); q < nq; q++) decoAt(zk[Math.floor(R() * zk.length)], f.x + (R() - 0.5) * (CS - 0.2), f.y, f.z + (R() - 0.5) * (CS - 0.2), R);
     }
     while (n-- > 0 && total < cap) {
@@ -2798,12 +2857,13 @@ function buildFlora() {
   const put = (t, it) => { const tk = treeKey(t, R), key = tk + "|" + Math.floor(it.x / TILE) + "," + Math.floor(it.z / TILE); if (!map.has(key)) map.set(key, { geo: treeGeoKey(tk, 1), list: [] }); map.get(key).list.push(it); };
   /* 名胜与地标的点景树放在最前：画质削减草木数量时从末尾截掉，不会截到它们 */
   for (const t of EXTRA_TREES) {
-    if (t.y != null) { put(t.t, { x: t.x, y: t.y, z: t.z, rot: R() * 6.28, s: 0.95 + R() * 0.4, tint: [1, 1, 1] }); continue; }
+    if (t.y != null) { if (landAt(t.x, t.z).water) continue; put(t.t, { x: t.x, y: t.y, z: t.z, rot: R() * 6.28, s: 0.95 + R() * 0.4, tint: [1, 1, 1] }); continue; }
     const k = idx(t.x, t.z); if (isWater(k)) continue;
     /* 收进所在格内 */
     const ci = k % W, cj = (k / W) | 0, hx = CS / 2 - 0.13;
     t.x = clamp(t.x, cx(ci) - hx, cx(ci) + hx); t.z = clamp(t.z, cz(cj) - hx, cz(cj) + hx);
-    put(t.t, { x: t.x, y: TY[k], z: t.z, rot: R() * 6.28, s: 0.9 + R() * 0.4, tint: [1, 1, 1] }); }
+    const L = landAt(t.x, t.z); if (L.water) continue;   // 景片细网格里可能是水
+    put(t.t, { x: t.x, y: L.y, z: t.z, rot: R() * 6.28, s: 0.9 + R() * 0.4, tint: [1, 1, 1] }); }
   const cap = 26000; let count = 0;
   const flatNear = (i, j) => { for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { const k = (j + dj) * W + i + di; if (FLAT[k]) return true; } return false; };
   for (let j = 1; j < H - 1; j++) for (let i = 1; i < W - 1; i++) {
@@ -2824,8 +2884,9 @@ function buildFlora() {
       const t = pickTree(f, R), sp = slotPos(f, R, taken); if (!sp) continue;
       taken |= 1 << sp[0]; const tx = sp[1], tz = sp[2];
       if (NOTREE[idx(tx, tz)] || (FLAT[idx(tx, tz)] && R() < 0.85)) continue;
+      let ty = y; if (PATCH_OF[idx(tx, tz)]) { const L = landAt(tx, tz); if (L.water) continue; ty = L.y; }   // 景片：按细格判水、取高
       const g = 0.85 + R() * 0.3;
-      put(t, { x: tx, y, z: tz, rot: R() * 6.28, s: (0.85 + R() * 0.5) * (f.zone === "plateau" ? 0.7 : t === "pine" && m > 1500 ? 1.15 : 1), tint: [g, g * (0.95 + R() * 0.1), g] });
+      put(t, { x: tx, y: ty, z: tz, rot: R() * 6.28, s: (0.85 + R() * 0.5) * (f.zone === "plateau" ? 0.7 : t === "pine" && m > 1500 ? 1.15 : 1), tint: [g, g * (0.95 + R() * 0.1), g] });
       count++;
     }
   }
@@ -4499,7 +4560,7 @@ let frames = 0, perfAcc = 0, perfN = 0, perfChecked = false;
 function renderFrame(dt) {
   GU.uTime.value += REDUCED ? dt * 0.3 : dt;
   tickMood(dt); tickSeason(dt); tickWeather(dt); tickTour(dt); tickFly(dt); tickKeys(dt);
-  controls.update(); constrainCamera(); tickSun(); tickLOD(); if (lodFrame % 6 === 3) tickNearFlora(); tickWallLine(); tickDrift(dt); tickDetail(dt);
+  controls.update(); constrainCamera(); tickSun(); tickLOD(); tickBldLOD(); if (lodFrame % 6 === 3) tickNearFlora(); tickWallLine(); tickDrift(dt); tickDetail(dt);
   sky.position.copy(camera.position);
   if (boatMesh && !REDUCED && labelFrame % 2 === 0) {
     const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), s = new THREE.Vector3(1, 1, 1);
@@ -4581,13 +4642,13 @@ document.addEventListener("visibilitychange", () => { if (audio) (document.hidde
     setTimeout(openFromHash, 400);
     setTimeout(loadTourFont, 600); setTimeout(loadDetail, 2500); setTimeout(loadPoemFont, 5000);
     addEventListener("hashchange", () => { if (!curPlace || !location.hash.includes(curPlace.poems[curPoem].id)) openFromHash(); });
-    window.__app = { THREE, scene, camera, controls, renderer, PLACES, VIEWS, flyView, setMood, setSeason, setWeather, GU, FALLS, startTrail, closeTrail, get trail() { return trail; }, get TOUR() { return TOUR; }, TS, tourPlan, groundAt, nearFlora, PATCHES, VoxelTree, treeGeoKey, floraMat, landAt, wx, wz, y2m, get EXTRA() { return EXTRA_TREES; }, get flora() { return floraMeshes; }, tourAt(i) { startTour(); tourGo(i); }, startTour, stopTour, HOME, get autoFocus() { return autoFocus; }, openPlace, openPoem, closeAll, get listOpen() { return listOpen; }, get scrollOpen() { return scrollOpen; }, applyQuality, get quality() { return QUALITY; }, viewPose,
+    window.__app = { THREE, scene, camera, get water() { return [reflector, waterFlat]; }, controls, renderer, PLACES, VIEWS, flyView, setMood, setSeason, setWeather, GU, FALLS, startTrail, closeTrail, get trail() { return trail; }, get TOUR() { return TOUR; }, TS, tourPlan, groundAt, nearFlora, PATCHES, bldGroup, VoxelTree, treeGeoKey, floraMat, landAt, wx, wz, y2m, get EXTRA() { return EXTRA_TREES; }, get flora() { return floraMeshes; }, tourAt(i) { startTour(); tourGo(i); }, startTour, stopTour, HOME, get autoFocus() { return autoFocus; }, openPlace, openPoem, closeAll, get listOpen() { return listOpen; }, get scrollOpen() { return scrollOpen; }, applyQuality, get quality() { return QUALITY; }, viewPose,
       setView(v) { const { target, pos } = viewPose(v); controls.target.copy(target); camera.position.copy(pos); fly = null; controls.update(); },
       cell(lng, lat) { const k = idx(wx(lng), wz(lat)); return { y: TY[k], m: Math.round(y2m(TY[k])), kind: KIND[k], snow: SNOW[k], col: [...TOPC.slice(k * 3, k * 3 + 3)].map((v) => +v.toFixed(2)) }; },
       bench(n = 60) { const gl = renderer.getContext(); composer.render(); gl.finish(); const t = performance.now(); for (let i = 0; i < n; i++) { if (window.__benchShadow) renderer.shadowMap.needsUpdate = true; composer.render(); } gl.finish(); return +((performance.now() - t) / n).toFixed(2); },
       /** 性能指标：累计一帧内所有渲染通道（主画面、倒影、阴影、后期） */
       metrics() {
-        const i = renderer.info; i.autoReset = false; i.reset(); shadowDirty = true; renderFrame(0);
+        const i = renderer.info; i.autoReset = false; i.reset(); shadowDirty = true; reflFrame = 0; renderFrame(0);   // 倒影、阴影都算进这一帧，口径固定
         const r = { calls: i.render.calls, tris: i.render.triangles, geos: i.memory.geometries, tex: i.memory.textures, progs: i.programs.length, heapMB: performance.memory ? +(performance.memory.usedJSHeapSize / 1048576).toFixed(1) : null };
         i.autoReset = true; return r;
       },
