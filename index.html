@@ -3919,7 +3919,7 @@ function buildLabels() {
     el.className = "lbl" + (p.poems.length >= 5 ? " major" : "");
     el.innerHTML = `<div class="in"><span></span>${p.poems.length > 1 ? `<b>${p.poems.length}</b>` : ""}<i class="dot"></i><i class="stem"></i></div>`;
     el.querySelector("span").textContent = p.name;
-    el.title = `${p.name} · ${p.region}（${p.poems.length} 首）`;
+    // 地名不加悬停提示（title），免得遮挡地图
     el.querySelector(".in").addEventListener("click", (e) => { e.stopPropagation(); openPlace(p); });
     const sl = document.createElement("div"); sl.className = "slip"; el.appendChild(sl); p.slipEl = sl;
     labelsEl.appendChild(el); p.el = el; p.sx = -1e4; p.sy = -1e4; p.vis = false;
@@ -3980,7 +3980,7 @@ function buildGeoLabels() {
     const el = document.createElement("div"); el.className = "lbl geo" + (g.big ? " big" : "") + (g.river ? " " + g.river : "");
     el.innerHTML = `<div class="in"><span></span><i class="dot"></i></div>`;
     el.querySelector("span").textContent = g.name;
-    el.title = g.pass ? g.name + "（长城关隘）" : g.river ? g.name : "长城";
+    // 不加悬停提示
     el.querySelector(".in").addEventListener("click", (e) => { e.stopPropagation(); stopTour(); closeAll(); flyView({ k: "", name: g.name, lng: g.lng, lat: g.lat, dist: g.big ? 30 : 16, polar: 1.15, az: camera.position.clone().sub(controls.target).x > 0 ? 1.2 : -1.2 }); });
     labelsEl.appendChild(el);
     const x = wx(g.lng), z = wz(g.lat);
@@ -4004,7 +4004,7 @@ function updateLabels() {
   const cand = [];
   /* 全国视角：区域名 */
   for (const g of CULT_REGIONS) {
-    g.vis = false; if (lvl !== "national") continue;
+    g.vis = false; if (!g.el || lvl !== "national") continue;
     _v.set(g.x, g.y + g.top, g.z).project(camera);
     if (_v.z > 1 || Math.abs(_v.x) > 0.95 || Math.abs(_v.y) > 0.95) continue;
     g.sx = (_v.x * 0.5 + 0.5) * w; g.sy = (-_v.y * 0.5 + 0.5) * h; g.pri = 1500; cand.push(g);   // 排在重点地标之后：地标先落位，区域名找空处
@@ -4056,7 +4056,7 @@ function updateLabels() {
     }
     p.vis = ok; p.slip = slip; if (ok) placed.push(r);
   }
-  for (const p of ALL_LABELS().concat(CULT_REGIONS)) {
+  for (const p of ALL_LABELS()) {
     if (p.vis) p.el.style.transform = `translate3d(${p.sx.toFixed(1)}px,${p.sy.toFixed(1)}px,0)`;
     if (p.vis !== p.shown) { p.el.classList.toggle("on", p.vis); p.shown = p.vis; }
     if (!p.rgn && !p.geo) {
@@ -5200,6 +5200,230 @@ function renderFrame(dt) {
   placeList();
   tickTrail(dt); tickNightFx(dt);
 }
+/* ================================================================
+   地形预览（?lab=terrain）：高山与河岸的新地形规则，先在局部窗口里验证，未接入全国地图。
+   参照 example/createVoxelLandscape.ts，但用项目自己的数据与坐标：
+   · 基础高度场：全国高程 E（米，含山脉走势 RANGES、名山 PEAKS）双线性插值，m2y 换算成世界高度——山脉走向是真实的；
+   · 次级山脊与沟谷：扭曲后的多尺度脊状噪声 + 沟谷噪声，幅度与当地起伏（周边高差）成正比，平原几乎不动；
+   · 河道：RIVERS 的真实中心线；每格到中心线的距离 − 半宽 = 离岸距离；水位取全国图上该段河道的水位，沿流向单调不升；
+     湖泊沿用全国图的湖面。河床低于水面，岸上从低处缓缓抬升；少数岸段（噪声选出、且背后有山）为陡峭岩岸；
+   · 统一量化：高度步长 Q（与全国图相同）；量化前做一次带安息角的热侵蚀，单格落差受限，只在「崖」区放开，
+     减少大面积土墙，但仍是方块台阶；
+   · 材质分层：顶面按 水 / 浅滩 / 湿土 / 草地 / 山地草甸 / 裸岩 / 积雪；侧面按 草皮口 → 土层 → 岩层 分层，水边侧面为湿土；
+   · 对外查询：sample(x, z) → { height, slope, biome, shoreDistance, water }，供后续植被模块使用。
+   ================================================================ */
+/* 预览窗口：三峡（纯自然的高山与峡江）· 庐山（长江、湖口与名胜微缩景） */
+const TLAB_WINS = {
+  sanxia: { name: "三峡 · 巫山与长江", lng0: 109.2, lng1: 110.6, lat0: 30.7, lat1: 31.55,
+    views: { mtn: { lng: 109.95, lat: 31.25, dist: 14, polar: 1.0, az: 0.5 }, shore: { lng: 109.75, lat: 31.03, dist: 6, polar: 1.12, az: 0.3 }, ridge: { lng: 110.2, lat: 31.3, dist: 8, polar: 0.95, az: 2.4 } } },
+  lushan: { name: "庐山 · 长江 · 鄱阳湖口", lng0: 115.1, lng1: 117.1, lat0: 28.9, lat1: 30.3,
+    views: { mtn: { lng: 116.0, lat: 29.5, dist: 14, polar: 1.05, az: 0.7 }, shore: { lng: 115.95, lat: 29.72, dist: 7, polar: 1.1, az: 0.35 }, ridge: { lng: 115.98, lat: 29.46, dist: 8, polar: 0.95, az: 2.2 } } },
+};
+let TLAB_WIN = TLAB_WINS.sanxia, TLAB_VIEWS = TLAB_WIN.views;
+function buildLandscape(win, opt = {}) {
+  const t0 = performance.now();
+  const h = opt.cell || CS / 5, x0 = wx(win.lng0), x1 = wx(win.lng1), z0 = wz(win.lat1), z1 = wz(win.lat0);
+  const nx = Math.ceil((x1 - x0) / h), nz = Math.ceil((z1 - z0) / h), n = nx * nz;
+  const px = (i) => x0 + (i + 0.5) * h, pz = (j) => z0 + (j + 0.5) * h;
+  /* —— 全国图数据的双线性采样 —— */
+  const bil = (A, x, z, def) => {
+    const fi = (x - X0) / CS - 0.5, fj = (z - Z0) / CS - 0.5, i = Math.floor(fi), j = Math.floor(fj), u = fi - i, v = fj - j;
+    const g = (ii, jj) => { ii = clamp(ii, 0, W - 1); jj = clamp(jj, 0, H - 1); const a = A[jj * W + ii]; return isNaN(a) ? def : a; };
+    return lerp(lerp(g(i, j), g(i + 1, j), u), lerp(g(i, j + 1), g(i + 1, j + 1), u), v);
+  };
+  /* 基础高度：全国图塑形后的陆地高度 TY（已含山脉走势、名山、侵蚀）；原有水格用四周陆地高度补平，河湖由本模块重新开凿 */
+  const i0 = Math.max(2, gi(x0) - 5), i1 = Math.min(W - 3, gi(x1) + 5), j0 = Math.max(2, gj(z0) - 5), j1 = Math.min(H - 3, gj(z1) + 5);
+  const TL = Float32Array.from(TY);
+  { const fill = new Uint8Array(N); for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const k = j * W + i; if (!isNaN(WY[k]) && LAND[k]) fill[k] = 1; }
+    for (let it = 0; it < 12; it++) for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const k = j * W + i; if (!fill[k]) continue; let sm = 0, c = 0; for (const o of [1, -1, W, -W]) if (!fill[k + o] && LAND[k + o]) { sm += TL[k + o]; c++; } if (c) { TL[k] = sm / c; fill[k] = 0; } } }
+  /* 当地起伏：周边 ±2 格的高差（世界高度） */
+  const REL = new Float32Array(N);
+  for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { let mn = 1e9, mx = -1e9; for (let dj = -2; dj <= 2; dj++) for (let di = -2; di <= 2; di++) { const e = TL[(j + dj) * W + i + di]; mn = Math.min(mn, e); mx = Math.max(mx, e); } REL[j * W + i] = mx - mn; }
+  const WET = new Float32Array(N); for (let k = 0; k < N; k++) WET[k] = isNaN(WY[k]) ? 0 : 1;
+
+  /* —— 1. 基础高度 + 次级山脊与沟谷 —— */
+  const Y = new Float32Array(n), BASE = new Float32Array(n), AMPL = new Float32Array(n), CLIFF = new Uint8Array(n);
+  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+    const x = px(i), z = pz(j), k = j * nx + i;
+    const yb = bil(TL, x, z, 0.3), rel = bil(REL, x, z, 0);
+    const a = rel * 0.5 * smooth(0.25, 1.2, rel);   // 起伏幅度（世界高度）；平原（周边高差 < 0.25）不加细节
+    const wx2 = x + 1.6 * nA(x * 0.22, z * 0.22), wz2 = z + 1.6 * nB(x * 0.22 + 7, z * 0.22);
+    const rd = ridged(nD, wx2 * 0.26, wz2 * 0.26, 4);                       // 次级山脊（0–~1），波长约 4 单位
+    const vl = 1 - smooth(0.02, 0.2, Math.abs(nC(wx2 * 0.3 + 3, wz2 * 0.3)));  // 沟谷：噪声过零处成谷
+    const fine = fbm(nA, x * 1.3, z * 1.3, 2);
+    BASE[k] = yb; AMPL[k] = a;
+    Y[k] = yb + a * (0.6 * (rd - 0.45) - 0.35 * vl + 0.03 * fine);   // 细节幅度全随当地起伏：平原不起麻点
+    CLIFF[k] = a > 1.2 && nB(x * 0.5 + 31, z * 0.5) > 0.42 ? 1 : 0;           // 少量「崖」区：允许更陡
+  }
+  /* 名胜微缩景（如庐山）：保留其自己设计的地形与水面，不叠自然噪声 */
+  const PT = new Uint8Array(n);
+  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) { const x = px(i), z = pz(j), k = j * nx + i, kk = clamp(gj(z), 0, H - 1) * W + clamp(gi(x), 0, W - 1); if (PATCH_OF[kk]) { PT[k] = 1; const L = landAt(x, z); Y[k] = L.water ? L.y - 0.3 : L.y; AMPL[k] = 0; CLIFF[k] = 0; } }
+  /* —— 2. 水域：真实河道中心线 + 全国图湖面 —— */
+  const WL = new Float32Array(n).fill(NaN), SD = new Float32Array(n).fill(1e9), RB = new Float32Array(n).fill(NaN);
+  for (const [pts, w0, w1] of RIVERS) {
+    const P = pts.map(([lng, lat]) => [wx(lng), wz(lat)]);
+    let bx0 = 1e9, bx1 = -1e9, bz0 = 1e9, bz1 = -1e9; P.forEach(([x, z]) => { bx0 = Math.min(bx0, x); bx1 = Math.max(bx1, x); bz0 = Math.min(bz0, z); bz1 = Math.max(bz1, z); });
+    if (bx1 < x0 - 6 || bx0 > x1 + 6 || bz1 < z0 - 6 || bz0 > z1 + 6) continue;
+    const Lc = [0]; for (let s = 1; s < P.length; s++) Lc.push(Lc[s - 1] + Math.hypot(P[s][0] - P[s - 1][0], P[s][1] - P[s - 1][1]));
+    const tot = Lc[Lc.length - 1];
+    /* 水位：沿中心线每 0.3 单位取全国图水位，自上游向下游单调不升 */
+    const S = []; for (let s = 1; s < P.length; s++) { const m = Math.max(1, Math.ceil((Lc[s] - Lc[s - 1]) / 0.3)); for (let q = 0; q < m; q++) { const t = q / m; S.push([lerp(P[s - 1][0], P[s][0], t), lerp(P[s - 1][1], P[s][1], t), (Lc[s - 1] + t * (Lc[s] - Lc[s - 1])) / tot]); } }
+    const lv = S.map(([x, z]) => { const kk = clamp(gj(z), 0, H - 1) * W + clamp(gi(x), 0, W - 1); return isNaN(WY[kk]) ? TY[kk] - 0.2 : WY[kk]; });
+    for (let s = 1; s < lv.length; s++) lv[s] = Math.min(lv[s], lv[s - 1]);
+    const hwOf = (t) => Math.max(CS * 0.74, lerp(w0 * 0.75, w1, Math.pow(t, 3)));
+    for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+      const x = px(i), z = pz(j), k = j * nx + i; let best = 1e9, bt = 0;
+      for (let s = 1; s < P.length; s++) { const [d, t] = segDist(x, z, P[s - 1][0], P[s - 1][1], P[s][0], P[s][1]); if (d < best) { best = d; bt = (Lc[s - 1] + t * (Lc[s] - Lc[s - 1])) / tot; } }
+      /* 岸线曲折：半宽随两级噪声伸缩（±30%），岸线弯而不碎 */
+      const hw = hwOf(bt) * (1 + 0.24 * nA(x * 0.16 + 5, z * 0.16) + 0.08 * nB(x * 0.7, z * 0.7));
+      const sd = best - hw;
+      if (PT[k]) continue;
+      if (sd < SD[k]) { SD[k] = sd; const L = lv[clamp(Math.round(bt * (S.length - 1)), 0, S.length - 1)]; if (sd < 0) { WL[k] = L; RB[k] = L - 0.14 - 0.55 * smooth(0, 1, Math.min(1, -sd / Math.max(0.4, hw * 0.6))); } else RB[k] = L; }
+    }
+  }
+  /* 湖面：全国图上有水、且不属河道的格子 */
+  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+    const x = px(i), z = pz(j), k = j * nx + i;
+    if (!isNaN(WL[k])) continue;
+    if (PT[k]) { const L = landAt(x, z); if (L.water) { WL[k] = L.y; RB[k] = Y[k]; } continue; }
+    const w = bil(WET, x, z, 0) + 0.18 * nC(x * 0.6, z * 0.6);
+    if (w > 0.5) { const L = bil(WY, x, z, NaN); const lvl = isNaN(L) ? WY[clamp(gj(z), 0, H - 1) * W + clamp(gi(x), 0, W - 1)] : L; if (!isNaN(lvl)) { WL[k] = lvl; RB[k] = lvl - 0.12 - 0.6 * smooth(0.5, 1, w); } }
+  }
+  /* 离岸距离（湖也算）：水格为负；陆地用倒角距离变换，同时带出最近的水位 */
+  const NL = new Float32Array(n).fill(NaN);
+  for (let k = 0; k < n; k++) if (!isNaN(WL[k])) { NL[k] = WL[k]; if (SD[k] > 0) SD[k] = -h * 0.5; } else if (SD[k] < 0) SD[k] = h * 0.5;
+  { const D = new Float32Array(n); for (let k = 0; k < n; k++) D[k] = isNaN(WL[k]) ? 1e9 : 0;
+    const d1 = h, d2 = h * Math.SQRT2;
+    const relax = (k, kk, d) => { if (D[kk] + d < D[k]) { D[k] = D[kk] + d; NL[k] = NL[kk]; } };
+    for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) { const k = j * nx + i; if (i) relax(k, k - 1, d1); if (j) { relax(k, k - nx, d1); if (i) relax(k, k - nx - 1, d2); if (i < nx - 1) relax(k, k - nx + 1, d2); } }
+    for (let j = nz - 1; j >= 0; j--) for (let i = nx - 1; i >= 0; i--) { const k = j * nx + i; if (i < nx - 1) relax(k, k + 1, d1); if (j < nz - 1) { relax(k, k + nx, d1); if (i < nx - 1) relax(k, k + nx + 1, d2); if (i) relax(k, k + nx - 1, d2); } }
+    for (let k = 0; k < n; k++) if (isNaN(WL[k])) SD[k] = Math.min(SD[k] < 1e8 ? SD[k] : 1e9, D[k] - h * 0.5); }
+  /* —— 3. 岸：水格压成河床；岸上从低处向后方抬升；少数岸段陡峭 —— */
+  const STEEP = new Uint8Array(n);
+  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+    const x = px(i), z = pz(j), k = j * nx + i;
+    if (!isNaN(WL[k])) { Y[k] = Math.min(Y[k], RB[k]); continue; }
+    const L = NL[k]; if (isNaN(L) || PT[k]) continue;
+    const s = Math.max(0, SD[k]);
+    const steep = nC(x * 0.35 + 17, z * 0.35) > 0.35 && AMPL[k] > 0.6;   // 背后有山、且噪声选中的岸段：岩岸
+    STEEP[k] = steep && s < 1.2 ? 1 : 0;
+    const bw = steep ? 0.5 : (1.2 + 1.8 * (0.5 + 0.5 * nA(x * 0.2, z * 0.2 + 9))) * (0.8 + 0.4 * (0.5 + 0.5 * nB(x * 0.9, z * 0.9)));   // 缓岸 1–3.6 单位，宽窄错落，岸坡台阶不成同心圈
+    const low = L + 0.05 + 0.1 * smooth(0, 0.6, s);                            // 滩地：比水面高一点点
+    const t = smooth(0, bw, s);
+    Y[k] = Math.max(low, lerp(low, Math.max(Y[k], low), t));
+  }
+  /* —— 4. 热侵蚀：单格落差超过安息角（随噪声 0.35–0.6，崖区 1.4）时削高补低 —— */
+  const talus = new Float32Array(n);
+  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) { const k = j * nx + i; talus[k] = CLIFF[k] || STEEP[k] ? 1.4 : 0.35 + 0.25 * (0.5 + 0.5 * nD(px(i) * 0.3, pz(j) * 0.3)); }
+  const isW = (k) => !isNaN(WL[k]);
+  for (let it = 0; it < 14; it++) for (let j = 1; j < nz - 1; j++) for (let i = 1; i < nx - 1; i++) {
+    const k = j * nx + i; if (isW(k) || PT[k]) continue;
+    for (const o of [1, -1, nx, -nx]) { const q = k + o; if (isW(q) || PT[q]) continue; const d = Y[k] - Y[q], m = Math.min(talus[k], talus[q]); if (d > m) { const mv = (d - m) * 0.25; Y[k] -= mv; Y[q] += mv; } }
+  }
+  /* —— 5. 统一量化（与全国图同步长 Q） —— */
+  for (let k = 0; k < n; k++) { Y[k] = Math.round(Y[k] / Q) * Q; if (isW(k) && Y[k] > WL[k] - Q) Y[k] = Math.floor((WL[k] - Q) / Q) * Q; }
+  for (let k = 0; k < n; k++) if (!isW(k) && !isNaN(NL[k]) && Y[k] < NL[k] + Q * 0.5) Y[k] = Math.ceil((NL[k] + Q * 0.5) / Q) * Q;   // 陆地不低于近旁水面
+  /* —— 6. 坡度、分区 —— */
+  const SL = new Float32Array(n), BI = new Array(n);
+  const snowY = m2y(4600);
+  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+    const k = j * nx + i, g = (ii, jj) => Y[clamp(jj, 0, nz - 1) * nx + clamp(ii, 0, nx - 1)];
+    SL[k] = Math.hypot(g(i + 1, j) - g(i - 1, j), g(i, j + 1) - g(i, j - 1)) / (2 * h);
+    const m = y2m(Y[k]);
+    BI[k] = isW(k) ? "water" : SD[k] < 0.3 && SL[k] < 0.8 ? "shore" : SD[k] < 0.75 && !STEEP[k] && SL[k] < 0.6 && ((i * 7 + j * 13) % 5 > 0 || SD[k] < 0.5) ? "wetland" : Y[k] > snowY ? "snow" : SL[k] > 2.2 || (m > 1300 && SL[k] > 1.4) ? "rock" : m > 700 || AMPL[k] > 1.2 ? "mountain" : AMPL[k] > 0.35 || SL[k] > 0.8 ? "hillside" : "plain";
+  }
+  const res = { win, h, nx, nz, x0, z0, Y, WL, SD, SL, BI, STEEP, CLIFF, AMPL, ms: 0,
+    /** 地形查询：植被与后续模块只从这里取高度、坡度、分区与离岸距离 */
+    sample(x, z) { const i = Math.floor((x - x0) / h), j = Math.floor((z - z0) / h); if (i < 0 || j < 0 || i >= nx || j >= nz) return null; const k = j * nx + i; return { height: Y[k], slope: SL[k], biome: BI[k], shoreDistance: SD[k], water: isW(k) ? WL[k] : null }; },
+  };
+  res.ms = performance.now() - t0;
+  return res;
+}
+/** 材质分层与合并网格：顶面按分区；侧面只在邻格更低时生成（内部面不出），按 草皮口 → 土层 → 岩层 分段 */
+const LPAL = {
+  grass: ["#8faa62", "#86a15c", "#98b068"], meadow: ["#7d9a5c", "#748f55", "#86a062"], plain: ["#a3b172", "#9aab6c", "#aab777"],
+  rock: ["#7f8b87", "#8a948f", "#76827e"], rockS: ["#6c7875", "#75807c", "#66726f"], snow: ["#e9eef0", "#dfe6ea"],
+  shore: ["#c2b98e", "#b8b086", "#cabf95"], wet: ["#8c8a64", "#838259", "#94916a"], soil: ["#a3805a", "#9b7a56", "#ab8861"], soilW: ["#8f7d5c", "#877657"],
+  bed: ["#7c9a8a", "#86a292", "#6f8f80"],
+};
+function landscapeMesh(T, dbg) {
+  const P = [], Nn = [], Cc = [];
+  const col = (arr, k, dk = 0) => { const c = new THREE.Color(arr[Math.floor(Math.abs(Math.sin(k * 12.9898 + 78.233) * 43758.5453) % arr.length)]); if (dk) c.multiplyScalar(1 + dk); return c; };
+  const quad = (a, b, c, d, nrm, c0, c1) => { for (const [v, cc] of [[a, c0], [b, c1 || c0], [c, c1 || c0], [a, c0], [c, c1 || c0], [d, c0]]) { P.push(v[0], v[1], v[2]); Nn.push(nrm[0], nrm[1], nrm[2]); Cc.push(cc.r, cc.g, cc.b); } };
+  const { nx, nz, h, x0, z0, Y, BI, SL, SD, STEEP } = T;
+  const topCol = (k) => {
+    if (dbg === "shore") { const s = SD[k]; const c = new THREE.Color(s < 0 ? "#3b7fa0" : s < 0.35 ? "#e8d9a0" : s < 1.1 ? "#9a8e5a" : s < 3 ? "#8fb06a" : "#6b8a55"); return c; }
+    if (dbg === "biome") return new THREE.Color({ water: "#3b7fa0", shore: "#e8d9a0", wetland: "#9a8e5a", plain: "#b9c27e", hillside: "#8fb06a", mountain: "#5f8050", rock: "#7b8683", snow: "#ffffff" }[BI[k]]);
+    const b = BI[k];
+    return b === "water" ? col(LPAL.bed, k) : b === "shore" ? col(LPAL.shore, k) : b === "wetland" ? col(LPAL.wet, k) : b === "snow" ? col(LPAL.snow, k) : b === "rock" ? col(LPAL.rock, k) : b === "mountain" ? col(LPAL.meadow, k) : b === "hillside" ? col(LPAL.grass, k) : col(LPAL.plain, k);
+  };
+  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+    const k = j * nx + i, y = Y[k], ax = x0 + i * h, bx = ax + h, az = z0 + j * h, bz = az + h, tc = topCol(k);
+    quad([ax, y, az], [ax, y, bz], [bx, y, bz], [bx, y, az], [0, 1, 0], tc);
+    for (const [di, dj, nrm] of [[1, 0, [1, 0, 0]], [-1, 0, [-1, 0, 0]], [0, 1, [0, 0, 1]], [0, -1, [0, 0, -1]]]) {
+      const ii = i + di, jj = j + dj, ny = ii < 0 || jj < 0 || ii >= nx || jj >= nz ? y - 1.2 : Y[jj * nx + ii];
+      if (ny >= y - 1e-4) continue;   // 邻格不低于本格：这一面被挡住，不生成
+      const face = (ya, yb, c) => {
+        if (di === 1) quad([bx, yb, az], [bx, ya, az], [bx, ya, bz], [bx, yb, bz], nrm, c);
+        else if (di === -1) quad([ax, yb, bz], [ax, ya, bz], [ax, ya, az], [ax, yb, az], nrm, c);
+        else if (dj === 1) quad([bx, yb, bz], [bx, ya, bz], [ax, ya, bz], [ax, yb, bz], nrm, c);
+        else quad([ax, yb, az], [ax, ya, az], [bx, ya, az], [bx, yb, az], nrm, c);
+      };
+      const drop = y - ny, b = BI[k], rocky = b === "rock" || b === "snow" || STEEP[k] || T.CLIFF[k], wet = b === "shore" || b === "wetland" || b === "water";
+      /* 侧面分段：草皮口 0.04 → 土层（到 0.3 深）→ 岩层；岩区全为岩；水边为湿土 */
+      let ya = y;
+      if (!rocky && !wet && b !== "water") { const yb = Math.max(ny, y - 0.045); face(ya, yb, tc.clone().multiplyScalar(0.9)); ya = yb; }
+      if (ya > ny && !rocky) { const yb = Math.max(ny, y - (wet ? drop : 0.32)); face(ya, yb, col(wet ? LPAL.soilW : LPAL.soil, k + di * 3 + dj * 7, -0.04)); ya = yb; }
+      if (ya > ny) { let yy = ya; while (yy > ny + 1e-4) { const yb = Math.max(ny, yy - 0.3); face(yy, yb, col(drop > 0.9 ? LPAL.rockS : LPAL.rock, k + Math.round(yy * 10), -0.03 - Math.min(0.15, (y - yy) * 0.04))); yy = yb; } }
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(P, 3)); g.setAttribute("normal", new THREE.Float32BufferAttribute(Nn, 3)); g.setAttribute("color", new THREE.Float32BufferAttribute(Cc, 3));
+  g.computeBoundingSphere();
+  /* 水面：按水深上色（浅石绿 → 石青 → 黛青），逐格轻微明暗；着色器里按 1/10 单位取样做像素化波纹 */
+  const WP = [], WC = [], cS = new THREE.Color("#6fae9c"), cM = new THREE.Color("#276b83"), cD = new THREE.Color("#263e47");
+  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+    const k = j * nx + i; if (isNaN(T.WL[k])) continue;
+    const L = T.WL[k], dep = L - Y[k], c = dep < 0.5 ? cS.clone().lerp(cM, smooth(0.1, 0.5, dep)) : cM.clone().lerp(cD, smooth(0.5, 1.2, dep));
+    c.multiplyScalar(0.97 + 0.06 * Math.abs(Math.sin(k * 7.13) % 1));
+    const ax = x0 + i * h, bx = ax + h, az = z0 + j * h, bz = az + h;
+    for (const v of [[ax, az], [ax, bz], [bx, bz], [ax, az], [bx, bz], [bx, az]]) { WP.push(v[0], L, v[1]); WC.push(c.r, c.g, c.b); }
+  }
+  const wg = new THREE.BufferGeometry(); wg.setAttribute("position", new THREE.Float32BufferAttribute(WP, 3)); wg.setAttribute("color", new THREE.Float32BufferAttribute(WC, 3)); wg.computeVertexNormals();
+  const wm = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0, transparent: true, opacity: 0.9 });
+  wm.onBeforeCompile = (sh) => {
+    sh.uniforms.uTime = GU.uTime;
+    sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nvarying vec3 vWp;").replace("#include <worldpos_vertex>", "#include <worldpos_vertex>\nvWp = (modelMatrix * vec4(transformed, 1.0)).xyz;");
+    sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nvarying vec3 vWp; uniform float uTime;\nfloat h21(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }")
+      .replace("#include <color_fragment>", "#include <color_fragment>\n{ vec2 q = floor(vWp.xz * 10.0); float w = h21(q + floor(uTime * 1.2 + h21(q) * 3.0)); diffuseColor.rgb *= 1.0 + (step(0.9, w) * 0.08 - step(w, 0.08) * 0.05); }");
+  };
+  return { terrain: new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 })), water: new THREE.Mesh(wg, wm), tris: P.length / 9 + WP.length / 9 };
+}
+function startTerrainLab() {
+  TLAB_WIN = TLAB_WINS[QS.get("w")] || TLAB_WINS.sanxia; TLAB_VIEWS = TLAB_WIN.views;
+  const sc = new THREE.Scene(); sc.background = new THREE.Color("#ebe4d3");
+  sc.add(new THREE.HemisphereLight("#f6f1e6", "#a8a288", 1.35));
+  const sun = new THREE.DirectionalLight("#fff1d8", 2.0); sun.castShadow = true; sun.shadow.mapSize.set(4096, 4096); sun.shadow.bias = -0.0004; sc.add(sun, sun.target);
+  const T = buildLandscape(TLAB_WIN);
+  let M = landscapeMesh(T); for (const m of [M.terrain, M.water]) { m.castShadow = m === M.terrain; m.receiveShadow = true; sc.add(m); }
+  const cxw = T.x0 + T.nx * T.h / 2, czw = T.z0 + T.nz * T.h / 2, R = Math.max(T.nx, T.nz) * T.h * 0.62;
+  sun.position.set(cxw - 18, 30, czw - 12); sun.target.position.set(cxw, 0, czw);
+  Object.assign(sun.shadow.camera, { left: -R, right: R, top: R, bottom: -R, near: 1, far: 90 }); sun.shadow.camera.updateProjectionMatrix();
+  const cam = new THREE.PerspectiveCamera(camera.fov, innerWidth / innerHeight, 0.3, 400);
+  const ctl = new OrbitControls(cam, canvas); controls.enabled = false; ctl.enableDamping = true;
+  document.body.classList.add("ui-hidden", "lab");
+  const st = document.createElement("style"); st.textContent = "body.lab > *:not(canvas):not(#lab-legend){display:none!important}#lab-legend{position:fixed;left:16px;top:12px;font:13px/1.7 serif;color:#3b3226;background:#f2ead8cc;padding:6px 10px;border-radius:6px;z-index:9}";
+  const lg = document.createElement("div"); lg.id = "lab-legend";
+  lg.innerHTML = `<b>地形预览 · ${TLAB_WIN.name}</b>　拖动旋转 · 滚轮缩放<br>格 ${T.h.toFixed(2)}（全国图 ${CS.toFixed(2)}）· ${T.nx}×${T.nz} · 三角面 ${(M.tris / 1000).toFixed(0)}k · 生成 ${T.ms.toFixed(0)} ms`;
+  document.head.appendChild(st); document.body.appendChild(lg);
+  const view = (v) => { const p = viewPose(v); ctl.target.copy(p.target); cam.position.copy(p.pos); ctl.update(); };   // 与主地图 setView 同一机位，便于前后对比
+  view(TLAB_VIEWS.mtn);
+  LAB = { sc, cam, ctl, T, sun, view: (name) => view(TLAB_VIEWS[name] || name),
+    /** 调试着色：shore（离岸距离分带）/ biome（分区）/ 空（正常材质） */
+    debug(mode) { sc.remove(M.terrain, M.water); M = landscapeMesh(T, mode); M.terrain.castShadow = true; M.terrain.receiveShadow = M.water.receiveShadow = true; sc.add(M.terrain, M.water); return M.tris; },
+    get tris() { return M.tris; } };
+  return LAB;
+}
 /* ===== 树木样板（TreePreview：tree-preview.html 或 ?lab=all / ?lab=willow,pine）：单独场景，拖动旋转、滚轮缩放，逐棵检查造型 =====
    每个树种一行：各变体的近景（LOD0/细节 2），右侧是变体 0 的中景与远景（细节 1、0） */
 let LAB = null;
@@ -5301,14 +5525,15 @@ document.addEventListener("visibilitychange", () => { if (audio) (document.hidde
     await stage("植树 · 点苔", 88);
     buildFalls(); buildFlora(); buildNearFlora(); buildClouds(); buildWallLine(); buildRiverLines(); buildDrift(); buildNightFx();
     await stage("落款", 95);
-    buildComposer(); buildLabels(); buildGeoLabels(); buildRegionLabels(); buildUI();
+    buildComposer(); buildLabels(); buildGeoLabels(); buildUI();   // 文化区域名（齐鲁、江南等）已移除：拉远时会跳动
     moodCur.sun = null; applyMood(moodVals(MOODS[moodKey])); setMood(moodKey, true); setSeason(seasonKey, true); setWeather(weatherKey, true, false);
     applyQuality();
     controls.maxDistance = Math.max(115, natDist() * 1.1);
     const v0 = viewPose(HOME); controls.target.copy(v0.target); camera.position.copy(v0.pos); controls.update();
     renderer.compile(scene, camera);
     renderFrame(0);
-    if (QS.get("lab")) startLab(QS.get("lab").split(","));
+    if (QS.get("lab") === "terrain") startTerrainLab();
+    else if (QS.get("lab")) startLab(QS.get("lab").split(","));
     window.__ready = true;
     $("#loader").classList.add("done");
     setTimeout(() => { $("#loader").remove(); }, 1200);
@@ -5317,7 +5542,7 @@ document.addEventListener("visibilitychange", () => { if (audio) (document.hidde
     setTimeout(openFromHash, 400);
     setTimeout(loadTourFont, 600); setTimeout(loadDetail, 2500); setTimeout(loadPoemFont, 5000);
     addEventListener("hashchange", () => { if (!curPlace || !location.hash.includes(curPlace.poems[curPoem].id)) openFromHash(); });
-    window.__app = { get grid() { return { W, H, X0, Z0, CS }; }, floraInfoAt: (x, z) => floraInfo(gi(x), gj(z)), get lab() { return LAB; }, startLab, THREE, scene, camera, get water() { return [reflector, waterFlat]; }, controls, renderer, PLACES, VIEWS, flyView, setMood, setSeason, setWeather, GU, FALLS, startTrail, closeTrail, get trail() { return trail; }, get TOUR() { return TOUR; }, TS, tourPlan, groundAt, nearFlora, PATCHES, bldGroup, VoxelTree, treeGeoKey, floraMat, landAt, wx, wz, y2m, get EXTRA() { return EXTRA_TREES; }, get flora() { return floraMeshes; }, tourAt(i) { startTour(); tourGo(i); }, startTour, stopTour, HOME, get autoFocus() { return autoFocus; }, openPlace, openPoem, closeAll, get listOpen() { return listOpen; }, get scrollOpen() { return scrollOpen; }, applyQuality, get quality() { return QUALITY; }, viewPose,
+    window.__app = { TLAB_WINS, dbgH: (lng, lat) => { const k = gj(wz(lat)) * W + gi(wx(lng)); return { TY: +TY[k].toFixed(2), mE: +m2y(E[k]).toFixed(2), E: E[k] | 0, patch: PATCH_OF[k], wy: WY[k] }; }, buildLandscape, get TLAB_VIEWS() { return (TLAB_WINS[QS.get("w")] || TLAB_WINS.sanxia).views; }, get grid() { return { W, H, X0, Z0, CS }; }, floraInfoAt: (x, z) => floraInfo(gi(x), gj(z)), get lab() { return LAB; }, startLab, THREE, scene, camera, get water() { return [reflector, waterFlat]; }, controls, renderer, PLACES, VIEWS, flyView, setMood, setSeason, setWeather, GU, FALLS, startTrail, closeTrail, get trail() { return trail; }, get TOUR() { return TOUR; }, TS, tourPlan, groundAt, nearFlora, PATCHES, bldGroup, VoxelTree, treeGeoKey, floraMat, landAt, wx, wz, y2m, get EXTRA() { return EXTRA_TREES; }, get flora() { return floraMeshes; }, tourAt(i) { startTour(); tourGo(i); }, startTour, stopTour, HOME, get autoFocus() { return autoFocus; }, openPlace, openPoem, closeAll, get listOpen() { return listOpen; }, get scrollOpen() { return scrollOpen; }, applyQuality, get quality() { return QUALITY; }, viewPose,
       setView(v) { const { target, pos } = viewPose(v); controls.target.copy(target); camera.position.copy(pos); fly = null; controls.update(); },
       cell(lng, lat) { const k = idx(wx(lng), wz(lat)); return { y: TY[k], m: Math.round(y2m(TY[k])), kind: KIND[k], snow: SNOW[k], col: [...TOPC.slice(k * 3, k * 3 + 3)].map((v) => +v.toFixed(2)) }; },
       bench(n = 60) { const gl = renderer.getContext(); composer.render(); gl.finish(); const t = performance.now(); for (let i = 0; i < n; i++) { if (window.__benchShadow) renderer.shadowMap.needsUpdate = true; composer.render(); } gl.finish(); return +((performance.now() - t) / n).toFixed(2); },
