@@ -2544,93 +2544,126 @@ const VoxelTree = (() => {
   /** 一段树干 / 枝：从 (x,y,z) 向 (dx,dy,dz) 方向走 n 格体素 */
   function limb(b, x, y, z, dx, dy, dz, n, w, col) { for (let q = 0; q < n; q++) b.cbox((x + dx * q) * V, (y + dy * q) * V, (z + dz * q) * V, w * V, V * 1.05, w * V, col); return [x + dx * n, y + dy * n, z + dz * n]; }
 
+  /** 阔叶树：粗干 → 2–3 条主枝 → 冠底暗层 + 主冠（干顶一团、枝端各一团）+ 侧冠 + 顶冠
+      变体：0 标准 1 宽冠 2 庭院小树 3 不对称（干斜、冠偏一侧） */
   function broadleaf(b, P, R) {
-    const th = P.trunkHeight, cw = P.crownWidth, ch = P.crownHeight, cv = P.colorVariation, asym = P.asymmetry;
-    const bark = shade(BARK, R, cv);
-    b.cbox(0, -0.14, 0, 2 * V, 0.14, 2 * V, bark);
-    b.cbox(0, 0, 0, 2 * V, th * V, 2 * V, bark);
-    const heads = [[0, th, 0]];
-    if (P.detailLevel === 2) for (let q = 0; q < P.branchCount; q++) {
-      const a = (q / P.branchCount) * 6.283 + R() * 0.8, dx = Math.round(Math.cos(a)), dz = Math.round(Math.sin(a));
-      heads.push(limb(b, 0, th - 1 - (q % 2), 0, dx, 1, dz, 2 + Math.floor(R() * 2), 1.3, bark));
+    const th = P.trunkHeight, cw = P.crownWidth, ch = P.crownHeight, cv = P.colorVariation, v = P.variant % 4, D = P.detailLevel;
+    const bark = shade(BARK, R, cv), tw = v === 2 ? 2.1 : 2.6;
+    const side = R() * 6.283, lx = Math.cos(side), lz = Math.sin(side), lean = v === 3 ? 0.3 : 0.08, sh = v === 3 ? 2.2 : 0;
+    const T = [lx * lean * th, th, lz * lean * th];
+    b.cbox(0, -0.14, 0, tw * V, 0.14, tw * V, bark);
+    if (D < 2) b.cbox(T[0] * 0.5 * V, 0, T[2] * 0.5 * V, tw * V, (th + 1.5) * V, tw * V, bark);
+    else {
+      b.cbox(0, 0, 0, (tw + 1.2) * V, 1 * V, (tw + 1.2) * V, "#44352a");   // 根部
+      b.cbox(0, 0, 0, tw * V, (th * 0.55 + 0.2) * V, tw * V, bark);
+      b.cbox(T[0] * V, th * 0.55 * V, T[2] * V, (tw - 0.4) * V, (th * 0.45 + 1.5) * V, (tw - 0.4) * V, bark);
     }
-    if (P.detailLevel === 0) { b.cbox(0, (th - 1) * V, 0, cw * V, ch * V, cw * V, shade(LEAF.mid, R, cv), DE); return; }
-    /* 叶团：5–12 块，按造型变体分布在冠体里；下层暗、上层亮 */
-    const nb = P.detailLevel === 1 ? 4 : 5 + Math.floor(R() * 8), ox = asym * (R() - 0.5) * cw * 0.5, oz = asym * (R() - 0.5) * cw * 0.5;
-    const form = P.variant;   // 0 圆冠 1 高卵形 2 伞形 3 双团不对称
-    for (let q = 0; q < nb; q++) {
-      let u = R() * 2 - 1, w = R() * 2 - 1, v = R();
-      if (form === 1) { u *= 0.7; w *= 0.7; v = Math.pow(v, 0.8); }
-      if (form === 2) { v = 0.55 + v * 0.45; }
-      if (form === 3) { const side = q % 2 ? 1 : -0.6; u = u * 0.5 + side * 0.55; v = v * (q % 2 ? 1 : 0.7); }
-      const sz = (0.34 + R() * 0.3) * cw * (form === 2 ? 1.1 : 1), sy = sz * (form === 2 ? 0.55 : 0.8 + R() * 0.3);
-      const y = th - 1 + v * (ch - sy / 1) * (form === 1 ? 1.15 : 1);
-      const tier = v > 0.66 ? LEAF.top : v > 0.3 ? LEAF.mid : LEAF.low;
-      b.cbox((u * cw * 0.42 + ox) * V, y * V, (w * cw * 0.42 + oz) * V, sz * V, sy * V, sz * V, shade(tier, R, cv), DE, R() * 0.4);
+    const cl = (x, y, z, w, h, d, pal, rot = R() * 0.6) => rbox(b, x * V, y * V, z * V, w * V, h * V, d * V, shade(pal, R, cv), DE, rot);
+    if (D === 0) {
+      cl(T[0] + lx * sh, th, T[2] + lz * sh, cw * 0.9, ch * 0.5, cw * 0.82, LEAF.mid);
+      cl(T[0] + lx * sh * 1.3, th + ch * 0.45, T[2] + lz * sh * 1.3, cw * 0.55, ch * 0.4, cw * 0.5, LEAF.top);
+      return;
     }
-    /* 冠底：一块略大、较暗的托底，冠体下缘有层次 */
-    b.cbox(ox * V, (th - 0.5) * V, oz * V, cw * 0.7 * V, 1.6 * V, cw * 0.7 * V, shade(LEAF.low, R, cv), DE);
-    if (P.detailLevel === 2) for (let q = 0; q < 3; q++) { const a = R() * 6.283, r = cw * 0.45; b.cbox((Math.cos(a) * r + ox) * V, (th + ch * (0.2 + R() * 0.5)) * V, (Math.sin(a) * r + oz) * V, 2 * V, 2 * V, 2 * V, shade(LEAF.top, R, cv), DE); }
+    /* 主枝：绕干分向，斜上伸出，枝端托起冠团 */
+    const nb = v === 2 ? 2 : 3, a0 = R() * 6.283, ends = [];
+    for (let i = 0; i < nb; i++) {
+      const a = v === 3 ? side + (i - 1) * 0.95 : a0 + (i * 6.283) / nb + (R() - 0.5) * 0.6;
+      const dx = Math.cos(a), dz = Math.sin(a), len = cw * (0.28 + R() * 0.1) * (v === 3 && i === 1 ? 1.35 : 1), rise = 0.6 + R() * 0.35;
+      const segs = D === 2 ? 2 : 1, sl = len / segs;
+      let px = T[0], py = th - 1.5 - (i % 2), pz = T[2];
+      for (let q = 0; q < segs; q++) { rbox(b, (px + dx * sl * 0.5) * V, py * V, (pz + dz * sl * 0.5) * V, (sl + 1) * V, (q ? 1.2 : 1.5) * V, (q ? 1.2 : 1.5) * V, bark, 0, -a); px += dx * sl; pz += dz * sl; py += rise * sl; }
+      ends.push([px, py, pz, a]);
+    }
+    /* 冠底暗层：托住冠体，枝干从它下面露出来 */
+    cl(T[0] + lx * sh * 0.5, th + 0.2, T[2] + lz * sh * 0.5, cw * 0.66, 2, cw * 0.6, LEAF.low);
+    /* 主冠层 */
+    cl(T[0] + lx * sh, th + 1.6, T[2] + lz * sh, cw * 0.52, ch * 0.42, cw * 0.48, LEAF.mid);
+    for (const e of ends) { const z = cw * (0.36 + R() * 0.1) * (v === 2 ? 1.1 : 1); cl(e[0], e[1] - 1.4, e[2], z, ch * (0.34 + R() * 0.08), z * (0.85 + R() * 0.2), LEAF.mid, -e[3]); }
+    /* 顶冠 */
+    cl(T[0] + lx * sh * 1.2 + (R() - 0.5) * 2, th + ch * 0.48, T[2] + lz * sh * 1.2 + (R() - 0.5) * 2, cw * 0.38, ch * 0.3, cw * 0.36, LEAF.top);
+    if (D === 2) {
+      /* 侧冠：每个枝端团上方错开一小团；冠缘几块小叶，轮廓不齐 */
+      for (const e of ends) { const o = e[3] + (R() < 0.5 ? 0.8 : -0.8); cl(e[0] + Math.cos(o) * cw * 0.14, e[1] + ch * 0.16, e[2] + Math.sin(o) * cw * 0.14, cw * 0.27, ch * 0.24, cw * 0.25, LEAF.top); }
+      cl(T[0] + lx * sh * 1.3 + (R() - 0.5) * 2, th + ch * 0.7, T[2] + lz * sh * 1.3 + (R() - 0.5) * 2, cw * 0.2, ch * 0.16, cw * 0.2, LEAF.top);
+      for (let q = 0; q < 3; q++) { const a = a0 + q * 2.1 + 1, r = cw * 0.44; cl(T[0] + Math.cos(a) * r, th + 1.2 + R() * ch * 0.25, T[2] + Math.sin(a) * r, 2.4, 2.2, 2.4, LEAF.low); }
+    }
   }
 
+  const NEEDLE_L = ["#3c6b4f", "#41704f"];
+  /** 直立松：干粗，下层枝最宽；每层一块主针叶垫 + 两三块外伸的枝端垫，层间露出主干
+      变体：0 矮壮山松 1 直立山地松 2 偏冠松（上层逐级偏向一侧） */
   function pineUpright(b, P, R) {
-    const th = P.trunkHeight, cw = P.crownWidth, ch = P.crownHeight, cv = P.colorVariation, bark = shade(BARK, R, cv);
-    b.cbox(0, -0.14, 0, 2 * V, 0.14, 2 * V, bark);
-    b.cbox(0, 0, 0, 2 * V, (th + ch) * V, 2 * V, bark);
-    const tiers = P.detailLevel === 0 ? 2 : P.detailLevel === 1 ? 3 : 4 + Math.floor(R() * 2);
+    const th = P.trunkHeight, cw = P.crownWidth, ch = P.crownHeight, cv = P.colorVariation, v = P.variant % 3, D = P.detailLevel, bark = shade(BARK, R, cv);
+    const tw = v === 0 ? 3 : 2.5, span = ch * 0.78;
+    b.cbox(0, -0.14, 0, tw * V, 0.14, tw * V, bark);
+    b.cbox(0, 0, 0, tw * V, (th + span + 1) * V, tw * V, bark);
+    if (D === 2) b.cbox(0, 0, 0, (tw + 1.2) * V, V, (tw + 1.2) * V, "#3f3127");
+    const tiers = D === 0 ? 2 : D === 1 ? 3 : Math.max(3, Math.round(span / 3.2) + 1), sa = R() * 6.283, off = v === 2 ? 2 : 0;
     for (let t = 0; t < tiers; t++) {
-      const f = t / (tiers - 1), w = cw * (1 - f * 0.72) * (0.9 + R() * 0.2), y = th + f * ch * 0.85;
-      /* 每层 2–4 块错位的针叶垫，不是规整方块 */
-      const pads = P.detailLevel === 0 ? 1 : P.detailLevel === 1 ? 2 : 2 + Math.floor(R() * 3);
-      for (let q = 0; q < pads; q++) {
-        const a = R() * 6.283, off = w * 0.18 * P.asymmetry;
-        b.cbox(Math.cos(a) * off * V, y * V, Math.sin(a) * off * V, w * (0.6 + R() * 0.4) * V, (1.6 + R() * 0.8) * V, w * (0.6 + R() * 0.4) * V, shade(NEEDLE, R, cv), EV, R() * 1.2);
+      const f = t / (tiers - 1), w = cw * (1.12 - f * 0.78) * (0.92 + R() * 0.16), y = th + f * span;
+      const ph = D === 0 ? span / 2 + 1 : 2.1 + (1 - f) * 0.5, ox = Math.cos(sa) * off * f, oz = Math.sin(sa) * off * f;
+      const pal = f > 0.55 ? NEEDLE_L : NEEDLE;
+      rbox(b, ox * V, y * V, oz * V, w * V, ph * V, w * (0.8 + R() * 0.15) * V, shade(pal, R, cv), EV, R() * 1.5);
+      /* 枝端垫：比主垫低半层、向外伸，层层错开，不成规整三角 */
+      if (D > 0 && t < tiers - 1 && (D === 2 || t === 0)) {
+        const nt = D === 2 ? (t === 0 ? 3 : 2) : 1, a0 = R() * 6.283;
+        for (let q = 0; q < nt; q++) {
+          const a = a0 + (q * 6.283) / nt + (R() - 0.5) * 0.7, r = w * (0.42 + R() * 0.1);
+          if (D === 2) rbox(b, Math.cos(a) * r * 0.45 * V, (y - 0.7) * V, Math.sin(a) * r * 0.45 * V, r * 0.9 * V, 0.9 * V, 0.9 * V, bark, 0, -a);
+          rbox(b, (ox + Math.cos(a) * r) * V, (y - 0.9) * V, (oz + Math.sin(a) * r) * V, w * 0.46 * V, 1.7 * V, w * 0.4 * V, shade(NEEDLE, R, cv), EV, -a);
+        }
       }
     }
-    b.cbox(0, (th + ch * 0.95) * V, 0, 1.5 * V, 2.5 * V, 1.5 * V, shade(NEEDLE, R, cv), EV);
+    b.cbox(Math.cos(sa) * off * V, (th + span + 0.8) * V, Math.sin(sa) * off * V, 2.2 * V, 2.4 * V, 2.2 * V, shade(NEEDLE_L, R, cv), EV);
   }
 
-  /** 横枝景观松（黄山松式）：斜倚的主干，向一侧伸出 2–4 条横枝，枝端是扁平的云状针叶垫 */
+  /** 横枝景观松（黄山松式）：粗干斜倚，向一侧伸出 2–4 条横枝，枝端是上下两层的云状针叶垫 */
   function pineLandscape(b, P, R) {
-    const th = P.trunkHeight, cw = P.crownWidth, cv = P.colorVariation, bark = shade(BARK, R, cv);
-    b.cbox(0, -0.14, 0, 2.2 * V, 0.14, 2.2 * V, bark);
-    const lean = R() < 0.5 ? 1 : -1;
+    const th = P.trunkHeight, cw = P.crownWidth, cv = P.colorVariation, D = P.detailLevel, bark = shade(BARK, R, cv);
+    b.cbox(0, -0.14, 0, 2.8 * V, 0.14, 2.8 * V, bark);
+    if (D === 2) b.cbox(0, 0, 0, 4 * V, V, 4 * V, "#3f3127");
+    const lean = R() < 0.5 ? 1 : -1, seg = D === 2 ? 3 : D === 1 ? Math.ceil(th / 2) : th;
     let x = 0, y = 0;
-    for (let q = 0; q < th; q++) { b.cbox(x * V, y * V, 0, 2.2 * V, 1.05 * V, 2.2 * V, bark); y++; if (q > th * 0.4 && q % 3 === 0) x += lean; }
-    const nbr = P.detailLevel === 0 ? 1 : Math.max(2, P.branchCount);
+    while (y < th) { const h = Math.min(seg, th - y), w = y < th * 0.3 ? 2.8 : 2.3; b.cbox(x * V, y * V, 0, w * V, (h + 0.2) * V, w * V, bark); y += h; if (y > th * 0.35) x += lean * h * 0.3; }
+    const nbr = D === 0 ? 1 : Math.max(2, P.branchCount);
     for (let q = 0; q < nbr; q++) {
-      const by = Math.round(th * (0.45 + 0.55 * q / nbr)), dir = q === nbr - 1 ? 0 : (q % 2 ? -1 : 1) * 0.6 + lean * 0.8;
-      const len = Math.round(cw * (0.35 + R() * 0.3) * (q === nbr - 1 ? 0.5 : 1));
-      const dz = (R() - 0.5) * 0.8, bx = x * (by / th);
-      const end = limb(b, bx, by, 0, dir, 0.18, dz, len, 1.2, bark);
+      const top = q === nbr - 1, by = Math.round(th * (0.5 + (0.5 * q) / nbr));
+      const dirx = top ? 0.25 * lean : (q % 2 ? -1 : 1) * 0.6 + lean * 0.8, dz = (R() - 0.5) * 0.8, a = Math.atan2(dz, dirx);
+      const len = cw * (0.35 + R() * 0.3) * (top ? 0.5 : 1), bx = x * (by / th), dx = Math.cos(a), dzz = Math.sin(a);
+      const segs = D === 2 ? 2 : 1, sl = len / segs; let px = bx, py = by, pz = 0;
+      for (let k = 0; k < segs; k++) { rbox(b, (px + dx * sl * 0.5) * V, py * V, (pz + dzz * sl * 0.5) * V, (sl + 1) * V, (k ? 1.1 : 1.4) * V, (k ? 1.1 : 1.4) * V, bark, 0, -a); px += dx * sl; pz += dzz * sl; py += 0.2 * sl; }
       const pw = cw * (0.42 + R() * 0.25);
-      b.cbox(end[0] * V, (end[1] + 0.5) * V, end[2] * V, pw * V, 1.8 * V, pw * 0.75 * V, shade(NEEDLE, R, cv), EV, R() * 0.6);
-      if (P.detailLevel > 0) b.cbox((end[0] + dir * 1.5) * V, (end[1] + 2) * V, end[2] * V, pw * 0.6 * V, 1.6 * V, pw * 0.5 * V, shade(NEEDLE, R, cv), EV, R() * 0.6);
+      if (D === 2) rbox(b, px * V, (py - 0.4) * V, pz * V, pw * 1.05 * V, 1.1 * V, pw * 0.8 * V, shade(NEEDLE, R, cv * 1.5), EV, -a + (R() - 0.5) * 0.5);
+      rbox(b, px * V, (py + 0.5) * V, pz * V, pw * V, 1.9 * V, pw * 0.75 * V, shade(NEEDLE, R, cv), EV, -a + (R() - 0.5) * 0.6);
+      if (D > 0) rbox(b, (px - dx * 1.2) * V, (py + 2.2) * V, (pz - dzz * 1.2) * V, pw * 0.58 * V, 1.6 * V, pw * 0.5 * V, shade(NEEDLE_L, R, cv), EV, -a + (R() - 0.5) * 0.6);
     }
   }
 
-  /** 桃花树：短干、2–4 条主枝、4–8 组花团（浅粉 / 桃粉 / 少量深粉），夹少许嫩叶 */
+  /** 桃花树：短粗干 → 3–4 条斜上主枝 → 花簇长在枝端与枝上（浅粉为主、桃粉次之、深粉点缀），簇间留空露枝 */
   function peach(b, P, R) {
-    const th = Math.max(3, Math.round(P.trunkHeight * 0.6)), cw = P.crownWidth, cv = P.colorVariation, bark = shade(["#5b3f33", "#4f362b"], R, cv);
-    b.cbox(0, -0.14, 0, 2 * V, 0.14, 2 * V, bark);
-    b.cbox(0, 0, 0, 2 * V, th * V, 2 * V, bark);
-    const nb = Math.max(2, Math.min(4, P.branchCount)), ends = [];
-    for (let q = 0; q < nb; q++) {
-      const a = (q / nb) * 6.283 + R() * 0.9;
-      ends.push(limb(b, 0, th, 0, Math.cos(a) * 0.8, 0.9, Math.sin(a) * 0.8, 3 + Math.floor(R() * 3), 1.1, bark));
+    const th = P.trunkHeight, cw = P.crownWidth, cv = P.colorVariation, D = P.detailLevel, v = P.variant % 3, bark = shade(["#5b3f33", "#4f362b"], R, cv);
+    b.cbox(0, -0.14, 0, 2.6 * V, 0.14, 2.6 * V, bark);
+    b.cbox(0, 0, 0, 2.6 * V, (th + 0.6) * V, 2.6 * V, bark);
+    if (D === 2) b.cbox(0, 0, 0, 3.6 * V, V, 3.6 * V, "#44302a");
+    const pick = () => { const r = R(); return r < 0.1 ? DEEP[Math.floor(R() * 2)] : r < 0.45 ? BLOSSOM[2] : BLOSSOM[R() < 0.5 ? 0 : 3]; };
+    const nb = D === 0 ? 2 : D === 1 ? 3 : 3 + (v === 1 ? 1 : 0), a0 = R() * 6.283, ends = [];
+    for (let i = 0; i < nb; i++) {
+      const a = a0 + (i * 6.283) / nb + (R() - 0.5) * 0.7, dx = Math.cos(a), dz = Math.sin(a), len = cw * (0.3 + R() * 0.12), rise = 0.85 + R() * 0.35;
+      if (D === 2) ends.push({ e: limb(b, 0, th - 0.5, 0, dx * 0.85, rise * 0.85, dz * 0.85, Math.round(len), 1.3, bark), a });
+      else { rbox(b, dx * len * 0.5 * V, (th - 0.5) * V, dz * len * 0.5 * V, (len * 0.7 + 1) * V, (rise * len * 0.8 + 1.3) * V, 1.4 * V, bark, 0, -a); ends.push({ e: [dx * len, th - 0.5 + rise * len, dz * len], a }); }
     }
-    if (P.detailLevel === 0) { b.cbox(0, (th + 3) * V, 0, cw * 0.9 * V, 5 * V, cw * 0.9 * V, BLOSSOM[1], FL); return; }
-    /* 花团：4–8 组，每组由 3–6 个小方块攒成，浅粉为主、桃粉次之、深粉点缀 */
-    const nc = P.detailLevel === 1 ? 4 : 4 + Math.floor(R() * 5), per = P.detailLevel === 1 ? 3 : 4 + Math.floor(R() * 3);
-    for (let q = 0; q < nc; q++) {
-      const e = ends[q % ends.length], cx0 = e[0] + (R() - 0.5) * 3.5, cy0 = e[1] + (R() - 0.2) * 2.5, cz0 = e[2] + (R() - 0.5) * 3.5;
-      for (let k = 0; k < per; k++) {
-        const sz = 1.4 + R() * 1.4, r = R();
-        const col = r < 0.12 ? DEEP[Math.floor(R() * 2)] : r < 0.45 ? BLOSSOM[2] : BLOSSOM[Math.floor(R() * 2) * 3 % 4];
-        b.cbox((cx0 + (R() - 0.5) * 3) * V, (cy0 + (R() - 0.5) * 2) * V, (cz0 + (R() - 0.5) * 3) * V, sz * V, sz * 0.85 * V, sz * V, col, FL, R());
+    for (const { e, a } of ends) {
+      const z = cw * (0.29 + R() * 0.07), c = Math.cos(a), n = Math.sin(a);
+      rbox(b, (e[0] + c * 0.8) * V, (e[1] - 0.8) * V, e[2] * V, z * V, z * 0.6 * V, z * 0.9 * V, pick(), FL, -a);   // 枝端主簇
+      if (D > 0) rbox(b, (e[0] - c * 1.2) * V, (e[1] + z * 0.4) * V, (e[2] - n * 1.2) * V, z * 0.6 * V, z * 0.45 * V, z * 0.55 * V, pick(), FL, -a + 0.4);
+      if (D === 2) {
+        rbox(b, (e[0] + c * z * 0.45) * V, (e[1] - 2.2) * V, (e[2] + n * z * 0.45) * V, z * 0.45 * V, z * 0.4 * V, z * 0.45 * V, pick(), FL, -a - 0.5);   // 外垂小簇
+        rbox(b, (e[0] - c * z * 0.55) * V, (e[1] - z * 0.55) * V, (e[2] - n * z * 0.55) * V, z * 0.38 * V, z * 0.35 * V, z * 0.38 * V, pick(), FL, -a + 1);   // 枝腰小簇
+        b.cbox((e[0] + n * 1.4) * V, (e[1] - 0.6) * V, (e[2] - c * 1.4) * V, 1.6 * V, 1.4 * V, 1.6 * V, DEEP[Math.floor(R() * 2)], FL);   // 深粉点缀
       }
     }
-    for (let q = 0; q < 2; q++) { const e = ends[q % ends.length]; b.cbox((e[0] + 1) * V, (e[1] - 1) * V, e[2] * V, 1.6 * V, 1.2 * V, 1.6 * V, "#8fb36a", DE); }
+    if (D > 0) rbox(b, 0, (th + cw * 0.46) * V, 0, cw * 0.22 * V, cw * 0.18 * V, cw * 0.2 * V, pick(), FL, R());   // 冠心
+    if (D === 2) for (let q = 0; q < 2; q++) { const { e } = ends[q]; b.cbox((e[0] * 0.6) * V, (e[1] - 2) * V, (e[2] * 0.6) * V, 1.6 * V, 1.2 * V, 1.6 * V, "#8fb36a", DE); }   // 几片嫩叶
   }
 
   /** 柳（新）：粗干微倾 → 3–5 条主枝斜伸 → 枝端与干顶叠出冠团 → 冠团外缘垂下折线柳丝
@@ -2727,31 +2760,46 @@ const VoxelTree = (() => {
       b.cbox((x + Math.cos(a) * r) * V, (top - 1 - len + 0.4) * V, Math.sin(a) * r * 0.9 * V, 1.2 * V, len * V, 1.2 * V, shade(STR, R, cv), DE);
     }
   }
-  /** 竹：3–7 根分节竹竿，略有倾斜，上部小叶簇 */
+  /** 竹丛：4–8 根一丛，一根主竹最高，其余高矮粗细不一、略向外斜；分节竹竿，上部斜伸叶片、梢头下垂
+      变体：0 常规 1 密丛 2 疏丛 */
   function bamboo(b, P, R) {
-    const cv = P.colorVariation, n = 3 + Math.floor(R() * 5), CULM = ["#7aa35e", "#6f9a55", "#86ad66"], NODE = "#557a45", LEAF = ["#5f9152", "#6c9c58", "#4f8448"];
+    const cv = P.colorVariation, D = P.detailLevel, v = P.variant % 3, CULM = ["#7aa35e", "#6f9a55", "#86ad66", "#8fb06a"], NODE = "#557a45", LEAF = ["#5f9152", "#6c9c58", "#4f8448", "#78a75f"];
+    const n = D === 0 ? 3 : 4 + Math.floor(R() * 3) + (v === 1 ? 2 : v === 2 ? -1 : 0), pos = [];
     for (let q = 0; q < n; q++) {
-      const a = R() * 6.283, r = Math.sqrt(R()) * 3.2, h = 13 + Math.floor(R() * 10), lean = (R() - 0.5) * 0.18, cc = shade(CULM, R, cv);
-      const bx = Math.cos(a) * r, bz = Math.sin(a) * r;
-      if (P.detailLevel < 2) { b.cbox((bx + lean * h * 0.5) * V, 0, bz * V, 0.9 * V, h * V, 0.9 * V, cc, EV); }
-      else for (let y = 0; y < h; y += 3) {
-        b.cbox((bx + lean * y) * V, y * V, bz * V, 0.9 * V, 2.9 * V, 0.9 * V, cc, EV);
-        b.cbox((bx + lean * y) * V, (y + 2.8) * V, bz * V, 1.25 * V, 0.35 * V, 1.25 * V, NODE, EV);
-      }
-      const leaves = P.detailLevel === 0 ? 1 : P.detailLevel === 1 ? 2 : 3 + Math.floor(R() * 3);
-      for (let k = 0; k < leaves; k++) {
-        const y = h * (0.55 + 0.45 * (k + R() * 0.5) / leaves), side = k % 2 ? 1 : -1;
-        b.cbox((bx + lean * y + side * 1.4) * V, y * V, (bz + (R() - 0.5) * 2) * V, (2.4 + R()) * V, 1.2 * V, (1.6 + R()) * V, shade(LEAF, R, cv), EV, R());
-      }
+      let x = 0, z = 0;
+      for (let t = 0; t < 14; t++) { const a = R() * 6.283, r = q === 0 ? 0 : 1.4 + Math.sqrt(R()) * (v === 2 ? 3.6 : 2.6); x = Math.cos(a) * r; z = Math.sin(a) * r; if (pos.every((p) => Math.hypot(p[0] - x, p[1] - z) > 1.5)) break; }
+      pos.push([x, z]);
     }
+    pos.forEach(([bx, bz], q) => {
+      const main = q === 0, h = main ? 22 + R() * 4 : Math.max(8, 10 + R() * 12 - (q > 3 ? 4 : 0)), w = main ? 1.35 : 0.8 + R() * 0.4;
+      const rr = Math.hypot(bx, bz) || 1, lean = 0.03 + R() * 0.05, lx = (bx / rr) * lean, lz = (bz / rr) * lean, cc = shade(CULM, R, cv);
+      if (D < 2) b.cbox((bx + lx * h * 0.5) * V, 0, (bz + lz * h * 0.5) * V, w * V, h * V, w * V, cc, EV);
+      else {
+        const sl = 5 + Math.floor(R() * 2);
+        for (let y = 0; y < h; y += sl) {
+          const hh = Math.min(sl, h - y);
+          b.cbox((bx + lx * y) * V, y * V, (bz + lz * y) * V, w * V, (hh + 0.1) * V, w * V, cc, EV);
+          if (y + hh < h) b.cbox((bx + lx * (y + hh)) * V, (y + hh - 0.25) * V, (bz + lz * (y + hh)) * V, (w + 0.35) * V, 0.45 * V, (w + 0.35) * V, NODE, EV);   // 竹节
+        }
+      }
+      const nl = D === 0 ? (main ? 1 : 0) : D === 1 ? 1 + (main ? 1 : 0) : 2 + Math.floor(R() * 2) + (main ? 1 : 0);
+      for (let k = 0; k < nl; k++) {
+        const y = h * (0.58 + (0.38 * (k + R() * 0.5)) / nl), a = R() * 6.283, dx = Math.cos(a), dz = Math.sin(a), L = 2.8 + R() * 1.8;
+        const cx0 = bx + lx * y + dx * L * 0.5, cz0 = bz + lz * y + dz * L * 0.5;
+        rbox(b, cx0 * V, y * V, cz0 * V, L * V, 0.5 * V, 1.4 * V, shade(LEAF, R, cv), EV, -a);   // 斜伸叶片
+        if (D === 2) rbox(b, (cx0 + dx * L * 0.45) * V, (y - 0.8) * V, (cz0 + dz * L * 0.45) * V, 1.8 * V, 1 * V, 1.2 * V, shade(LEAF, R, cv), EV, -a);   // 梢头下垂
+      }
+      if (D === 2) b.cbox((bx + lx * h) * V, (h - 0.5) * V, (bz + lz * h) * V, 2.2 * V, 1.4 * V, 2.2 * V, shade(LEAF, R, cv), EV);   // 竹梢叶簇
+    });
+    if (D === 0) b.cbox(0, 13 * V, 0, 5 * V, 7 * V, 5 * V, shade(LEAF, R, cv), EV);
   }
   const BUILD = { broad: broadleaf, pine: pineUpright, lpine: pineLandscape, peach, willow, willow0: willowOld, bamboo };
   /** 各树种的默认参数与变体数 */
   const SPEC = {
-    broad: { variants: 4, p: (R, v) => ({ trunkHeight: 5 + Math.floor(R() * 3), crownWidth: 9 + R() * 3, crownHeight: 8 + R() * 3 + (v === 1 ? 3 : 0), branchCount: 2 + Math.floor(R() * 3), asymmetry: v === 3 ? 0.8 : 0.35 }) },
-    pine: { variants: 3, p: (R) => ({ trunkHeight: 4 + Math.floor(R() * 3), crownWidth: 10 + R() * 3, crownHeight: 11 + R() * 4, branchCount: 0, asymmetry: 0.5 }) },
+    broad: { variants: 4, p: (R, v) => [{ trunkHeight: 5 + Math.floor(R() * 2), crownWidth: 11 + R() * 2, crownHeight: 9 + R() * 2 }, { trunkHeight: 5, crownWidth: 15 + R() * 2, crownHeight: 8 + R() }, { trunkHeight: 4, crownWidth: 8.5 + R(), crownHeight: 7 + R() }, { trunkHeight: 6, crownWidth: 12 + R(), crownHeight: 9 + R() }][v] },
+    pine: { variants: 3, p: (R, v) => [{ trunkHeight: 3 + Math.floor(R() * 2), crownWidth: 13 + R() * 2, crownHeight: 11 + R() * 2 }, { trunkHeight: 5 + Math.floor(R() * 2), crownWidth: 11 + R(), crownHeight: 15 + R() * 2 }, { trunkHeight: 4 + Math.floor(R() * 2), crownWidth: 12 + R(), crownHeight: 13 + R() }][v] },
     lpine: { variants: 3, p: (R) => ({ trunkHeight: 9 + Math.floor(R() * 4), crownWidth: 13 + R() * 4, crownHeight: 4, branchCount: 2 + Math.floor(R() * 3), asymmetry: 0.6 }) },
-    peach: { variants: 3, p: (R) => ({ trunkHeight: 5 + Math.floor(R() * 2), crownWidth: 9 + R() * 2, crownHeight: 6, branchCount: 2 + Math.floor(R() * 3), asymmetry: 0.4 }) },
+    peach: { variants: 3, p: (R) => ({ trunkHeight: 4 + Math.floor(R() * 2), crownWidth: 11 + R() * 2, crownHeight: 6, branchCount: 2 + Math.floor(R() * 3), asymmetry: 0.4 }) },
     willow: { variants: 3, p: (R, v) => (v === 1 ? { trunkHeight: 5 + Math.floor(R() * 2), crownWidth: 12 + R() * 2 } : v === 2 ? { trunkHeight: 7 + Math.floor(R() * 2), crownWidth: 15 + R() * 2 } : { trunkHeight: 8 + Math.floor(R() * 2), crownWidth: 16 + R() * 2 }) },
     willow0: { variants: 3, p: (R) => ({ trunkHeight: 8 + Math.floor(R() * 3), crownWidth: 11 + R() * 3, crownHeight: 3, branchCount: 0, asymmetry: 0.3 }) },
     bamboo: { variants: 3, p: () => ({ trunkHeight: 0, crownWidth: 6, crownHeight: 18, branchCount: 0, asymmetry: 0 }) },
