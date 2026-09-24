@@ -2875,30 +2875,52 @@ function floraInfo(i, j) {
   else if (m > 350 || slope > 0.9) { zone = "hillside"; dens = south ? 0.7 : 0.38; }
   else { zone = "plain"; dens = (kd === 2 ? 0.04 : kd === 5 ? 0.03 : south ? 0.13 : 0.07); }
   if (lat > 43 && m < 1500 && kd === 0 && zone !== "riverside") dens = Math.max(dens, 0.55);
-  /* 成片与留白：大尺度林区噪声；平原再叠一层小尺度林团（村树、竹丛） */
+  /* 成片与留白：大尺度林区噪声 */
   dens *= smooth(-0.15, 0.3, fbm(nD, x * 0.055, z * 0.055, 3));
-  if (zone === "plain" || zone === "garden") dens *= 0.3 + 1.7 * smooth(0.05, 0.5, fbm(nB, x * 0.2, z * 0.2, 2));
-  return { k, x, z, y, lat, m, wn: wn || wn2, dens, slope, zone, south };
+  /* 平原、园林：树只长在「林团」里（村树、竹丛），林团之间是开阔田野，只偶有孤树 */
+  const grove = smooth(0.0, 0.3, fbm(nB, x * 0.18, z * 0.18, 2));
+  if (zone === "plain" || zone === "garden") dens *= 0.22 + 3.2 * grove;   // 田野里只剩零星的田边树
+  /* 山地、丘陵：林间留出空地与草坡，不是均匀铺满 */
+  else if (zone === "mountain" || zone === "hillside") dens *= 0.35 + 0.65 * smooth(-0.35, 0.12, fbm(nA, x * 0.4 + 3.1, z * 0.4 - 7.3, 2));
+  /* 河岸：紧贴水的一排格子至少有一行岸柳，不随林区噪声断掉 */
+  if (zone === "riverside" && wn && lat < 42) dens = Math.max(dens, 0.2);
+  /* 临水一侧的子格不栽树：树与水面留出一段岸 */
+  let block = 0;
+  if (wn) { if (isWater(k - 1)) block |= 0b001001001; if (isWater(k + 1)) block |= 0b100100100; if (isWater(k - W)) block |= 0b000000111; if (isWater(k + W)) block |= 0b111000000; }
+  return { k, x, z, y, lat, m, wn: wn || wn2, dens, slope, zone, south, grove, block };
 }/** 各区树种配比（权重） */
+/* 山地以松为主（陡处多横枝松）；丘陵松与杂木；平原只有阔叶林团与少量柳；
+   河岸柳为主、南方溪边有竹与桃；园林是桃、竹、庭院树；高原只有松。北方松多、南方阔叶与竹多。 */
 const ZONE_MIX = {
-  mountain: (f) => ({ pine: 0.5, lpine: f.slope > 1.3 ? 0.22 : 0.06, broad: 0.3 }),
-  hillside: (f) => ({ broad: 0.5, pine: 0.3, bamboo: f.lat < 31 ? 0.15 : 0, lpine: 0.04 }),
-  plain: (f) => ({ broad: 0.6, pine: 0.14, willow: 0.08, peach: f.south ? 0.12 : 0 }),
-  riverside: (f) => ({ willow: 0.55, broad: 0.22, bamboo: f.lat < 31 ? 0.1 : 0, pine: 0.08 }),
-  garden: (f) => ({ peach: f.south ? 0.3 : 0.05, bamboo: f.lat < 32 ? 0.28 : 0, broad: 0.25, willow: 0.12, pine: 0.08 }),
+  mountain: (f) => ({ pine: f.lat > 38 ? 0.7 : 0.55, lpine: f.slope > 1.3 ? 0.2 : 0.05, broad: f.south ? 0.3 : 0.18, bamboo: f.lat < 30.5 && f.m < 900 ? 0.08 : 0 }),
+  hillside: (f) => ({ broad: f.south ? 0.5 : 0.35, pine: f.lat > 38 ? 0.55 : 0.32, bamboo: f.lat < 31 ? 0.14 : 0, lpine: 0.03 }),
+  plain: (f) => ({ broad: 0.86, willow: 0.1, pine: f.lat > 40 ? 0.1 : 0.02 }),
+  riverside: (f) => ({ willow: 0.62, broad: 0.2, bamboo: f.lat < 31 ? 0.12 : 0, peach: f.south ? 0.05 : 0 }),
+  garden: (f) => ({ peach: f.south ? 0.3 : 0.08, bamboo: f.lat < 32 ? 0.26 : 0, broad: 0.28, willow: 0.14, pine: 0.08 }),
   plateau: () => ({ pine: 1 }),
 };
+/** 林片噪声的分位表：把噪声值换成均匀分布的排名，各树种的面积占比才与权重一致 */
+let STAND_Q = null;
+const standU = (x, z) => {
+  const n = nD(x * 0.28 + 41, z * 0.28 - 17);
+  if (!STAND_Q) { STAND_Q = new Float32Array(4096); const R = mulberry32(5); for (let i = 0; i < 4096; i++) STAND_Q[i] = nD(R() * 900 - 450, R() * 900 - 450); STAND_Q.sort(); }
+  let lo = 0, hi = 4095; while (lo < hi) { const m = (lo + hi) >> 1; if (STAND_Q[m] < n) lo = m + 1; else hi = m; }
+  return lo / 4096;
+};
+/** 成片取种：同一片林子用同一个优势树种（低频噪声定片），约两成混入其他树种；园林更杂一些 */
 function pickTree(f, R) {
   const mix = (ZONE_MIX[f.zone] || ZONE_MIX.plain)(f);
   let tot = 0; for (const k in mix) tot += mix[k];
-  let r = R() * tot; for (const k in mix) { r -= mix[k]; if (r <= 0) return k; }
+  const pure = f.zone === "garden" ? 0.55 : 0.8;
+  const u = R() < pure ? standU(f.x, f.z) : R();   // 同一片取同一个分位，再按权重累计取种
+  let r = Math.min(0.9999, u) * tot; for (const k in mix) { r -= mix[k]; if (r <= 0) return k; }
   return "broad";
 }
 /* 格内子网格：每格 3×3 个位置，每个位置至多一棵，保证树距 */
 const SLOTS = [0, 1, 2, 3, 4, 5, 6, 7, 8];
 function slotPos(f, R, taken) {
   for (let t = 0; t < 4; t++) {
-    const s = Math.floor(R() * 9); if (taken & (1 << s)) continue;
+    const s = Math.floor(R() * 9); if ((taken | (f.block || 0)) & (1 << s)) continue;
     const u = (s % 3 + 0.25 + R() * 0.5) / 3 - 0.5, v = (Math.floor(s / 3) + 0.25 + R() * 0.5) / 3 - 0.5;
     return [s, f.x + u * (CS - 0.2), f.z + v * (CS - 0.2)];
   }
@@ -2952,8 +2974,7 @@ function refreshNearFlora(center, radius) {
     const f = floraInfo(i, j); if (!f) continue;
     const R = mulberry32((i * 73856093) ^ (j * 19349663));
     /* 近处另有一层「林团」：平原上的村树、竹丛也成片出现，其间仍留空地 */
-    const grove = smooth(-0.22, 0.32, fbm(nB, f.x * 0.16, f.z * 0.16, 3));
-    const base = Math.max(f.dens, (f.lat < 36 ? 0.45 : 0.32) * grove);
+    const base = f.dens * 1.5;   // 与全局同一套分区与林团，只是近处更密：林团里更密，田野仍是田野
     if (base <= 0.02) continue;
     const near = 1 - Math.sqrt(d2) / rc;
     let n = Math.min(9, Math.floor(base * (1.6 + 3.4 * near) * 2.4 * CS * CS + R())), taken = 0;
@@ -4870,7 +4891,7 @@ document.addEventListener("visibilitychange", () => { if (audio) (document.hidde
     setTimeout(openFromHash, 400);
     setTimeout(loadTourFont, 600); setTimeout(loadDetail, 2500); setTimeout(loadPoemFont, 5000);
     addEventListener("hashchange", () => { if (!curPlace || !location.hash.includes(curPlace.poems[curPoem].id)) openFromHash(); });
-    window.__app = { get lab() { return LAB; }, startLab, THREE, scene, camera, get water() { return [reflector, waterFlat]; }, controls, renderer, PLACES, VIEWS, flyView, setMood, setSeason, setWeather, GU, FALLS, startTrail, closeTrail, get trail() { return trail; }, get TOUR() { return TOUR; }, TS, tourPlan, groundAt, nearFlora, PATCHES, bldGroup, VoxelTree, treeGeoKey, floraMat, landAt, wx, wz, y2m, get EXTRA() { return EXTRA_TREES; }, get flora() { return floraMeshes; }, tourAt(i) { startTour(); tourGo(i); }, startTour, stopTour, HOME, get autoFocus() { return autoFocus; }, openPlace, openPoem, closeAll, get listOpen() { return listOpen; }, get scrollOpen() { return scrollOpen; }, applyQuality, get quality() { return QUALITY; }, viewPose,
+    window.__app = { floraInfoAt: (x, z) => floraInfo(gi(x), gj(z)), get lab() { return LAB; }, startLab, THREE, scene, camera, get water() { return [reflector, waterFlat]; }, controls, renderer, PLACES, VIEWS, flyView, setMood, setSeason, setWeather, GU, FALLS, startTrail, closeTrail, get trail() { return trail; }, get TOUR() { return TOUR; }, TS, tourPlan, groundAt, nearFlora, PATCHES, bldGroup, VoxelTree, treeGeoKey, floraMat, landAt, wx, wz, y2m, get EXTRA() { return EXTRA_TREES; }, get flora() { return floraMeshes; }, tourAt(i) { startTour(); tourGo(i); }, startTour, stopTour, HOME, get autoFocus() { return autoFocus; }, openPlace, openPoem, closeAll, get listOpen() { return listOpen; }, get scrollOpen() { return scrollOpen; }, applyQuality, get quality() { return QUALITY; }, viewPose,
       setView(v) { const { target, pos } = viewPose(v); controls.target.copy(target); camera.position.copy(pos); fly = null; controls.update(); },
       cell(lng, lat) { const k = idx(wx(lng), wz(lat)); return { y: TY[k], m: Math.round(y2m(TY[k])), kind: KIND[k], snow: SNOW[k], col: [...TOPC.slice(k * 3, k * 3 + 3)].map((v) => +v.toFixed(2)) }; },
       bench(n = 60) { const gl = renderer.getContext(); composer.render(); gl.finish(); const t = performance.now(); for (let i = 0; i < n; i++) { if (window.__benchShadow) renderer.shadowMap.needsUpdate = true; composer.render(); } gl.finish(); return +((performance.now() - t) / n).toFixed(2); },
