@@ -4028,7 +4028,7 @@ function updateLabels() {
   cand.sort((a, b) => b.pri - a.pri);
   /* 数量上限随级别：全国地标少、区域多、地点只留近处几处 */
   const maxN = lvl === "national" ? (mob ? 11 : 22) : lvl === "place" ? (mob ? 5 : 9) : mob ? 14 : 28;
-  const slipMax = lvl === "regional" ? (mob ? 2 : 4) : 0;
+  const slipMax = 0;   // 不自动挂名句：只有选中的地名旁才显示
   const hit = (r, q) => r.x0 < q.x1 + 4 && r.x1 > q.x0 - 4 && r.y0 < q.y1 + 2 && r.y1 > q.y0 - 2;
   const placed = []; let slips = 0;
   /* 焦点：选中地名旁为名句条留出一块，周围 70px 内其他标签让开 */
@@ -4044,7 +4044,7 @@ function updateLabels() {
     if (ok && focus && p !== focus && !p.rgn && Math.hypot(p.sx - focus.sx, p.sy - focus.sy) < 70) ok = false;
     /* 名句条：焦点地名给两句；区域视角前几位给一句；放不下就不给（先试右侧，再试左侧） */
     let slip = 0;
-    if (ok && !p.geo && !p.rgn && (p === focus || (lvl === "place" && !focus && p === cand.find((c) => !c.geo && !c.rgn)) || (slips < slipMax && p.poems.length >= 2))) {
+    if (ok && !p.geo && !p.rgn && p === focus) {
       const full = p === focus || lvl === "place", q = p.poems[0], L = famousLines(q), n = full ? 2 : 1;
       /* 与样式一致：条底在锚点上方 30px；每句一行（焦点 16px 字、区域 14px 字，各加字距），下附作者题名一行 */
       const tw = Math.max(...L.slice(0, n).map((l) => [...l].length), 7) * (full ? 18.5 : 16) + 22, th = n * (full ? 22 : 19) + 25;
