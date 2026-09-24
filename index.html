@@ -73,7 +73,7 @@ button{font:inherit;color:inherit}
 .lbl .slip span{writing-mode:horizontal-tb;font-size:inherit;letter-spacing:inherit;line-height:inherit;color:inherit;padding:0;background:none;box-shadow:none;transform:none!important}
 .lbl .slip span::before,.lbl .slip span::after{display:none}
 .lbl .slip small{font-family:inherit;font-size:11px;letter-spacing:1px;color:#8a6f52}
-.lbl.slip-on .slip{display:flex;animation:fadeIn .5s ease both}
+.lbl.slip-on .slip{display:none}
 .lbl.slip-l .slip{left:auto;right:14px;border-left:0;border-right:2px solid var(--zhu)}
 .lbl.slip-on.sel .slip{font-size:16px}
 /* 焦点：选中一处时，其他标签淡下去 */
@@ -4044,7 +4044,7 @@ function updateLabels() {
     if (ok && focus && p !== focus && !p.rgn && Math.hypot(p.sx - focus.sx, p.sy - focus.sy) < 70) ok = false;
     /* 名句条：焦点地名给两句；区域视角前几位给一句；放不下就不给（先试右侧，再试左侧） */
     let slip = 0;
-    if (ok && !p.geo && !p.rgn && p === focus) {
+    if (false) {   // 地名旁不显示诗句预览（选中也不显示），诗句只在诗目与诗卷里看
       const full = p === focus || lvl === "place", q = p.poems[0], L = famousLines(q), n = full ? 2 : 1;
       /* 与样式一致：条底在锚点上方 30px；每句一行（焦点 16px 字、区域 14px 字，各加字距），下附作者题名一行 */
       const tw = Math.max(...L.slice(0, n).map((l) => [...l].length), 7) * (full ? 18.5 : 16) + 22, th = n * (full ? 22 : 19) + 25;
