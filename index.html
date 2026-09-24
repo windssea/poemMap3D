@@ -62,6 +62,23 @@ button{font:inherit;color:inherit}
 .lbl .in:hover span{transform:translateY(-2px)}
 .lbl:hover .dot,.lbl.sel .dot{transform:scale(1.4);background:var(--zhu2)}
 .lbl.sel span{color:var(--zhu)}
+/* 全国视角：文化区域名——横排大字，淡墨底，无杆 */
+.lbl.rgn .in{left:-80px;width:160px;bottom:-14px;cursor:pointer}
+.lbl.rgn span{writing-mode:horizontal-tb;font-family:var(--brush);font-size:30px;letter-spacing:10px;padding:0 0 0 10px;color:#263e47;background:none;box-shadow:none;text-shadow:0 0 10px rgba(242,234,216,.95),0 0 3px rgba(242,234,216,.9);opacity:.9}
+.lbl.rgn span::before,.lbl.rgn span::after{display:none}
+.lbl.rgn em{font-style:normal;font-size:12px;letter-spacing:4px;color:#6b5a44;margin-top:2px;text-shadow:0 0 6px rgba(242,234,216,.95)}
+.night .lbl.rgn span{color:#e9dfc7;text-shadow:0 0 10px rgba(10,16,30,.9)}.night .lbl.rgn em{color:#cdbf9f;text-shadow:0 0 6px rgba(10,16,30,.9)}
+/* 区域视角：名句条，贴在地名右侧 */
+.lbl .slip{position:absolute;left:14px;bottom:30px;display:none;flex-direction:column;gap:2px;white-space:nowrap;pointer-events:none;font-family:var(--brush);font-size:14px;letter-spacing:2px;line-height:1.35;color:#2b241d;background:rgba(247,240,224,.9);padding:3px 8px 3px 9px;border-left:2px solid var(--zhu);border-radius:1px;box-shadow:0 2px 8px rgba(30,20,10,.16)}
+.lbl .slip span{writing-mode:horizontal-tb;font-size:inherit;letter-spacing:inherit;line-height:inherit;color:inherit;padding:0;background:none;box-shadow:none;transform:none!important}
+.lbl .slip span::before,.lbl .slip span::after{display:none}
+.lbl .slip small{font-family:inherit;font-size:11px;letter-spacing:1px;color:#8a6f52}
+.lbl.slip-on .slip{display:flex;animation:fadeIn .5s ease both}
+.lbl.slip-l .slip{left:auto;right:14px;border-left:0;border-right:2px solid var(--zhu)}
+.lbl.slip-on.sel .slip{font-size:16px}
+/* 焦点：选中一处时，其他标签淡下去 */
+.lbl.dim{opacity:.38!important}
+.lbl.dim.on:hover{opacity:1!important}
 .night .lbl span{box-shadow:0 0 0 1px rgba(110,80,50,.3),0 0 12px rgba(255,200,120,.35)}
 
 /* ———— 通用浮层 ———— */
@@ -3904,6 +3921,7 @@ function buildLabels() {
     el.querySelector("span").textContent = p.name;
     el.title = `${p.name} · ${p.region}（${p.poems.length} 首）`;
     el.querySelector(".in").addEventListener("click", (e) => { e.stopPropagation(); openPlace(p); });
+    const sl = document.createElement("div"); sl.className = "slip"; el.appendChild(sl); p.slipEl = sl;
     labelsEl.appendChild(el); p.el = el; p.sx = -1e4; p.sy = -1e4; p.vis = false;
   }
 }
@@ -3914,6 +3932,49 @@ const GEO_LABELS = [
   { name: "黄河", lng: 111.6, lat: 34.9, big: true, river: "he" }, { name: "黄河", lng: 108.4, lat: 40.9, river: "he" }, { name: "黄河", lng: 103.9, lat: 36.2, river: "he" },
 ];
 const ALL_LABELS = () => (ALL_LABELS.a || (ALL_LABELS.a = PLACES.concat(GEO_LABELS)));
+/* 全国视角的文化区域（名 · 小字意象）；锚点放在区域内主要城市旁的空处，不与重点地标抢位置 */
+const CULT_REGIONS = [
+  { name: "关中", sub: "秦川 · 长安", lng: 108.1, lat: 35.3 }, { name: "中原", sub: "河洛 · 汴梁", lng: 113.1, lat: 35.6 },
+  { name: "江南", sub: "烟雨 · 楼台", lng: 119.3, lat: 30.2 }, { name: "荆楚", sub: "云梦 · 江汉", lng: 112, lat: 31.5 },
+  { name: "巴蜀", sub: "天府 · 峡江", lng: 105.7, lat: 31.3 }, { name: "齐鲁", sub: "泰岱 · 洙泗", lng: 118.5, lat: 36.7 },
+  { name: "湖湘", sub: "潇湘 · 洞庭", lng: 112, lat: 27.3 }, { name: "岭南", sub: "罗浮 · 南海", lng: 112.9, lat: 24 },
+  { name: "河西", sub: "大漠 · 阳关", lng: 100.2, lat: 39.2 },
+];
+/* 标签三级：全国（区域名 + 重点地标）· 区域（地名 + 少量名句）· 地点（近处地名 + 焦点名句，点击展开全诗） */
+let labelLevel = "regional";
+function labelLevelOf(d) {
+  const L = labelLevel === "national" ? (d > 52 ? "national" : null) : d > 60 ? "national" : null;
+  if (L) return L;
+  return labelLevel === "place" ? (d < 17 ? "place" : "regional") : d < 14 ? "place" : "regional";
+}
+/** 重点地标：十处名胜微缩景与诗最多的几处 */
+const keyPlace = (p) => !!LANDMARKS[p.name] || p.poems.length >= 8;
+/** 名句条的文字：该地最有名那首的名句；焦点时给两句，区域视角给一句 */
+function slipHTML(p, full) {
+  const q = p.poems[0], L = famousLines(q);
+  const lines = full ? L.slice(0, 2) : L.slice(0, 1);
+  return lines.map((l) => `<span>${esc(l.replace(/[，。；！？、]$/, ""))}</span>`).join("") + `<small>${esc(q.a)}《${esc(q.t.split("·")[0])}》</small>`;
+}
+function buildRegionLabels() {
+  for (const g of CULT_REGIONS) {
+    const el = document.createElement("div"); el.className = "lbl rgn";
+    el.innerHTML = `<div class="in"><span></span><em></em></div>`;
+    el.querySelector("span").textContent = g.name; el.querySelector("em").textContent = g.sub;
+    el.querySelector(".in").addEventListener("click", (e) => { e.stopPropagation(); stopTour(); closeAll(); flyView({ k: "", name: g.name, lng: g.lng, lat: g.lat, dist: 30, polar: 1.05, az: 0.5 }); });
+    labelsEl.appendChild(el);
+    const x = wx(g.lng), z = wz(g.lat);
+    Object.assign(g, { el, x, z, y: Math.max(0.3, groundAt(x, z)), top: 1.2, poems: [], rgn: true, sx: -1e4, sy: -1e4 });
+  }
+}
+/** 界面上正在显示的面板（标签要避开）：每 10 帧取一次 */
+let uiRects = [];
+function refreshUIRects() {
+  uiRects = [];
+  for (const sel of ["#dock", "#search", "#plist.on", "#scroll.on .strip", "#verse.on .vs-mount", "#trailPanel.on", "#tourBar.on"]) {
+    const e = document.querySelector(sel); if (!e) continue;
+    const r = e.getBoundingClientRect(); if (r.width > 2 && r.height > 2 && getComputedStyle(e).opacity > 0.1) uiRects.push({ x0: r.left - 6, y0: r.top - 6, x1: r.right + 6, y1: r.bottom + 6 });
+  }
+}
 function buildGeoLabels() {
   for (const g of GEO_LABELS) {
     const el = document.createElement("div"); el.className = "lbl geo" + (g.big ? " big" : "") + (g.river ? " " + g.river : "");
@@ -3937,33 +3998,72 @@ function occluded(p) {
 let labelFrame = 0, selPlace = null, hoverPlace = null;
 function updateLabels() {
   labelFrame++;
-  const w = innerWidth, h = innerHeight, d = camera.position.distanceTo(controls.target);
+  const w = innerWidth, h = innerHeight, d = camera.position.distanceTo(controls.target), mob = w < 760;
+  const lvl = (labelLevel = labelLevelOf(d));
+  if (labelFrame % 10 === 1) refreshUIRects();
   const cand = [];
+  /* 全国视角：区域名 */
+  for (const g of CULT_REGIONS) {
+    g.vis = false; if (lvl !== "national") continue;
+    _v.set(g.x, g.y + g.top, g.z).project(camera);
+    if (_v.z > 1 || Math.abs(_v.x) > 0.95 || Math.abs(_v.y) > 0.95) continue;
+    g.sx = (_v.x * 0.5 + 0.5) * w; g.sy = (-_v.y * 0.5 + 0.5) * h; g.pri = 1500; cand.push(g);   // 排在重点地标之后：地标先落位，区域名找空处
+  }
   for (const p of ALL_LABELS()) {
+    /* 分级：全国只留重点地标与大江大河、万里长城；区域、地点视角全部参与排序 */
+    if (lvl === "national" && p !== selPlace && (p.geo ? !p.big : !keyPlace(p))) { p.vis = false; continue; }
     _v.set(p.x, p.y + p.top + 0.12, p.z).project(camera);
     const inView = _v.z < 1 && Math.abs(_v.x) < 1.05 && Math.abs(_v.y) < 1.05;
     p.sx = (_v.x * 0.5 + 0.5) * w; p.sy = (-_v.y * 0.5 + 0.5) * h;
     if (!inView) { p.vis = false; continue; }
     const dist = camera.position.distanceTo(_v.set(p.x, p.y, p.z));
-    const reach = p.geo ? (p.big ? 400 : p.pass ? 60 + d * 1.2 : 30 + d * 1.2) : 16 + Math.min(p.poems.length, 16) * 6 + d * 1.15;
+    const reach = p.geo ? (p.big ? 400 : p.pass ? 60 + d * 1.2 : 30 + d * 1.2) : lvl === "place" ? 9 + Math.min(p.poems.length, 16) * 1.5 + d * 0.9 : 16 + Math.min(p.poems.length, 16) * 6 + d * 1.15;   // 地点视角只留近处
     if (dist > reach && p !== selPlace) { p.vis = false; continue; }
     if (labelFrame % 4 === 0 || p.occ === undefined) p.occ = occluded(p);
     if (p.occ && p !== selPlace) { p.vis = false; continue; }
-    p.pri = (p === selPlace ? 1e6 : 0) + (p === hoverPlace ? 1e5 : 0) + (p.geo ? (p.big ? 500 : 60) : p.poems.length * 40) - dist;
+    /* 优先级：选中 > 悬停 > 各级自己的权重（全国看地标，区域看诗数与名篇，地点看远近） */
+    p.pri = (p === selPlace ? 1e6 : 0) + (p === hoverPlace ? 1e5 : 0) + (p.geo ? (p.big ? (lvl === "national" ? 2000 : 500) : 60) : lvl === "national" ? (LANDMARKS[p.name] ? 2600 : 1800) + p.poems.length * 10 : lvl === "place" ? 300 + p.poems.length * 5 : p.poems.length * 40 + fameOf(p.poems[0]) * 30) - dist * (lvl === "place" ? 20 : 1);
     cand.push(p);
   }
   cand.sort((a, b) => b.pri - a.pri);
-  const placed = []; const maxN = w < 760 ? 14 : 28;
+  /* 数量上限随级别：全国地标少、区域多、地点只留近处几处 */
+  const maxN = lvl === "national" ? (mob ? 11 : 22) : lvl === "place" ? (mob ? 5 : 9) : mob ? 14 : 28;
+  const slipMax = lvl === "regional" ? (mob ? 2 : 4) : 0;
+  const hit = (r, q) => r.x0 < q.x1 + 4 && r.x1 > q.x0 - 4 && r.y0 < q.y1 + 2 && r.y1 > q.y0 - 2;
+  const placed = []; let slips = 0;
+  /* 焦点：选中地名旁为名句条留出一块，周围 70px 内其他标签让开 */
+  const focus = selPlace && selPlace.vis !== undefined ? selPlace : null;
   for (const p of cand) {
-    const lh = 34 + p.name.length * (p.poems.length >= 5 ? 19.5 : 16) + (p.poems.length > 1 ? 18 : 0);
-    const r = { x0: p.sx - 15, x1: p.sx + 15, y0: p.sy - lh, y1: p.sy + 6 };
-    let ok = placed.length < maxN && r.y1 < h - (w < 760 ? 100 : 8) && r.y0 > (w < 760 ? 124 : 70);
-    if (ok) for (const q of placed) if (r.x0 < q.x1 + 4 && r.x1 > q.x0 - 4 && r.y0 < q.y1 + 2 && r.y1 > q.y0 - 2) { ok = false; break; }
-    p.vis = ok; if (ok) placed.push(r);
+    let r;
+    if (p.rgn) r = { x0: p.sx - 58, x1: p.sx + 58, y0: p.sy - 38, y1: p.sy + 16 };   // 与区域名实际字框一致
+    else { const lh = 34 + p.name.length * (p.poems.length >= 5 ? 19.5 : 16) + (p.poems.length > 1 ? 18 : 0); r = { x0: p.sx - 15, x1: p.sx + 15, y0: p.sy - lh, y1: p.sy + 6 }; }
+    const free = (rr) => { if (rr.y1 > h - (mob ? 100 : 8) || rr.y0 < (mob ? 124 : 70) || rr.x0 < 4 || rr.x1 > w - 4) return false; for (const q of placed) if (hit(rr, q)) return false; for (const u of uiRects) if (hit(rr, u)) return false; return true; };
+    let ok = placed.length < maxN && free(r);   // 不压别的标签，也不压界面面板
+    /* 区域名被地标占了位置：就近挪一挪（上、下、左、右）再试，仍放不下才不显示 */
+    if (!ok && p.rgn && placed.length < maxN) for (const [ox, oy] of [[0, -46], [0, 46], [-110, 0], [110, 0], [-80, -40], [80, 40]]) { const rr = { x0: r.x0 + ox, x1: r.x1 + ox, y0: r.y0 + oy, y1: r.y1 + oy }; if (free(rr)) { r = rr; p.sx += ox; p.sy += oy; ok = true; break; } }
+    if (ok && focus && p !== focus && !p.rgn && Math.hypot(p.sx - focus.sx, p.sy - focus.sy) < 70) ok = false;
+    /* 名句条：焦点地名给两句；区域视角前几位给一句；放不下就不给（先试右侧，再试左侧） */
+    let slip = 0;
+    if (ok && !p.geo && !p.rgn && (p === focus || (lvl === "place" && !focus && p === cand.find((c) => !c.geo && !c.rgn)) || (slips < slipMax && p.poems.length >= 2))) {
+      const full = p === focus || lvl === "place", q = p.poems[0], L = famousLines(q), n = full ? 2 : 1;
+      /* 与样式一致：条底在锚点上方 30px；每句一行（焦点 16px 字、区域 14px 字，各加字距），下附作者题名一行 */
+      const tw = Math.max(...L.slice(0, n).map((l) => [...l].length), 7) * (full ? 18.5 : 16) + 22, th = n * (full ? 22 : 19) + 25;
+      for (const side of [1, -1]) {
+        const sb = p.sy - 28, sr = side > 0 ? { x0: p.sx + 12, x1: p.sx + 14 + tw, y0: sb - th, y1: sb } : { x0: p.sx - 14 - tw, x1: p.sx - 12, y0: sb - th, y1: sb };
+        if (free(sr)) { slip = side; placed.push(sr); if (p !== focus) slips++; break; }
+      }
+      if (slip && p.slipKey !== (full ? "f" : "s") + p.id) { p.slipEl.innerHTML = slipHTML(p, full); p.slipKey = (full ? "f" : "s") + p.id; }
+    }
+    p.vis = ok; p.slip = slip; if (ok) placed.push(r);
   }
-  for (const p of ALL_LABELS()) {
+  for (const p of ALL_LABELS().concat(CULT_REGIONS)) {
     if (p.vis) p.el.style.transform = `translate3d(${p.sx.toFixed(1)}px,${p.sy.toFixed(1)}px,0)`;
     if (p.vis !== p.shown) { p.el.classList.toggle("on", p.vis); p.shown = p.vis; }
+    if (!p.rgn && !p.geo) {
+      const sOn = !!(p.vis && p.slip); if (sOn !== p.slipShown) { p.el.classList.toggle("slip-on", sOn); p.slipShown = sOn; }
+      p.el.classList.toggle("slip-l", p.slip === -1);
+      const dim = !!(focus && p !== focus && p.vis); if (dim !== p.dimmed) { p.el.classList.toggle("dim", dim); p.dimmed = dim; }
+    }
   }
 }
 function pickPlace(mx, my, r = 30) {
@@ -5201,7 +5301,7 @@ document.addEventListener("visibilitychange", () => { if (audio) (document.hidde
     await stage("植树 · 点苔", 88);
     buildFalls(); buildFlora(); buildNearFlora(); buildClouds(); buildWallLine(); buildRiverLines(); buildDrift(); buildNightFx();
     await stage("落款", 95);
-    buildComposer(); buildLabels(); buildGeoLabels(); buildUI();
+    buildComposer(); buildLabels(); buildGeoLabels(); buildRegionLabels(); buildUI();
     moodCur.sun = null; applyMood(moodVals(MOODS[moodKey])); setMood(moodKey, true); setSeason(seasonKey, true); setWeather(weatherKey, true, false);
     applyQuality();
     controls.maxDistance = Math.max(115, natDist() * 1.1);
