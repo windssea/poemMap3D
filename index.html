@@ -126,6 +126,7 @@ body.ui-hidden #showUi{opacity:.55;pointer-events:auto}
 .vs-mount{padding:30px 11px 20px;background:var(--brocade)}
 .vs-paper{writing-mode:vertical-rl;display:flex;flex-direction:column;gap:0;padding:22px 20px 18px;min-height:240px;
   background:var(--xuan),linear-gradient(90deg,#efe4c9,#f8f1df 40%,#f3e9d2 75%,#ece0c3);box-shadow:inset 0 0 0 1px rgba(120,90,50,.3),inset 0 0 26px rgba(160,120,60,.16)}
+.brush-full .vs-t,.brush-full #verse p,.brush-full .vs-seal{font-family:"ShanheBrushFull",var(--brush)!important}
 .vs-t{font-family:var(--brush);font-size:calc(var(--fz) * .72);letter-spacing:.18em;color:#1a1612;margin-left:.5em;line-height:1.3}
 .vs-a{font-size:14px;letter-spacing:.3em;color:#6a5e50;padding-top:2.2em;margin-left:1.1em;line-height:1.5}
 #verse p{margin:0 0 0 .32em;font-family:var(--brush);font-size:var(--fz);letter-spacing:.12em;line-height:1.28;color:#14110e;clip-path:inset(0 0 100% 0);opacity:.15}
@@ -276,7 +277,7 @@ body.panel-open .sbar{opacity:1;pointer-events:auto}
 @keyframes rollerOut{from{transform:none}to{transform:translateX(var(--sw,900px))}}
 
 /* ———— 诗人足迹 ———— */
-#trailPanel{position:fixed;z-index:9;left:18px;top:90px;bottom:84px;width:300px;display:flex;flex-direction:column;padding:8px;border-radius:3px;background:var(--brocade);
+#trailPanel{position:fixed;z-index:9;left:18px;top:90px;bottom:84px;width:340px;display:flex;flex-direction:column;padding:8px;border-radius:3px;background:var(--brocade);
   box-shadow:0 20px 46px rgba(30,20,8,.34),inset 0 0 0 1px rgba(40,60,50,.4);opacity:0;visibility:hidden;transform:translateX(-20px);transition:opacity .4s,transform .4s,visibility 0s linear .4s}
 #trailPanel.on{opacity:1;visibility:visible;transform:none;transition:opacity .4s,transform .4s}
 .tr-h{position:relative;display:flex;align-items:center;gap:10px;padding:12px 40px 10px 12px;background:var(--xuan),linear-gradient(180deg,#f7f0de,#f1e7cf);border-bottom:1px solid rgba(177,64,44,.35)}
@@ -286,25 +287,28 @@ body.panel-open .sbar{opacity:1;pointer-events:auto}
 .tr-x{position:absolute;right:8px;top:10px;width:30px;height:30px;border-radius:50%;border:0;background:rgba(60,48,36,.08);font:inherit;font-size:16px;cursor:pointer;color:var(--ink2)}
 #trList{list-style:none;margin:0;padding:6px 8px 6px 10px;flex:1;overflow-y:auto;background:var(--xuan),linear-gradient(180deg,#f4ecd6,#efe4c9);scrollbar-width:thin;scrollbar-color:rgba(150,100,60,.35) transparent;counter-reset:st}
 #trList li{position:relative;display:flex;gap:10px;padding:7px 4px 7px 18px;cursor:pointer;border-radius:2px;opacity:.45;transition:opacity .35s,background .2s}
-#trList li::before{content:"";position:absolute;left:4px;top:12px;width:7px;height:7px;border-radius:50%;background:var(--c);box-shadow:0 0 0 2px rgba(246,239,222,.9)}
+#trList li::before{content:"";position:absolute;left:4px;top:14px;width:7px;height:7px;border-radius:50%;background:var(--c);box-shadow:0 0 0 2px rgba(246,239,222,.9)}
 #trList li::after{content:"";position:absolute;left:7px;top:22px;bottom:-12px;width:1px;background:linear-gradient(var(--c),transparent)}
 #trList li:last-child::after{display:none}
 #trList li.done{opacity:1}
 #trList li.cur{background:rgba(177,64,44,.08)}
 #trList li:hover{background:rgba(177,64,44,.1)}
-#trList b{flex:none;width:3.1em;font-weight:400;font-size:13px;color:var(--c);padding-top:1px}
-#trList span{font-size:16px;letter-spacing:2px;color:#1a1612}
-#trList p{margin:2px 0 0;font-size:12.5px;line-height:1.6;color:var(--ink2)}
+#trList b{flex:none;width:3.1em;font-weight:400;font-size:15px;color:var(--c);padding-top:1px}
+#trList span{font-size:19px;letter-spacing:2px;color:#1a1612}
+#trList p{margin:3px 0 0;font-size:14.5px;line-height:1.65;color:var(--ink2)}
 .tr-b{display:flex;gap:6px;padding:8px 6px 4px;background:linear-gradient(180deg,#efe4c9,#ebdfc2)}
 .tr-b button{flex:1;height:30px;border:1px solid rgba(120,90,50,.3);border-radius:15px;background:rgba(255,255,255,.4);font:inherit;font-size:13.5px;letter-spacing:2px;cursor:pointer;color:var(--ink2)}
 .tr-b button:hover{background:#fff}
 .tr-pt{position:absolute;left:0;top:0;width:0;height:0;opacity:0;transition:opacity .5s;pointer-events:none}
 .tr-pt.on{opacity:1}
-.tr-pt i{position:absolute;left:-6px;top:-6px;width:12px;height:12px;border-radius:50%;background:var(--c);box-shadow:0 0 0 3px rgba(246,239,222,.9),0 2px 6px rgba(0,0,0,.3)}
-.tr-pt span{position:absolute;left:10px;top:-24px;white-space:nowrap;font-size:13.5px;letter-spacing:1px;color:#1a1612;background:rgba(247,240,224,.92);padding:2px 7px;border-radius:2px;box-shadow:0 0 0 1px rgba(120,90,50,.25),0 2px 5px rgba(30,20,10,.18)}
+.tr-pt i{position:absolute;left:-7px;top:-7px;width:14px;height:14px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff6e0 0 18%,var(--c) 45%);box-shadow:0 0 0 3px rgba(246,239,222,.92),0 0 14px 4px color-mix(in srgb,var(--c) 55%,transparent),0 2px 6px rgba(0,0,0,.3)}
+.tr-pt.cur i{animation:pulse 1.4s ease-in-out infinite;transform:scale(1.25)}
+.tr-pt.cur span{background:var(--c);color:#f7ecdd}
+.tr-pt.cur em{color:#f7ecdd}
+.tr-pt span{position:absolute;left:12px;top:-28px;white-space:nowrap;font-size:15px;letter-spacing:1px;color:#1a1612;background:rgba(247,240,224,.92);padding:2px 7px;border-radius:2px;box-shadow:0 0 0 1px rgba(120,90,50,.25),0 2px 5px rgba(30,20,10,.18)}
 .tr-pt em{font-style:normal;font-size:11px;color:var(--c);margin-left:5px}
 .tr-head{position:absolute;left:0;top:0;width:0;height:0;opacity:0;pointer-events:none}
-.tr-head::before{content:"";position:absolute;left:-8px;top:-8px;width:16px;height:16px;border-radius:50%;background:radial-gradient(circle,var(--c) 0 40%,transparent 72%);animation:pulse 1.2s ease-in-out infinite}
+.tr-head::before{content:"";position:absolute;left:-14px;top:-14px;width:28px;height:28px;border-radius:50%;background:radial-gradient(circle,var(--c) 0 40%,transparent 72%);animation:pulse 1.2s ease-in-out infinite}
 body.trail-on #labels .lbl{opacity:0!important;pointer-events:none}
 body.trail-on #labels .lbl .in{pointer-events:none}
 body.trail-on #dock,body.trail-on #search,body.trail-on #hint{opacity:0;pointer-events:none}
@@ -2811,7 +2815,7 @@ function placePose(p, shift, opt = {}) {
   return best;
 }
 function flyPlace(p, shift) { const b = placePose(p, shift); flyTo(b.t, b.pos, 1.6); }
-controls.addEventListener("start", () => { fly = null; stopTour(); hideHint(); });
+controls.addEventListener("start", () => { fly = null; stopTour(); hideHint(); if (trail) trail.follow = false; });
 
 /* 地面约束：目标贴地、镜头不入山 */
 const BOUND = { x0: wx(75), x1: wx(134), z0: wz(52), z1: wz(18) };
@@ -3418,26 +3422,79 @@ const TRAILS = {
 };
 const trailPanel = $("#trailPanel");
 let trail = null;
+/* —— 足迹光带：内芯（实）+ 外晕（叠加），沿线流光；年岁越后弧越高、色越深，重叠处分得清上下 —— */
+const TRAIL_VS = `uniform float uR0, uRpx; varying vec2 vUv; varying vec3 vN; varying vec3 vW;
+  void main(){ vUv = uv; vN = normalize(mat3(modelMatrix) * normal);
+    vec4 w = modelMatrix * vec4(position, 1.0); vec3 c = w.xyz - vN * uR0;
+    float r = max(uR0, length(cameraPosition - c) * uRpx);   // 远看也保持一定屏幕宽度
+    w.xyz = c + vN * r; vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`;
+const trailCoreMat = (c0, c1) => new THREE.ShaderMaterial({
+  uniforms: { uProg: { value: 0 }, uTime: GU.uTime, uC0: { value: new THREE.Color(c0) }, uC1: { value: new THREE.Color(c1) }, uLen: { value: 100 }, uR0: { value: 0.11 }, uRpx: { value: 0.0032 } },
+  vertexShader: TRAIL_VS,
+  fragmentShader: `uniform float uProg, uTime, uLen; uniform vec3 uC0, uC1; varying vec2 vUv; varying vec3 vN; varying vec3 vW;
+    void main(){
+      if (vUv.x > uProg) discard;
+      vec3 V = normalize(cameraPosition - vW);
+      float ndv = clamp(dot(normalize(vN), V), 0.0, 1.0);
+      vec3 c = mix(uC0, uC1, vUv.x);
+      float p = fract(vUv.x * uLen / 7.0 - uTime * 0.45);
+      float pulse = smoothstep(0.0, 0.06, p) * smoothstep(0.22, 0.06, p);
+      float head = smoothstep(uProg - 12.0 / uLen, uProg, vUv.x);
+      c = c * (0.55 + 0.6 * ndv) + vec3(1.0, 0.92, 0.75) * (pulse * 0.55 + head * 0.9) + vec3(1.0) * pow(ndv, 8.0) * 0.35;
+      gl_FragColor = vec4(c * 1.15, 1.0);
+    }`,
+});
+const trailGlowMat = (c1) => new THREE.ShaderMaterial({
+  transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  uniforms: { uProg: { value: 0 }, uTime: GU.uTime, uC: { value: new THREE.Color(c1) }, uLen: { value: 100 }, uR0: { value: 0.42 }, uRpx: { value: 0.011 } },
+  vertexShader: TRAIL_VS,
+  fragmentShader: `uniform float uProg, uTime, uLen; uniform vec3 uC; varying vec2 vUv; varying vec3 vN; varying vec3 vW;
+    void main(){
+      if (vUv.x > uProg) discard;
+      vec3 V = normalize(cameraPosition - vW);
+      float rim = pow(1.0 - abs(dot(normalize(vN), V)), 1.6);
+      float head = smoothstep(uProg - 18.0 / uLen, uProg, vUv.x);
+      float a = (1.0 - rim) * 0.32 * (0.6 + 0.4 * sin(vUv.x * uLen * 0.6 - uTime * 3.0) * 0.5 + head * 0.9);
+      gl_FragColor = vec4(uC * 1.2, a * 0.8);
+    }`,
+});
+/** 代表作：此人诗作里离该站最近的一首（名字对得上的优先） */
+function trailVerse(poet, name, lng, lat) {
+  let best = null, bd = 1.3;
+  for (const q of POEMS) {
+    if (q.a !== poet) continue;
+    const d = Math.hypot(q.lng - lng, q.lat - lat) - ((q.pn + q.t).includes(name) ? 0.8 : 0);
+    if (d < bd) { bd = d; best = q; }
+  }
+  return best;
+}
+const TRAIL_STAY = 4.2;
 function startTrail(poet) {
   const T = TRAILS[poet]; if (!T) return;
+  loadPoemFont();
   closeTrail(true); closeAll(); stopTour(); toggleAmb(false);
-  const { Line2, LineMaterial, LineGeometry } = window.THREE_ADDONS;
   const P = T.stops.map(([y, n, lng, lat]) => { const x = wx(lng), z = wz(lat); return new THREE.Vector3(x, Math.max(0.3, groundAt(x, z)), z); });
-  /* 段与段之间抬成弧线，远程弧高、近程弧低 */
-  const pos = [], segStart = [0];
+  /* 弧线：远程弧高、近程弧低；越往后的行程整体抬高一层 */
+  const pts = [], stopAt = [0];
   for (let i = 1; i < P.length; i++) {
-    const a = P[i - 1], b = P[i], d = Math.hypot(b.x - a.x, b.z - a.z), n = Math.max(8, Math.ceil(d / 1.5)), hh = 2 + d * 0.16;
+    const A = P[i - 1], B = P[i], d = Math.hypot(B.x - A.x, B.z - A.z), n = Math.max(10, Math.ceil(d / 1.2));
+    const hh = 1.2 + d * 0.13 + i * 0.22, lift = 0.6 + i * 0.05;
     for (let q = i === 1 ? 0 : 1; q <= n; q++) {
-      const t = q / n, x = lerp(a.x, b.x, t), z = lerp(a.z, b.z, t);
-      pos.push(x, Math.max(lerp(a.y, b.y, t) + 1 + Math.sin(t * Math.PI) * hh, groundAt(x, z) + 1), z);
+      const t = q / n, x = lerp(A.x, B.x, t), z = lerp(A.z, B.z, t);
+      pts.push(new THREE.Vector3(x, Math.max(lerp(A.y, B.y, t) + lift + Math.sin(t * Math.PI) * hh, groundAt(x, z) + 0.8), z));
     }
-    segStart.push(pos.length / 3 - 1);
+    stopAt.push(pts.length - 1);
   }
-  const g = new LineGeometry(); g.setPositions(pos);
-  const m = new LineMaterial({ color: T.color, linewidth: 3, transparent: true, opacity: 0.92, depthTest: false, depthWrite: false, worldUnits: false });
-  m.resolution.set(innerWidth, innerHeight);
-  const line = new Line2(g, m); line.computeLineDistances(); line.renderOrder = 20; line.frustumCulled = false; g.instanceCount = 0;
-  scene.add(line);
+  /* 沿线弧长：各站所在位置 */
+  const cum = [0]; for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + pts[i].distanceTo(pts[i - 1]));
+  const total = cum[cum.length - 1] || 1, stopFrac = stopAt.map((k) => cum[k] / total);
+  const curve = new THREE.CatmullRomCurve3(pts, false, "centripetal"); curve.arcLengthDivisions = pts.length * 6;
+  const segs = Math.min(3000, pts.length * 5);
+  const c0 = new THREE.Color(T.css).lerp(new THREE.Color("#f3c46a"), 0.3), c1 = new THREE.Color(T.css).multiplyScalar(0.9);
+  const core = new THREE.Mesh(new THREE.TubeGeometry(curve, segs, 0.11, 8, false), trailCoreMat(c0, c1));
+  const glow = new THREE.Mesh(new THREE.TubeGeometry(curve, segs, 0.42, 10, false), trailGlowMat(T.css));
+  for (const m of [core, glow]) { m.material.uniforms.uLen.value = total; m.frustumCulled = false; m.renderOrder = 20; scene.add(m); }
+  glow.renderOrder = 21;
   /* 标记：同一地点合并 */
   const marks = [], byName = {};
   T.stops.forEach(([y, n], i) => {
@@ -3447,71 +3504,122 @@ function startTrail(poet) {
     byName[n] = { el, name: n, years: [y], idx: [i], p: P[i] }; marks.push(byName[n]);
   });
   const head = document.createElement("div"); head.className = "tr-head"; head.style.setProperty("--c", T.css); labelsEl.appendChild(head);
-  trail = { poet, T, P, pos, segStart, line, marks, head, prog: 0, playing: false, active: -1 };
-  /* 年谱面板 */
+  const verses = T.stops.map(([y, n, lng, lat]) => trailVerse(poet, n, lng, lat));
+  trail = { poet, T, P, pts, curve, stopFrac, core, glow, marks, head, verses, prog: 0, phase: "intro", clock: 0, follow: true, done: false, active: -1, frac: 0,
+    faz: 0.35, fdist: 30 };
+  trail.color = T.color;
   $("#trName").textContent = poet; $("#trYears").textContent = T.years + " · " + T.stops.length + " 站";
   $("#trList").innerHTML = T.stops.map(([y, n, , , t], i) => `<li data-i="${i}"><b>${y}</b><div><span>${esc(n)}</span><p>${esc(t)}</p></div></li>`).join("");
   trailPanel.style.setProperty("--c", T.css);
   trailPanel.classList.add("on"); document.body.classList.add("trail-on");
-  flyTrailFit(1.8);
-  setTimeout(() => { if (trail) trail.playing = true; }, REDUCED ? 0 : 1900);
-  if (REDUCED) trail.prog = P.length - 1;
+  if (REDUCED) { trailFinish(0.01); return; }
+  /* 开场：先飞到第一站的中景 */
+  const t0 = P[0].clone(); flyTo(t0, t0.clone().add(new THREE.Vector3().setFromSphericalCoords(trail.fdist, 1.0, trail.faz)), 2.6, 0.5);
 }
-/** 俯瞰全部足迹：按行迹范围取景，并为左侧年谱让出位置 */
+function trailFinish(dur) {
+  if (!trail) return;
+  trail.done = true; trail.phase = "done"; trail.prog = trail.P.length - 1; trail.frac = 1; hideVerse();
+  flyTrailFit(dur);
+}
+/** 结束时的整体取景：斜俯视（参照江山图的视角），装下全部行迹，并为左侧年谱让位 */
 function flyTrailFit(dur) {
   if (!trail) return;
-  let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
-  for (const p of trail.P) { x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); z0 = Math.min(z0, p.z); z1 = Math.max(z1, p.z); }
-  const mob = innerWidth <= 760, polar = 0.42, th = Math.tan(camera.fov * Math.PI / 360);
-  const availW = mob ? innerWidth : innerWidth - 340, availH = mob ? innerHeight * 0.58 : innerHeight - 120, a = availW / innerHeight;
-  const spanX = (x1 - x0) * 1.12 + 22, spanZ = (z1 - z0) * 1.12 + 20;
-  const dist = Math.max(spanZ / (2 * th) * innerHeight / availH, spanX / (2 * th * a)) * 1.05;
-  const visW = 2 * dist * th * innerWidth / innerHeight, visH = 2 * dist * th;
-  const cx0 = (x0 + x1) / 2 - (mob ? 0 : 170 / innerWidth * visW), cz0 = (z0 + z1) / 2 + (mob ? 0.2 * visH : 0);
-  const t = new THREE.Vector3(cx0, 0.5, cz0), pos = t.clone().add(new THREE.Vector3().setFromSphericalCoords(dist, polar, 0));
-  flyTo(t, pos, dur, 0.3);
+  /* 实测取景：把每站投影到屏幕，调距离与中心，直到全部落在年谱右侧的空白区 */
+  const mob = innerWidth <= 760, polar = 0.98, az = 0.25;
+  const L = mob ? 16 : 390, R = innerWidth - 120, T = 110, B = mob ? innerHeight * 0.55 : innerHeight - 90;
+  const cam = camera.clone(); cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix();
+  const pts = trail.P.concat(trail.pts.filter((_, i) => i % 6 === 0));
+  const c = new THREE.Vector3(); trail.P.forEach((p) => c.add(p)); c.divideScalar(trail.P.length); c.y = 0.5;
+  const box = (tgt, dist) => {
+    cam.position.copy(tgt).add(new THREE.Vector3().setFromSphericalCoords(dist, polar, az)); cam.lookAt(tgt); cam.updateMatrixWorld();
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (const p of pts) { _v.copy(p).project(cam); const sx = (_v.x * 0.5 + 0.5) * innerWidth, sy = (-_v.y * 0.5 + 0.5) * innerHeight; x0 = Math.min(x0, sx); x1 = Math.max(x1, sx); y0 = Math.min(y0, sy); y1 = Math.max(y1, sy); }
+    return { x0, x1, y0, y1 };
+  };
+  let tgt = c.clone(), dist = 120;
+  for (let it = 0; it < 6; it++) {
+    let lo = 20, hi = 900;
+    for (let q = 0; q < 22; q++) { const m = (lo + hi) / 2, bb = box(tgt, m); if (bb.x1 - bb.x0 <= R - L && bb.y1 - bb.y0 <= B - T) hi = m; else lo = m; }
+    dist = hi * 1.03;
+    const bb = box(tgt, dist), dx = (L + R) / 2 - (bb.x0 + bb.x1) / 2, dy = (T + B) / 2 - (bb.y0 + bb.y1) / 2;
+    /* 屏幕偏移换算回地面：右移 = 目标往相机左边挪 */
+    const right = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 0).setY(0).normalize();
+    const fwd = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 2).setY(0).normalize();
+    const wpp = 2 * dist * Math.tan(cam.fov * Math.PI / 360) / innerHeight;
+    tgt.addScaledVector(right, -dx * wpp).addScaledVector(fwd, -dy * wpp / Math.cos(polar) * 0.9);
+  }
+  flyTo(tgt, tgt.clone().add(new THREE.Vector3().setFromSphericalCoords(dist, polar, az)), dur, 0.3);
 }
 function closeTrail(silent) {
   if (!trail) return;
-  scene.remove(trail.line); trail.line.geometry.dispose(); trail.line.material.dispose();
-  trail.marks.forEach((m) => m.el.remove()); trail.head.remove();
+  for (const m of [trail.core, trail.glow]) { scene.remove(m); m.geometry.dispose(); m.material.dispose(); }
+  trail.marks.forEach((m) => m.el.remove()); trail.head.remove(); hideVerse();
   trail = null; trailPanel.classList.remove("on"); document.body.classList.remove("trail-on");
 }
 function trailGoto(i) {
   if (!trail) return;
-  trail.prog = Math.max(trail.prog, i); trail.playing = false;
-  const [, , lng, lat] = trail.T.stops[i];
-  const off = new THREE.Spherical().setFromVector3(camera.position.clone().sub(controls.target));
-  flyView({ k: "", lng, lat, dist: 26, polar: 1.02, az: off.theta }, 1.8);
+  trail.follow = false; trail.phase = "paused"; trail.prog = Math.max(trail.prog, i); trail.frac = Math.max(trail.frac, trail.stopFrac[i]);
+  const p = trail.P[i];
+  flyTo(p.clone(), p.clone().add(new THREE.Vector3().setFromSphericalCoords(22, 1.0, trail.faz)), 1.8);
+  trailShowVerse(i);
 }
+function trailShowVerse(i) {
+  const q = trail.verses[i]; hideVerse();
+  if (!q) return;
+  const [y, n] = trail.T.stops[i];
+  setTimeout(() => { if (trail) showVerse({ verses: [q], region: y + "年", label: n }); }, 250);
+}
+const easeInOut = (t) => t * t * (3 - 2 * t);
 function tickTrail(dt) {
   if (!trail) return;
   const N = trail.P.length - 1;
-  if (trail.playing && trail.prog < N) trail.prog = Math.min(N, trail.prog + dt / 1.05);
-  /* 线条按进度显出 */
-  const k = Math.floor(trail.prog), f = trail.prog - k;
-  const segs = k >= N ? trail.segStart[N] : Math.round(lerp(trail.segStart[k], trail.segStart[k + 1], f));
-  trail.line.geometry.instanceCount = Math.max(0, segs);
-  const active = Math.min(N, Math.round(trail.prog - 0.35 + 0.35));
-  if (active !== trail.active) {
-    trail.active = active;
-    document.querySelectorAll("#trList li").forEach((li) => { const i = +li.dataset.i; li.classList.toggle("done", i <= Math.floor(trail.prog)); li.classList.toggle("cur", i === Math.floor(trail.prog)); });
+  /* —— 节奏：开场 → [停留（题诗）→ 行进] × N → 收束全景 —— */
+  if (trail.phase === "intro") { if (!fly) { trail.phase = "stay"; trail.clock = 0; trailShowVerse(0); } }
+  else if (trail.phase === "stay") {
+    trail.clock += dt;
+    const stay = trail.verses[trail.prog] ? TRAIL_STAY : 1.6;
+    if (trail.clock > stay) {
+      if (trail.prog >= N) trailFinish(3.2);
+      else { hideVerse(); trail.phase = "move"; trail.clock = 0; const A = trail.P[trail.prog], B = trail.P[trail.prog + 1]; trail.segDur = clamp(2.2 + Math.hypot(B.x - A.x, B.z - A.z) * 0.045, 2.4, 6.5); }
+    }
+  } else if (trail.phase === "move") {
+    trail.clock += dt;
+    const u = Math.min(1, trail.clock / trail.segDur), k = trail.prog;
+    trail.frac = lerp(trail.stopFrac[k], trail.stopFrac[k + 1], easeInOut(u));
+    if (u >= 1) { trail.prog = k + 1; trail.phase = "stay"; trail.clock = 0; trailShowVerse(trail.prog); }
+  }
+  for (const m of [trail.core, trail.glow]) m.material.uniforms.uProg.value = trail.done ? 1.001 : trail.frac + 0.0005;
+  /* —— 跟随镜头：中近景，目标跟着笔头，行进远途时略拉高 —— */
+  const headP = trail.curve.getPointAt(clamp(trail.frac, 0, 1));
+  if (trail.follow && !fly && (trail.phase === "move" || trail.phase === "stay")) {
+    let want = 26;
+    if (trail.phase === "move") { const A = trail.P[trail.prog], B = trail.P[trail.prog + 1], d = Math.hypot(B.x - A.x, B.z - A.z); want = clamp(22 + d * 0.3, 24, 70) * (0.75 + 0.25 * Math.sin(Math.PI * Math.min(1, trail.clock / trail.segDur))); }
+    trail.fdist = lerp(trail.fdist, want, 1 - Math.exp(-dt * 1.2));
+    const tgt = trail.phase === "stay" ? trail.P[trail.prog] : headP.clone().setY(lerp(headP.y, trail.P[trail.prog].y, 0.6));
+    const k = 1 - Math.exp(-dt * 1.8);
+    controls.target.lerp(tgt, k);
+    camera.position.lerp(controls.target.clone().add(new THREE.Vector3().setFromSphericalCoords(trail.fdist, 1.0, trail.faz)), k);
+  }
+  /* —— 年谱高亮 —— */
+  const done = trail.done ? N : trail.prog;
+  if (done !== trail.active) {
+    trail.active = done;
+    document.querySelectorAll("#trList li").forEach((li) => { const i = +li.dataset.i; li.classList.toggle("done", i <= done); li.classList.toggle("cur", i === done && !trail.done); });
     const cur = $("#trList li.cur"); if (cur) cur.scrollIntoView({ block: "nearest", behavior: REDUCED ? "auto" : "smooth" });
   }
-  /* 标记与笔头 */
+  /* —— 地点标记与笔头 —— */
   const w = innerWidth, h = innerHeight;
   for (const m of trail.marks) {
-    const on = m.idx[0] <= trail.prog + 0.02;
-    _v.copy(m.p).setY(m.p.y + 0.6).project(camera);
+    const on = m.idx[0] <= done;
+    _v.copy(m.p).setY(m.p.y + 0.5).project(camera);
     const vis = on && _v.z < 1 && Math.abs(_v.x) < 1.1 && Math.abs(_v.y) < 1.1;
-    m.el.classList.toggle("on", vis);
-    if (vis) { m.el.style.transform = `translate3d(${((_v.x * 0.5 + 0.5) * w).toFixed(1)}px,${((-_v.y * 0.5 + 0.5) * h).toFixed(1)}px,0)`; }
+    m.el.classList.toggle("on", vis); m.el.classList.toggle("cur", on && m.idx.includes(done) && !trail.done);
+    if (vis) m.el.style.transform = `translate3d(${((_v.x * 0.5 + 0.5) * w).toFixed(1)}px,${((-_v.y * 0.5 + 0.5) * h).toFixed(1)}px,0)`;
     const txt = `<i></i><span>${esc(m.name)}<em>${m.years.join(" · ")}</em></span>`;
     if (m.el._t !== txt) { m.el.innerHTML = txt; m.el._t = txt; }
   }
-  const hi = Math.min(trail.line.geometry.instanceCount, trail.pos.length / 3 - 1) * 3;
-  if (trail.prog < N && hi >= 0) {
-    _v.set(trail.pos[hi], trail.pos[hi + 1], trail.pos[hi + 2]).project(camera);
+  if (trail.phase === "move") {
+    _v.copy(headP).project(camera);
     trail.head.style.opacity = 1; trail.head.style.transform = `translate3d(${((_v.x * 0.5 + 0.5) * w).toFixed(1)}px,${((-_v.y * 0.5 + 0.5) * h).toFixed(1)}px,0)`;
   } else trail.head.style.opacity = 0;
 }
@@ -3830,8 +3938,8 @@ function toggleAmb(open) {
 }
 function buildTrailUI() {
   $("#trX").onclick = () => closeTrail();
-  $("#trAll").onclick = () => { if (trail) { trail.prog = trail.P.length - 1; flyTrailFit(1.6); } };
-  $("#trReplay").onclick = () => { if (trail) { trail.prog = 0; trail.playing = true; flyTrailFit(1.2); } };
+  $("#trAll").onclick = () => { if (trail) trailFinish(1.8); };
+  $("#trReplay").onclick = () => { if (trail) startTrail(trail.poet); };
   $("#trList").addEventListener("click", (e) => { const li = e.target.closest("li"); if (li) trailGoto(+li.dataset.i); });
 }
 function buildUI() {
@@ -3989,7 +4097,6 @@ addEventListener("resize", () => {
   controls.maxDistance = Math.max(115, natDist() * 1.1);
   applyQuality(); if (scrollOpen) placeBar();
   if (wallLine) wallLine.material.resolution.set(innerWidth, innerHeight);
-  if (trail) trail.line.material.resolution.set(innerWidth, innerHeight);
   for (const l of riverLines) l.material.resolution.set(innerWidth, innerHeight);
 });
 document.addEventListener("visibilitychange", () => { if (audio) (document.hidden ? audio.ac.suspend() : audio.ac.resume()); });
