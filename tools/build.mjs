@@ -63,6 +63,7 @@ fs.writeFileSync(path.join(OUT, "js/core.js"), "window.POEM_DATA=" + JSON.string
 fs.writeFileSync(path.join(OUT, "js/detail.js"), "window.POEM_DETAIL=" + JSON.stringify({ p: det, authors: FULL.authors }) + ";\n");
 fs.writeFileSync(path.join(OUT, "js/three.js"), threeFile);
 for (const f2 of ["brush-tour.js", "brush-poems.js"]) fs.copyFileSync(path.join(ROOT, "fonts", f2), path.join(OUT, "fonts", f2));
+fs.copyFileSync(path.join(ROOT, "tree-preview.html"), path.join(OUT, "tree-preview.html"));   // 树木样板入口
 const html = `<!doctype html>
 <html lang="zh-CN">
 <head>${head}<style>${css}</style></head>
