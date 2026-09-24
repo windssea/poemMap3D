@@ -1108,7 +1108,6 @@ vec3 applySeason(vec3 c, vec3 wp, float up, float kind, float tree){
   float green = clamp((c.g - max(c.r, c.b)) / max(c.g, 0.02) * 2.4, 0.0, 1.0);
   float n = sh21(floor(wp.xz * (kind > 0.5 ? 2.6 : 0.9)));
   vec3 sp = mix(c, c * vec3(1.14, 1.12, 0.7) + vec3(0.012, 0.018, 0.0), green * 0.7);
-  if (kind == 1.0 && tree > 0.8 && n > 0.55) sp = mix(sp, vec3(0.86, 0.4, 0.5) * (0.55 + l * 2.2), green * 0.9);
   vec3 su = mix(c, c * vec3(0.78, 1.0, 0.84), green * 0.55);
   vec3 gold = mix(vec3(0.7, 0.38, 0.05), vec3(0.6, 0.11, 0.035), n * n);
   float everg = kind == 1.0 ? step(tree, 0.4) : 0.0;
@@ -1123,6 +1122,10 @@ vec3 applySeason(vec3 c, vec3 wp, float up, float kind, float tree){
   if (uSeason.y > 0.001) r += su * uSeason.y;
   if (uSeason.z > 0.001) r += au * uSeason.z;
   if (uSeason.w > 0.001) r += wi * uSeason.w;
+  if (kind == 1.0 && tree > 0.95) {   // 桃花：夏成叶、秋转黄、冬只剩枝色
+    vec3 bl = c * uSeason.x + vec3(0.30, 0.46, 0.25) * uSeason.y + vec3(0.62, 0.42, 0.18) * uSeason.z + vec3(0.42, 0.35, 0.3) * uSeason.w;
+    r = bl;
+  }
   return r;
 }`;
 function seasonize(sh, kind) {
@@ -1394,6 +1397,7 @@ function tickLOD() {
   for (const m of floraMeshes) {
     const d = Math.hypot(m.userData.cx - c.x, m.userData.cz - c.z) - 34;
     const lim = tp ? Math.max(flora, 105) : flora, v = m.visible ? d < lim + 15 : d < lim; if (v !== m.visible) { m.visible = v; shadowDirty = true; }
+    if (m.userData.lod && !tp) { const g = m.userData.lod[d > 32 ? 0 : 1]; if (m.geometry !== g) { m.geometry = g; shadowDirty = true; } }
   }
 }
 
@@ -2468,6 +2472,139 @@ const floraMat = withMist(new THREE.MeshStandardMaterial({ vertexColors: true, r
 }, 1);
 const floraGroup = new THREE.Group(); scene.add(floraGroup);
 let floraMeshes = [];
+/* ================= VoxelTree：程序化体素树 =================
+   参数：treeType, seed, trunkHeight, crownWidth, crownHeight, branchCount, asymmetry, colorVariation, growthScale, detailLevel
+   尺寸以体素 V 为单位；同一组参数（含 seed）永远生成同一棵树。
+   树种标记写在 aGlow 通道里给季节着色器用：0.2 常绿、0.6 落叶、1.0 花。 */
+const VoxelTree = (() => {
+  const V = 0.02, EV = 0.2, DE = 0.6, FL = 1.0;
+  const shade = (hexs, R, cv) => { const c = new THREE.Color(hexs[Math.floor(R() * hexs.length)]); c.offsetHSL((R() - 0.5) * 0.02 * cv, (R() - 0.5) * 0.08 * cv, (R() - 0.5) * 0.08 * cv); return "#" + c.getHexString(); };
+  const LEAF = { top: ["#6a9559", "#628d55", "#71995c"], mid: ["#4f8062", "#4b7a55", "#56835a"], low: ["#3a6146", "#365c44", "#3f6649"] };
+  const NEEDLE = ["#2f5a44", "#2b5440", "#35624a", "#3a6a4d"], BARK = ["#5a4230", "#4e3a2b", "#634a35"];
+  const BLOSSOM = ["#f4c6d0", "#f2b5c4", "#ee9fb4", "#f7d3da"], DEEP = ["#d9667f", "#e07a92"];
+  /** 一段树干 / 枝：从 (x,y,z) 向 (dx,dy,dz) 方向走 n 格体素 */
+  function limb(b, x, y, z, dx, dy, dz, n, w, col) { for (let q = 0; q < n; q++) b.cbox((x + dx * q) * V, (y + dy * q) * V, (z + dz * q) * V, w * V, V * 1.05, w * V, col); return [x + dx * n, y + dy * n, z + dz * n]; }
+
+  function broadleaf(b, P, R) {
+    const th = P.trunkHeight, cw = P.crownWidth, ch = P.crownHeight, cv = P.colorVariation, asym = P.asymmetry;
+    const bark = shade(BARK, R, cv);
+    b.cbox(0, -0.14, 0, 2 * V, 0.14, 2 * V, bark);
+    b.cbox(0, 0, 0, 2 * V, th * V, 2 * V, bark);
+    const heads = [[0, th, 0]];
+    if (P.detailLevel === 2) for (let q = 0; q < P.branchCount; q++) {
+      const a = (q / P.branchCount) * 6.283 + R() * 0.8, dx = Math.round(Math.cos(a)), dz = Math.round(Math.sin(a));
+      heads.push(limb(b, 0, th - 1 - (q % 2), 0, dx, 1, dz, 2 + Math.floor(R() * 2), 1.3, bark));
+    }
+    if (P.detailLevel === 0) { b.cbox(0, (th - 1) * V, 0, cw * V, ch * V, cw * V, shade(LEAF.mid, R, cv), DE); return; }
+    /* 叶团：5–12 块，按造型变体分布在冠体里；下层暗、上层亮 */
+    const nb = P.detailLevel === 1 ? 4 : 5 + Math.floor(R() * 8), ox = asym * (R() - 0.5) * cw * 0.5, oz = asym * (R() - 0.5) * cw * 0.5;
+    const form = P.variant;   // 0 圆冠 1 高卵形 2 伞形 3 双团不对称
+    for (let q = 0; q < nb; q++) {
+      let u = R() * 2 - 1, w = R() * 2 - 1, v = R();
+      if (form === 1) { u *= 0.7; w *= 0.7; v = Math.pow(v, 0.8); }
+      if (form === 2) { v = 0.55 + v * 0.45; }
+      if (form === 3) { const side = q % 2 ? 1 : -0.6; u = u * 0.5 + side * 0.55; v = v * (q % 2 ? 1 : 0.7); }
+      const sz = (0.34 + R() * 0.3) * cw * (form === 2 ? 1.1 : 1), sy = sz * (form === 2 ? 0.55 : 0.8 + R() * 0.3);
+      const y = th - 1 + v * (ch - sy / 1) * (form === 1 ? 1.15 : 1);
+      const tier = v > 0.66 ? LEAF.top : v > 0.3 ? LEAF.mid : LEAF.low;
+      b.cbox((u * cw * 0.42 + ox) * V, y * V, (w * cw * 0.42 + oz) * V, sz * V, sy * V, sz * V, shade(tier, R, cv), DE, R() * 0.4);
+    }
+    /* 冠底：一块略大、较暗的托底，冠体下缘有层次 */
+    b.cbox(ox * V, (th - 0.5) * V, oz * V, cw * 0.7 * V, 1.6 * V, cw * 0.7 * V, shade(LEAF.low, R, cv), DE);
+    if (P.detailLevel === 2) for (let q = 0; q < 3; q++) { const a = R() * 6.283, r = cw * 0.45; b.cbox((Math.cos(a) * r + ox) * V, (th + ch * (0.2 + R() * 0.5)) * V, (Math.sin(a) * r + oz) * V, 2 * V, 2 * V, 2 * V, shade(LEAF.top, R, cv), DE); }
+  }
+
+  function pineUpright(b, P, R) {
+    const th = P.trunkHeight, cw = P.crownWidth, ch = P.crownHeight, cv = P.colorVariation, bark = shade(BARK, R, cv);
+    b.cbox(0, -0.14, 0, 2 * V, 0.14, 2 * V, bark);
+    b.cbox(0, 0, 0, 2 * V, (th + ch) * V, 2 * V, bark);
+    const tiers = P.detailLevel === 0 ? 2 : P.detailLevel === 1 ? 3 : 4 + Math.floor(R() * 2);
+    for (let t = 0; t < tiers; t++) {
+      const f = t / (tiers - 1), w = cw * (1 - f * 0.72) * (0.9 + R() * 0.2), y = th + f * ch * 0.85;
+      /* 每层 2–4 块错位的针叶垫，不是规整方块 */
+      const pads = P.detailLevel === 0 ? 1 : P.detailLevel === 1 ? 2 : 2 + Math.floor(R() * 3);
+      for (let q = 0; q < pads; q++) {
+        const a = R() * 6.283, off = w * 0.18 * P.asymmetry;
+        b.cbox(Math.cos(a) * off * V, y * V, Math.sin(a) * off * V, w * (0.6 + R() * 0.4) * V, (1.6 + R() * 0.8) * V, w * (0.6 + R() * 0.4) * V, shade(NEEDLE, R, cv), EV, R() * 1.2);
+      }
+    }
+    b.cbox(0, (th + ch * 0.95) * V, 0, 1.5 * V, 2.5 * V, 1.5 * V, shade(NEEDLE, R, cv), EV);
+  }
+
+  /** 横枝景观松（黄山松式）：斜倚的主干，向一侧伸出 2–4 条横枝，枝端是扁平的云状针叶垫 */
+  function pineLandscape(b, P, R) {
+    const th = P.trunkHeight, cw = P.crownWidth, cv = P.colorVariation, bark = shade(BARK, R, cv);
+    b.cbox(0, -0.14, 0, 2.2 * V, 0.14, 2.2 * V, bark);
+    const lean = R() < 0.5 ? 1 : -1;
+    let x = 0, y = 0;
+    for (let q = 0; q < th; q++) { b.cbox(x * V, y * V, 0, 2.2 * V, 1.05 * V, 2.2 * V, bark); y++; if (q > th * 0.4 && q % 3 === 0) x += lean; }
+    const nbr = P.detailLevel === 0 ? 1 : Math.max(2, P.branchCount);
+    for (let q = 0; q < nbr; q++) {
+      const by = Math.round(th * (0.45 + 0.55 * q / nbr)), dir = q === nbr - 1 ? 0 : (q % 2 ? -1 : 1) * 0.6 + lean * 0.8;
+      const len = Math.round(cw * (0.35 + R() * 0.3) * (q === nbr - 1 ? 0.5 : 1));
+      const dz = (R() - 0.5) * 0.8, bx = x * (by / th);
+      const end = limb(b, bx, by, 0, dir, 0.18, dz, len, 1.2, bark);
+      const pw = cw * (0.42 + R() * 0.25);
+      b.cbox(end[0] * V, (end[1] + 0.5) * V, end[2] * V, pw * V, 1.8 * V, pw * 0.75 * V, shade(NEEDLE, R, cv), EV, R() * 0.6);
+      if (P.detailLevel > 0) b.cbox((end[0] + dir * 1.5) * V, (end[1] + 2) * V, end[2] * V, pw * 0.6 * V, 1.6 * V, pw * 0.5 * V, shade(NEEDLE, R, cv), EV, R() * 0.6);
+    }
+  }
+
+  /** 桃花树：短干、2–4 条主枝、4–8 组花团（浅粉 / 桃粉 / 少量深粉），夹少许嫩叶 */
+  function peach(b, P, R) {
+    const th = Math.max(3, Math.round(P.trunkHeight * 0.6)), cw = P.crownWidth, cv = P.colorVariation, bark = shade(["#5b3f33", "#4f362b"], R, cv);
+    b.cbox(0, -0.14, 0, 2 * V, 0.14, 2 * V, bark);
+    b.cbox(0, 0, 0, 2 * V, th * V, 2 * V, bark);
+    const nb = Math.max(2, Math.min(4, P.branchCount)), ends = [];
+    for (let q = 0; q < nb; q++) {
+      const a = (q / nb) * 6.283 + R() * 0.9;
+      ends.push(limb(b, 0, th, 0, Math.cos(a) * 0.8, 0.9, Math.sin(a) * 0.8, 3 + Math.floor(R() * 3), 1.1, bark));
+    }
+    if (P.detailLevel === 0) { b.cbox(0, (th + 3) * V, 0, cw * 0.9 * V, 5 * V, cw * 0.9 * V, BLOSSOM[1], FL); return; }
+    /* 花团：4–8 组，每组由 3–6 个小方块攒成，浅粉为主、桃粉次之、深粉点缀 */
+    const nc = P.detailLevel === 1 ? 4 : 4 + Math.floor(R() * 5), per = P.detailLevel === 1 ? 3 : 4 + Math.floor(R() * 3);
+    for (let q = 0; q < nc; q++) {
+      const e = ends[q % ends.length], cx0 = e[0] + (R() - 0.5) * 3.5, cy0 = e[1] + (R() - 0.2) * 2.5, cz0 = e[2] + (R() - 0.5) * 3.5;
+      for (let k = 0; k < per; k++) {
+        const sz = 1.4 + R() * 1.4, r = R();
+        const col = r < 0.12 ? DEEP[Math.floor(R() * 2)] : r < 0.45 ? BLOSSOM[2] : BLOSSOM[Math.floor(R() * 2) * 3 % 4];
+        b.cbox((cx0 + (R() - 0.5) * 3) * V, (cy0 + (R() - 0.5) * 2) * V, (cz0 + (R() - 0.5) * 3) * V, sz * V, sz * 0.85 * V, sz * V, col, FL, R());
+      }
+    }
+    for (let q = 0; q < 2; q++) { const e = ends[q % ends.length]; b.cbox((e[0] + 1) * V, (e[1] - 1) * V, e[2] * V, 1.6 * V, 1.2 * V, 1.6 * V, "#8fb36a", DE); }
+  }
+
+  const BUILD = { broad: broadleaf, pine: pineUpright, lpine: pineLandscape, peach };
+  /** 各树种的默认参数与变体数 */
+  const SPEC = {
+    broad: { variants: 4, p: (R, v) => ({ trunkHeight: 5 + Math.floor(R() * 3), crownWidth: 9 + R() * 3, crownHeight: 8 + R() * 3 + (v === 1 ? 3 : 0), branchCount: 2 + Math.floor(R() * 3), asymmetry: v === 3 ? 0.8 : 0.35 }) },
+    pine: { variants: 3, p: (R) => ({ trunkHeight: 4 + Math.floor(R() * 3), crownWidth: 10 + R() * 3, crownHeight: 11 + R() * 4, branchCount: 0, asymmetry: 0.5 }) },
+    lpine: { variants: 3, p: (R) => ({ trunkHeight: 9 + Math.floor(R() * 4), crownWidth: 13 + R() * 4, crownHeight: 4, branchCount: 2 + Math.floor(R() * 3), asymmetry: 0.6 }) },
+    peach: { variants: 3, p: (R) => ({ trunkHeight: 5 + Math.floor(R() * 2), crownWidth: 9 + R() * 2, crownHeight: 6, branchCount: 2 + Math.floor(R() * 3), asymmetry: 0.4 }) },
+  };
+  const cache = {};
+  return {
+    SPEC,
+    /** 生成一棵树的几何（同参数 → 同结果） */
+    build(params) {
+      const P = Object.assign({ seed: 1, colorVariation: 1, growthScale: 1, detailLevel: 2, variant: 0 }, params);
+      const R = mulberry32(P.seed * 7919 + P.variant * 131);
+      const b = new VB(); BUILD[P.treeType](b, P, R);
+      const g = b.geometry(); if (P.growthScale !== 1) g.scale(P.growthScale, P.growthScale, P.growthScale);
+      return g;
+    },
+    /** 取某树种某变体某细节级的共享几何 */
+    geo(type, variant, detail) {
+      const key = type + ":" + variant + ":" + detail;
+      if (!cache[key]) { const R = mulberry32(variant * 97 + type.length * 13); cache[key] = this.build(Object.assign({ treeType: type, seed: variant + 1, variant: variant % 4, detailLevel: detail }, SPEC[type].p(R, variant % 4))); }
+      return cache[key];
+    },
+    variants: (type) => (SPEC[type] ? SPEC[type].variants : 1),
+  };
+})();
+const treeKey = (t, R) => (VoxelTree.SPEC[t] ? t + ":" + Math.floor(R() * VoxelTree.variants(t)) : t);
+const treeGeoKey = (key, detail) => { const [t, v] = key.split(":"); return v != null ? VoxelTree.geo(t, +v, detail) : treeGeo(t); };
+
 /** 某格的草木密度与树种（全局草木与近景加密共用同一套规则） */
 function floraInfo(i, j) {
   if (i < 1 || j < 1 || i >= W - 1 || j >= H - 1) return null;
@@ -2485,33 +2622,41 @@ function floraInfo(i, j) {
   if (lat > 43 && m < 1500 && kd === 0) dens = Math.max(dens, 0.55);
   if (wn) dens = Math.max(dens, 0.35);
   dens *= smooth(-0.15, 0.3, fbm(nD, x * 0.055, z * 0.055, 3));    // 成片 · 留白
-  return { k, x, z, y, lat, m, wn, dens };
+  const slope = Math.max(Math.abs(TY[k + 1] - TY[k - 1]), Math.abs(TY[k + W] - TY[k - W]));
+  return { k, x, z, y, lat, m, wn, dens, slope };
 }
 function pickTree(f, R) {
   if (f.wn && f.lat < 36 && R() < 0.55) return "willow";
-  if (f.m > 1100 || f.lat > 38) return R() < 0.85 ? "pine" : "broad";
+  if (f.m > 1100 || f.lat > 38) { const r = R(); return f.slope > 1.3 && r < 0.3 ? "lpine" : r < 0.85 ? "pine" : "broad"; }
   if (f.lat < 31 && f.m < 500 && R() < 0.14) return "bamboo";
   if (f.m > 500 && f.m < 1500 && R() < 0.03) return "maple";
+  if (f.settle && f.lat < 35 && f.m < 600 && R() < 0.28) return "peach";   // 桃花：村落、园林附近
+  if (f.m > 700 && f.slope > 1.6 && R() < 0.25) return "lpine";
   return R() < 0.6 ? "broad" : "pine";
 }
 /* —— 近景加密：镜头推近时，在视点周围按同一规则补种，越近越密；按画质设上限 —— */
-const NEAR_TYPES = ["pine", "broad", "willow", "maple", "bamboo"];
+const NEAR_KEYS = [];
+for (const t of ["pine", "lpine", "broad", "peach"]) for (let v = 0; v < VoxelTree.variants(t); v++) NEAR_KEYS.push(t + ":" + v);
+NEAR_KEYS.push("willow", "maple", "bamboo");
+const NEAR_SETS = [2, 1];   // 近环完整细节、外环中等细节
 const NEAR_CAP = { high: 9000, mid: 6000, low: 2500 };
 const nearFlora = { meshes: {}, center: null, q: null, r: 0 };
 function buildNearFlora() {
-  for (const t of NEAR_TYPES) {
-    const m = new THREE.InstancedMesh(treeGeo(t), floraMat, NEAR_CAP.high);
-    m.count = 0; m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false; m.layers.set(1);
-    floraGroup.add(m); nearFlora.meshes[t] = m;
+  for (const d of NEAR_SETS) for (const key of NEAR_KEYS) {
+    const m = new THREE.InstancedMesh(treeGeoKey(key, d), floraMat, 3000);
+    m.count = 0; m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false; m.layers.set(1); m.visible = false;
+    floraGroup.add(m); nearFlora.meshes[key + "@" + d] = m;
   }
 }
+const hideNear = () => { for (const k in nearFlora.meshes) nearFlora.meshes[k].visible = false; };
 const _nm = new THREE.Matrix4(), _nq = new THREE.Quaternion(), _ne = new THREE.Euler(), _np = new THREE.Vector3(), _ns = new THREE.Vector3(), _nc = new THREE.Color();
 function refreshNearFlora(center, radius) {
   const cap = NEAR_CAP[QUALITY], ci = gi(center.x), cj = gj(center.z), rc = Math.ceil(radius / CS);
   const cells = [];
   for (let dj = -rc; dj <= rc; dj++) for (let di = -rc; di <= rc; di++) { const d2 = di * di + dj * dj; if (d2 <= rc * rc) cells.push([d2, ci + di, cj + dj]); }
   cells.sort((a, b) => a[0] - b[0]);
-  const cnt = {}; NEAR_TYPES.forEach((t) => (cnt[t] = 0));
+  const cnt = {}; for (const k in nearFlora.meshes) cnt[k] = 0;
+  const fullR = Math.min(12, radius * 0.55);
   let total = 0;
   for (const [d2, i, j] of cells) {
     if (total >= cap) break;
@@ -2521,38 +2666,38 @@ function refreshNearFlora(center, radius) {
     const grove = smooth(-0.22, 0.32, fbm(nB, f.x * 0.16, f.z * 0.16, 3));
     const base = Math.max(f.dens, (f.lat < 36 ? 0.45 : 0.32) * grove);
     if (base <= 0.02) continue;
-    /* 越近越密：内圈 5 倍、外圈渐减到 1.6 倍 */
+    f.settle = FLAT[f.k] || grove > 0.8;
     const near = 1 - Math.sqrt(d2) / rc;
     let n = Math.floor(base * (1.6 + 3.4 * near) * 2.4 * CS * CS + R());
     while (n-- > 0 && total < cap) {
-      const t = pickTree(f, R);
+      const key = treeKey(pickTree(f, R), R);
       const tx = f.x + (R() - 0.5) * (CS - 0.26), tz = f.z + (R() - 0.5) * (CS - 0.26);
       if (FLAT[idx(tx, tz)] && R() < 0.9) continue;
-      const g = 0.85 + R() * 0.3, s = (0.7 + R() * 0.6) * (t === "pine" && f.m > 1500 ? 1.2 : 1);
-      _ne.set(0, R() * 6.28, 0); _nq.setFromEuler(_ne); _np.set(tx, f.y, tz); _ns.set(s, s, s);
-      const m = nearFlora.meshes[t]; m.setMatrixAt(cnt[t], _nm.compose(_np, _nq, _ns)); m.setColorAt(cnt[t], _nc.setRGB(g, g * (0.95 + R() * 0.1), g));
-      cnt[t]++; total++;
+      const mk = key + "@" + (Math.hypot(tx - center.x, tz - center.z) < fullR ? 2 : 1), m = nearFlora.meshes[mk]; if (!m || cnt[mk] >= 3000) continue;
+      const g = 0.88 + R() * 0.24, sc = (0.75 + R() * 0.5) * (key.startsWith("pine") && f.m > 1500 ? 1.15 : 1);
+      _ne.set(0, R() * 6.28, 0); _nq.setFromEuler(_ne); _np.set(tx, f.y, tz); _ns.set(sc, sc, sc);
+      m.setMatrixAt(cnt[mk], _nm.compose(_np, _nq, _ns)); m.setColorAt(cnt[mk], _nc.setRGB(g, g * (0.96 + R() * 0.08), g));
+      cnt[mk]++; total++;
     }
   }
-  for (const t of NEAR_TYPES) { const m = nearFlora.meshes[t]; m.count = cnt[t]; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; m.visible = cnt[t] > 0; }
-  nearFlora.center = center.clone(); nearFlora.q = QUALITY; nearFlora.r = radius; shadowDirty = true;
+  for (const t in nearFlora.meshes) { const m = nearFlora.meshes[t]; m.count = cnt[t]; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; m.visible = cnt[t] > 0; }
+  nearFlora.center = center.clone(); nearFlora.q = QUALITY; nearFlora.r = radius; nearFlora.total = total; shadowDirty = true;
 }
 const trailPlaying = () => !!(trail && !trail.done && trail.phase !== "paused");
 function tickNearFlora() {
-  if (!nearFlora.meshes.pine) return;
-  if (trailPlaying()) { if (nearFlora.center) { NEAR_TYPES.forEach((k) => (nearFlora.meshes[k].visible = false)); nearFlora.center = null; shadowDirty = true; } return; }
+  if (!Object.keys(nearFlora.meshes).length) return;
+  if (trailPlaying()) { if (nearFlora.center) { hideNear(); nearFlora.center = null; shadowDirty = true; } return; }
   const t = controls.target, d = camera.position.distanceTo(t);
-  if (d > 40) { if (nearFlora.center) { NEAR_TYPES.forEach((k) => (nearFlora.meshes[k].visible = false)); nearFlora.center = null; shadowDirty = true; } return; }
+  if (d > 40) { if (nearFlora.center) { hideNear(); nearFlora.center = null; shadowDirty = true; } return; }
   const radius = clamp(d * 1.15, 9, 26);
   if (!nearFlora.center || nearFlora.q !== QUALITY || nearFlora.center.distanceTo(t) > radius * 0.3 || Math.abs(nearFlora.r - radius) > radius * 0.35) refreshNearFlora(t, radius);
 }
 function buildFlora() {
-  const map = new Map(); const types = ["pine", "broad", "willow", "maple", "bamboo", "rock", "reed"];
-  const TILE = +(QS.get("tile") || 48);
-  const geos = {}; types.forEach((t) => (geos[t] = treeGeo(t)));
+  const map = new Map();
+  const TILE = +(QS.get("tile") || 72);
   /* 按 48 单位分块实例化，视锥外（含倒影渲染）整块剔除 */
-  const put = (t, it) => { const key = t + "|" + Math.floor(it.x / TILE) + "," + Math.floor(it.z / TILE); if (!map.has(key)) map.set(key, { geo: geos[t], list: [] }); map.get(key).list.push(it); };
   const R = mulberry32(99);
+  const put = (t, it) => { const tk = treeKey(t, R), key = tk + "|" + Math.floor(it.x / TILE) + "," + Math.floor(it.z / TILE); if (!map.has(key)) map.set(key, { geo: treeGeoKey(tk, 1), list: [] }); map.get(key).list.push(it); };
   /* 名胜与地标的点景树放在最前：画质削减草木数量时从末尾截掉，不会截到它们 */
   for (const t of EXTRA_TREES) {
     if (t.y != null) { put(t.t, { x: t.x, y: t.y, z: t.z, rot: R() * 6.28, s: 0.95 + R() * 0.4, tint: [1, 1, 1] }); continue; }
@@ -2577,19 +2722,19 @@ function buildFlora() {
     if (slope > 2.5 && !SNOW[k] && R() < 0.05) put("rock", { x, y, z, rot: R() * 6.28, s: 1 + R(), tint: [1, 1, 1] });
     const f = floraInfo(i, j); if (!f) continue;
     let dens = f.dens;
-    if (flatNear(i, j)) dens = Math.max(dens, 0.35);
+    if (flatNear(i, j)) { dens = Math.max(dens, 0.35); f.settle = true; }
     let nT = Math.floor(dens * 2.4 * CS * CS + R());
     while (nT-- > 0 && count < cap) {
       const t = pickTree(f, R);
       const tx = x + (R() - 0.5) * (CS - 0.26), tz = z + (R() - 0.5) * (CS - 0.26);   // 留在本格内，不悬在台阶边
       if (NOTREE[idx(tx, tz)] || (FLAT[idx(tx, tz)] && R() < 0.85)) continue;
       const g = 0.85 + R() * 0.3;
-      put(t, { x: tx, y, z: tz, rot: R() * 6.28, s: (0.85 + R() * 0.6) * (t === "pine" && m > 1500 ? 1.2 : 1), tint: [g, g * (0.95 + R() * 0.1), g] });
+      put(t, { x: tx, y, z: tz, rot: R() * 6.28, s: (0.85 + R() * 0.5) * (t === "pine" && m > 1500 ? 1.15 : 1), tint: [g, g * (0.95 + R() * 0.1), g] });
       count++;
     }
   }
   floraMeshes = flushInst(floraGroup, floraMat, map, true);
-  floraMeshes.forEach((m) => { m.layers.set(1); const k = m.name.split("|")[1].split(","); m.userData.cx = (+k[0] + 0.5) * TILE; m.userData.cz = (+k[1] + 0.5) * TILE; });   // 草木在第 1 层：平衡/轻量档的倒影不画它们
+  floraMeshes.forEach((m) => { const tk = m.name.split("|")[0]; if (tk.includes(":")) m.userData.lod = [treeGeoKey(tk, 0), m.geometry]; m.layers.set(1); const k = m.name.split("|")[1].split(","); m.userData.cx = (+k[0] + 0.5) * TILE; m.userData.cz = (+k[1] + 0.5) * TILE; });   // 草木在第 1 层：平衡/轻量档的倒影不画它们
   floraMeshes.forEach((m) => (m.userData.full = m.count));
 }
 
@@ -4340,7 +4485,7 @@ document.addEventListener("visibilitychange", () => { if (audio) (document.hidde
     setTimeout(openFromHash, 400);
     setTimeout(loadTourFont, 600); setTimeout(loadDetail, 2500); setTimeout(loadPoemFont, 5000);
     addEventListener("hashchange", () => { if (!curPlace || !location.hash.includes(curPlace.poems[curPoem].id)) openFromHash(); });
-    window.__app = { THREE, scene, camera, controls, renderer, PLACES, VIEWS, flyView, setMood, setSeason, setWeather, GU, FALLS, startTrail, closeTrail, get trail() { return trail; }, get TOUR() { return TOUR; }, TS, tourPlan, groundAt, nearFlora, PATCHES, landAt, wx, wz, y2m, get EXTRA() { return EXTRA_TREES; }, get flora() { return floraMeshes; }, tourAt(i) { startTour(); tourGo(i); }, startTour, stopTour, HOME, get autoFocus() { return autoFocus; }, openPlace, openPoem, closeAll, get listOpen() { return listOpen; }, get scrollOpen() { return scrollOpen; }, applyQuality, get quality() { return QUALITY; }, viewPose,
+    window.__app = { THREE, scene, camera, controls, renderer, PLACES, VIEWS, flyView, setMood, setSeason, setWeather, GU, FALLS, startTrail, closeTrail, get trail() { return trail; }, get TOUR() { return TOUR; }, TS, tourPlan, groundAt, nearFlora, PATCHES, VoxelTree, treeGeoKey, floraMat, landAt, wx, wz, y2m, get EXTRA() { return EXTRA_TREES; }, get flora() { return floraMeshes; }, tourAt(i) { startTour(); tourGo(i); }, startTour, stopTour, HOME, get autoFocus() { return autoFocus; }, openPlace, openPoem, closeAll, get listOpen() { return listOpen; }, get scrollOpen() { return scrollOpen; }, applyQuality, get quality() { return QUALITY; }, viewPose,
       setView(v) { const { target, pos } = viewPose(v); controls.target.copy(target); camera.position.copy(pos); fly = null; controls.update(); },
       cell(lng, lat) { const k = idx(wx(lng), wz(lat)); return { y: TY[k], m: Math.round(y2m(TY[k])), kind: KIND[k], snow: SNOW[k], col: [...TOPC.slice(k * 3, k * 3 + 3)].map((v) => +v.toFixed(2)) }; },
       bench(n = 60) { const gl = renderer.getContext(); composer.render(); gl.finish(); const t = performance.now(); for (let i = 0; i < n; i++) { if (window.__benchShadow) renderer.shadowMap.needsUpdate = true; composer.render(); } gl.finish(); return +((performance.now() - t) / n).toFixed(2); },
