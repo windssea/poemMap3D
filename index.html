@@ -539,7 +539,7 @@ const MOBILE = matchMedia("(pointer: coarse)").matches || Math.min(innerWidth, i
 const QS = new URLSearchParams(location.search);
 /* 画质三档：高 / 衡（桌面默认）/ 轻（手机默认） */
 const QPRE = {
-  high: { name: "高", tip: "高画质：细体素 · 高清倒影 · 柔影 · 泛光", cs: 0.95, pr: 2, shadow: 4096, refl: 0.5, reflEvery: 1, reflFlora: true, bloom: true, flora: 1, msaa: 4 },
+  high: { name: "高", tip: "高画质：细体素 · 高清倒影 · 柔影 · 泛光", cs: 0.95, pr: 2, shadow: 4096, refl: 0.5, reflEvery: 2, reflFlora: true, bloom: true, flora: 1, msaa: 4 },
   mid:  { name: "衡", tip: "平衡：兼顾画质与流畅", cs: 1.1, pr: 1.25, shadow: 2048, refl: 0.3, reflEvery: 2, reflFlora: false, bloom: false, flora: 0.8, msaa: 2 },
   low:  { name: "轻", tip: "轻量：天光倒影 · 更流畅", cs: 1.3, pr: 1, shadow: 1024, refl: 0, reflEvery: 1, reflFlora: false, bloom: false, flora: 0.55, msaa: 2 },
 };
@@ -3431,6 +3431,22 @@ const MOODS = {
   night: { name: "夜", sun: [0.35, 0.6, -0.5], sunC: "#b4c6ff", sunI: 0.8, hemiS: "#667aa6", hemiG: "#2c3440", hemiI: 0.85, fog: "#2e3b57", dens: 0.0026, top: "#122038", hor: "#384a6c", glow: 0.25, mist: 0.1, night: 1, exp: 1.4, bloom: 0.55, tint: "#33475e" },
 };
 const SEASONS = { spring: "春", summer: "夏", autumn: "秋", winter: "冬" }, SKEYS = Object.keys(SEASONS);
+/* ================= 场景主题（接口）=================
+   一个主题 = 时辰 + 季节 + 天气 + 额外的远景雾（fog 倍数）与低处山岚（mist 加量）+ 取景机位。
+   applyTheme(名) 切换，applyTheme(null) 复原；地址 ?theme=长安夕照 可直接进入。新增主题只需在表里加一行。 */
+const THEMES = {
+  长安夕照: { mood: "dusk", season: "autumn", weather: "clear", fog: 1.25, mist: 0.04, view: { lng: 108.95, lat: 34.27, dist: 16, polar: 1.12, az: -0.9 } },
+  江南烟雨: { mood: "day", season: "spring", weather: "wet", fog: 1.6, mist: 0.12, view: { lng: 120.15, lat: 30.25, dist: 12, polar: 1.1, az: 0.4 } },
+  庐山晨雾: { mood: "dawn", season: "summer", weather: "clear", fog: 1.35, mist: 0.28, view: { lng: 116.0, lat: 29.5, dist: 13, polar: 1.05, az: 0.7 } },
+};
+const THEME = { cur: null, fog: 1, mist: 0, k: 0 };
+function applyTheme(name, fly = true) {
+  const t = THEMES[name];
+  if (!t) { THEME.cur = null; return; }
+  Object.assign(THEME, { cur: name, fog: t.fog, mist: t.mist });
+  setMood(t.mood, false, false); setSeason(t.season, false, false); setWeather(t.weather, false, false);
+  if (t.view) { if (fly && typeof flyView === "function") flyView(Object.assign({ k: "", name }, t.view)); else { const p = viewPose(t.view); controls.target.copy(p.target); camera.position.copy(p.pos); } }
+}
 let seasonKey = (() => { try { return SEASONS[localStorage.getItem("shs")] ? localStorage.getItem("shs") : "spring"; } catch (e) { return "spring"; } })(), seasonFrom = new THREE.Vector4(1, 0, 0, 0), seasonT = 1;
 function setSeason(key, instant, persist = true) {
   seasonKey = key; if (persist) try { localStorage.setItem("shs", key); } catch (e) {} seasonFrom = GU.uSeason.value.clone(); seasonT = instant || REDUCED ? 1 : 0;
@@ -3908,7 +3924,8 @@ function tickSun() {
   if (shadowDirty) { renderer.shadowMap.needsUpdate = true; shadowDirty = false; }
   /* 雾随镜头远近调整：俯瞰全国时不至于一片白 */
   const k = clamp(48 / d, 0.16, 1);
-  scene.fog.density = moodDens * k; GU.uMist.value = moodMist * k;
+  THEME.k = lerp(THEME.k, THEME.cur ? 1 : 0, 0.04);   // 主题雾缓缓进出
+  scene.fog.density = moodDens * k * (1 + THEME.k * (THEME.fog - 1)); GU.uMist.value = moodMist * k + THEME.k * THEME.mist;
   GU.uFar.value.set(Math.max(230, d * 2.3), Math.max(420, d * 3.6));
 }
 
@@ -5773,6 +5790,7 @@ document.addEventListener("visibilitychange", () => { if (audio) (document.hidde
     const v0 = viewPose(HOME); controls.target.copy(v0.target); camera.position.copy(v0.pos); controls.update();
     renderer.compile(scene, camera);
     renderFrame(0);
+    if (QS.get("theme")) applyTheme(QS.get("theme"), false);
     if (QS.get("lab") === "terrain") startTerrainLab();
     else if (QS.get("lab")) startLab(QS.get("lab").split(","));
     window.__ready = true;
@@ -5783,7 +5801,7 @@ document.addEventListener("visibilitychange", () => { if (audio) (document.hidde
     setTimeout(openFromHash, 400);
     setTimeout(loadTourFont, 600); setTimeout(loadDetail, 2500); setTimeout(loadPoemFont, 5000);
     addEventListener("hashchange", () => { if (!curPlace || !location.hash.includes(curPlace.poems[curPoem].id)) openFromHash(); });
-    window.__app = { FINE, buildFine, dropFine, TLAB_WINS, dbgH: (lng, lat) => { const k = gj(wz(lat)) * W + gi(wx(lng)); return { TY: +TY[k].toFixed(2), mE: +m2y(E[k]).toFixed(2), E: E[k] | 0, patch: PATCH_OF[k], wy: WY[k] }; }, buildLandscape, get TLAB_VIEWS() { return (TLAB_WINS[QS.get("w")] || TLAB_WINS.sanxia).views; }, get grid() { return { W, H, X0, Z0, CS }; }, floraInfoAt: (x, z) => floraInfo(gi(x), gj(z)), get lab() { return LAB; }, startLab, THREE, scene, camera, get water() { return [reflector, waterFlat]; }, controls, renderer, PLACES, VIEWS, flyView, setMood, setSeason, setWeather, GU, FALLS, startTrail, closeTrail, get trail() { return trail; }, get TOUR() { return TOUR; }, TS, tourPlan, groundAt, nearFlora, PATCHES, bldGroup, VoxelTree, treeGeoKey, floraMat, landAt, wx, wz, y2m, get EXTRA() { return EXTRA_TREES; }, get flora() { return floraMeshes; }, tourAt(i) { startTour(); tourGo(i); }, startTour, stopTour, HOME, get autoFocus() { return autoFocus; }, openPlace, openPoem, closeAll, get listOpen() { return listOpen; }, get scrollOpen() { return scrollOpen; }, applyQuality, get quality() { return QUALITY; }, viewPose,
+    window.__app = { THEMES, THEME, applyTheme, FINE, buildFine, dropFine, TLAB_WINS, dbgH: (lng, lat) => { const k = gj(wz(lat)) * W + gi(wx(lng)); return { TY: +TY[k].toFixed(2), mE: +m2y(E[k]).toFixed(2), E: E[k] | 0, patch: PATCH_OF[k], wy: WY[k] }; }, buildLandscape, get TLAB_VIEWS() { return (TLAB_WINS[QS.get("w")] || TLAB_WINS.sanxia).views; }, get grid() { return { W, H, X0, Z0, CS }; }, floraInfoAt: (x, z) => floraInfo(gi(x), gj(z)), get lab() { return LAB; }, startLab, THREE, scene, camera, get water() { return [reflector, waterFlat]; }, controls, renderer, PLACES, VIEWS, flyView, setMood, setSeason, setWeather, GU, FALLS, startTrail, closeTrail, get trail() { return trail; }, get TOUR() { return TOUR; }, TS, tourPlan, groundAt, nearFlora, PATCHES, bldGroup, VoxelTree, treeGeoKey, floraMat, landAt, wx, wz, y2m, get EXTRA() { return EXTRA_TREES; }, get flora() { return floraMeshes; }, tourAt(i) { startTour(); tourGo(i); }, startTour, stopTour, HOME, get autoFocus() { return autoFocus; }, openPlace, openPoem, closeAll, get listOpen() { return listOpen; }, get scrollOpen() { return scrollOpen; }, applyQuality, get quality() { return QUALITY; }, viewPose,
       setView(v) { const { target, pos } = viewPose(v); controls.target.copy(target); camera.position.copy(pos); fly = null; controls.update(); },
       cell(lng, lat) { const k = idx(wx(lng), wz(lat)); return { y: TY[k], m: Math.round(y2m(TY[k])), kind: KIND[k], snow: SNOW[k], col: [...TOPC.slice(k * 3, k * 3 + 3)].map((v) => +v.toFixed(2)) }; },
       bench(n = 60) { const gl = renderer.getContext(); composer.render(); gl.finish(); const t = performance.now(); for (let i = 0; i < n; i++) { if (window.__benchShadow) renderer.shadowMap.needsUpdate = true; composer.render(); } gl.finish(); return +((performance.now() - t) / n).toFixed(2); },
