@@ -1438,9 +1438,9 @@ function tickLOD() {
     if (want !== ch.coarseOn) { ch.coarseOn = want; ch.fine.visible = !want; ch.coarse.visible = want; shadowDirty = true; }
   }
   for (const m of floraMeshes) {
-    const d = Math.hypot(m.userData.cx - c.x, m.userData.cz - c.z) - 34;
+    const d = Math.hypot(m.userData.cx - c.x, m.userData.cz - c.z) - (m.userData.half || 34);   // 减去分块内切半径：按块里离镜头最近处算远近
     const lim = tp ? Math.max(flora, 105) : flora, v = m.visible ? d < lim + 15 : d < lim; if (v !== m.visible) { m.visible = v; shadowDirty = true; }
-    if (m.userData.lod && !tp) { const g = m.userData.lod[d > 32 ? 0 : 1]; if (m.geometry !== g) { m.geometry = g; shadowDirty = true; } }
+    if (m.userData.lod && !tp) { const farNow = m.geometry === m.userData.lod[0], g = m.userData.lod[(farNow ? d > 29 : d > 34) ? 0 : 1]; if (m.geometry !== g) { m.geometry = g; shadowDirty = true; } }   // 回差：远于 34 换远景，近于 29 才换回
   }
 }
 
@@ -2595,8 +2595,10 @@ const VoxelTree = (() => {
   const pick = (cols) => cols[Math.floor(CR() * cols.length)];
   /** 以中心 p、尺寸 s（示例单位）放一块；VB.cbox 的 y 是底面 */
   function ebox(b, p, s, col, glow = 0) {
+    const q0 = b.p.length / 12;
     b.cbox(p[0] * U, (p[1] - s[1] / 2) * U, p[2] * U, s[0] * U, s[1] * U, s[2] * U, col, glow);
-    (b.aabb || (b.aabb = [])).push([p[0] - s[0] / 2, p[1] - s[1] / 2, p[2] - s[2] / 2, p[0] + s[0] / 2, p[1] + s[1] / 2, p[2] + s[2] / 2]);
+    const A = b.aabb || (b.aabb = []), own = b.own || (b.own = []); for (let q = q0; q < b.p.length / 12; q++) own[q] = A.length;
+    A.push([p[0] - s[0] / 2, p[1] - s[1] / 2, p[2] - s[2] / 2, p[0] + s[0] / 2, p[1] + s[1] / 2, p[2] + s[2] / 2]);
   }
   /** 一段「梁」：水平方向对准 from→to 的长方块，高度盖住这段的起伏——中远景的枝用它，一段一块，必然相连 */
   function beam(b, from, to, w, col, glow = 0) {
@@ -2611,7 +2613,7 @@ const VoxelTree = (() => {
     if (L < w * 0.5) { ebox(b, c, [w, h, w], col, glow); return; }
     rbox(b, c[0] * U, (c[1] - h / 2) * U, c[2] * U, len * U, h * U, w * U, col, glow, -Math.atan2(dz, dx));
     const ex = (Math.abs(dx) / L) * len / 2 + (Math.abs(dz) / L) * w / 2, ez = (Math.abs(dz) / L) * len / 2 + (Math.abs(dx) / L) * w / 2;
-    (b.aabb || (b.aabb = [])).push([c[0] - ex, c[1] - h / 2, c[2] - ez, c[0] + ex, c[1] + h / 2, c[2] + ez]);
+    const ap = [c[0] - ex, c[1] - h / 2, c[2] - ez, c[0] + ex, c[1] + h / 2, c[2] + ez]; ap.approx = true; (b.aabb || (b.aabb = [])).push(ap);
   }
   /** 体素枝：近景沿 from→to 连续放方块（相邻块相贴，节节相连的阶梯形）；中远景一段一块「梁」 */
   function voxelBranch(b, from, to, w, col, D) {
@@ -2802,6 +2804,37 @@ const VoxelTree = (() => {
       if (D === 2) ebox(b, [x, n * seg + 0.12, z], [0.34, 0.24, 0.34], pick(PAL.bamboo, R), EV);   // 竿梢小叶簇
     });
   }
+  /** 隐藏面剔除：一个面外侧紧贴的 9 个采样点（四角、四边中点、中心，各向外挪一点）都落在本树其他实心方块里，
+   *  这个面就永远看不见，删掉。只用精确的轴对齐块当遮挡体（梁的包围盒是近似的，不用）。 */
+  function cullHidden(b) {
+    const A = b.aabb; if (!A || !A.length) return 0;
+    const occ = [], own = b.own || [];
+    A.forEach((a, i) => { if (!a.approx) occ.push([i, a[0] * U, a[1] * U, a[2] * U, a[3] * U, a[4] * U, a[5] * U]); });
+    const P = b.p, Nn = b.n, nq = P.length / 12, keep = new Uint8Array(nq).fill(1), e = 1e-4, sh = 0.02;
+    const inside = (x, y, z, self) => { for (const o of occ) if (o[0] !== self && x > o[1] - 1e-6 && x < o[4] + 1e-6 && y > o[2] - 1e-6 && y < o[5] + 1e-6 && z > o[3] - 1e-6 && z < o[6] + 1e-6) return true; return false; };
+    let culled = 0;
+    for (let q = 0; q < nq; q++) {
+      const v = (k, a) => P[(q * 4 + k) * 3 + a], nx = Nn[q * 12], ny = Nn[q * 12 + 1], nz = Nn[q * 12 + 2];
+      const cxq = (v(0, 0) + v(1, 0) + v(2, 0) + v(3, 0)) / 4, cyq = (v(0, 1) + v(1, 1) + v(2, 1) + v(3, 1)) / 4, czq = (v(0, 2) + v(1, 2) + v(2, 2) + v(3, 2)) / 4;
+      const self = own[q] ?? -1; let hidden = true;
+      for (let k = 0; k < 9 && hidden; k++) {
+        let x, y, z;
+        if (k < 4) { x = v(k, 0); y = v(k, 1); z = v(k, 2); } else if (k < 8) { const a = k - 4, c2 = (a + 1) % 4; x = (v(a, 0) + v(c2, 0)) / 2; y = (v(a, 1) + v(c2, 1)) / 2; z = (v(a, 2) + v(c2, 2)) / 2; } else { x = cxq; y = cyq; z = czq; }
+        x += (cxq - x) * sh + nx * e; y += (cyq - y) * sh + ny * e; z += (czq - z) * sh + nz * e;
+        if (!inside(x, y, z, self)) hidden = false;
+      }
+      if (hidden) { keep[q] = 0; culled++; }
+    }
+    if (!culled) return 0;
+    const p2 = [], n2 = [], c2 = [], g2 = [], i2 = [];
+    for (let q = 0; q < nq; q++) if (keep[q]) {
+      const o = p2.length / 3;
+      for (let k = 0; k < 4; k++) { const vi = q * 4 + k; p2.push(P[vi * 3], P[vi * 3 + 1], P[vi * 3 + 2]); n2.push(Nn[vi * 3], Nn[vi * 3 + 1], Nn[vi * 3 + 2]); c2.push(b.c[vi * 3], b.c[vi * 3 + 1], b.c[vi * 3 + 2]); g2.push(b.g[vi]); }
+      i2.push(o, o + 1, o + 2, o, o + 2, o + 3);
+    }
+    b.p = p2; b.n = n2; b.c = c2; b.g = g2; b.i = i2;
+    return culled;
+  }
   /** 漂浮块检查：方块按重叠/贴合（容差 0.02）连通，返回「最低点不着地」的连通块数（0 = 没有漂浮块；竹丛每根竿各自着地不算） */
   function islands(aabb) {
     const n = aabb.length, par = aabb.map((_, i) => i), f = (i) => (par[i] === i ? i : (par[i] = f(par[i]))), e = 0.02;
@@ -2932,6 +2965,7 @@ const VoxelTree = (() => {
       const P = Object.assign({ seed: 1, colorVariation: 1, growthScale: 1, detailLevel: 2, variant: 0 }, params);
       const R = mulberry32(P.seed * 7919 + P.variant * 131);
       const b = new VB(); CR = mulberry32(P.seed * 31 + P.variant * 7 + P.detailLevel); BUILD[P.treeType](b, P, R);
+      b.culled = P.noCull ? 0 : cullHidden(b);   // 删去被本树其他方块完全盖住的面
       this.last = b;
       const g = b.geometry(); if (P.growthScale !== 1) g.scale(P.growthScale, P.growthScale, P.growthScale);
       return g;
@@ -3308,7 +3342,7 @@ function buildFlora() {
     }
   }
   floraMeshes = flushInst(floraGroup, floraMat, map, true);
-  floraMeshes.forEach((m) => { const tk = m.name.split("|")[0]; if (tk.includes(":")) m.userData.lod = [treeGeoKey(tk, 0), m.geometry]; m.layers.set(1); const k = m.name.split("|")[1].split(","); m.userData.cx = (+k[0] + 0.5) * TILE; m.userData.cz = (+k[1] + 0.5) * TILE; });   // 草木在第 1 层：平衡/轻量档的倒影不画它们
+  floraMeshes.forEach((m) => { const tk = m.name.split("|")[0]; if (tk.includes(":")) m.userData.lod = [treeGeoKey(tk, 0), m.geometry]; m.layers.set(1); const k = m.name.split("|")[1].split(","); m.userData.cx = (+k[0] + 0.5) * TILE; m.userData.cz = (+k[1] + 0.5) * TILE; m.userData.half = TILE * 0.47; });   // 草木在第 1 层：平衡/轻量档的倒影不画它们
   floraMeshes.forEach((m) => (m.userData.full = m.count));
 }
 
