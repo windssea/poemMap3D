@@ -2539,6 +2539,8 @@ const VoxelTree = (() => {
   const LEAF = { top: ["#6a9559", "#628d55", "#71995c"], mid: ["#4f8062", "#4b7a55", "#56835a"], low: ["#3a6146", "#365c44", "#3f6649"] };
   const NEEDLE = ["#2f5a44", "#2b5440", "#35624a", "#3a6a4d"], BARK = ["#5a4230", "#4e3a2b", "#634a35"];
   const BLOSSOM = ["#f4c6d0", "#f2b5c4", "#ee9fb4", "#f7d3da"], DEEP = ["#d9667f", "#e07a92"];
+  /** 绕自身中心转 rot 的盒（VB.box 的 rot 是绕原点转） */
+  const rbox = (b, x, y, z, sx, sy, sz, col, glow, rot) => { const c = Math.cos(rot), n = Math.sin(rot); return b.cbox(x * c - z * n, y, x * n + z * c, sx, sy, sz, col, glow, rot); };
   /** 一段树干 / 枝：从 (x,y,z) 向 (dx,dy,dz) 方向走 n 格体素 */
   function limb(b, x, y, z, dx, dy, dz, n, w, col) { for (let q = 0; q < n; q++) b.cbox((x + dx * q) * V, (y + dy * q) * V, (z + dz * q) * V, w * V, V * 1.05, w * V, col); return [x + dx * n, y + dy * n, z + dz * n]; }
 
@@ -2631,8 +2633,85 @@ const VoxelTree = (() => {
     for (let q = 0; q < 2; q++) { const e = ends[q % ends.length]; b.cbox((e[0] + 1) * V, (e[1] - 1) * V, e[2] * V, 1.6 * V, 1.2 * V, 1.6 * V, "#8fb36a", DE); }
   }
 
-  /** 柳：弯曲主干，扁平冠顶，冠缘垂下长短不一的柳丝 */
+  /** 柳（新）：粗干微倾 → 3–5 条主枝斜伸 → 枝端与干顶叠出冠团 → 冠团外缘垂下折线柳丝
+      变体：0 河岸柳（冠宽、丝长）1 庭院柳（干矮、冠紧）2 景观垂柳（主枝偏向一侧） */
   function willow(b, P, R) {
+    const cv = P.colorVariation, v = P.variant % 3, D = P.detailLevel, th = P.trunkHeight, cw = P.crownWidth;
+    const bark = shade(["#5a4636", "#4e3d2f", "#5f4a37"], R, cv), barkD = "#44352a";
+    const IN = ["#6a8c5f", "#66875b"], MID = ["#7da36a", "#79a066", "#82a76f"], TOP = ["#90b27b", "#96b681"], STR = ["#9dbd86", "#96b880", "#a4c28b"];   // 灰绿冠心 → 石绿偏青冠体 → 浅青绿受光 → 更浅更柔的柳丝
+    /* 树根与主干：底部略粗，按 2–3 格一节向倾斜方向错位 */
+    const side = R() * 6.283, lx = Math.cos(side), lz = Math.sin(side), lean = v === 2 ? 0.55 : 0.22 + R() * 0.2;
+    b.cbox(0, -0.14, 0, 3 * V, 0.14, 3 * V, barkD);
+    if (D === 2) { b.cbox(0, 0, 0, 3.6 * V, 1.2 * V, 3.6 * V, barkD); b.cbox(lx * -1.6 * V, 0, lz * -1.6 * V, 1.6 * V, 0.9 * V, 1.6 * V, barkD); }
+    let x = 0, z = 0, y = 0;
+    const seg = D === 0 ? th : D === 1 ? Math.ceil(th / 2) : Math.ceil(th / 2.5);
+    for (let q = 0; q < Math.ceil(th / seg); q++) {
+      const h = Math.min(seg, th - y), w = q === 0 ? 2.8 : 2.3;
+      b.cbox(x * V, y * V, z * V, w * V, (h + 0.2) * V, w * V, bark);
+      y += h; x += lx * lean * h * 0.5; z += lz * lean * h * 0.5;
+    }
+    const T = [x, th, z];
+    /* 主枝：绕干分向（景观柳只往倾斜一侧展开），有上扬、有平伸 */
+    const nb = v === 1 ? 3 : v === 2 ? 3 + Math.floor(R() * 2) : 4 + Math.floor(R() * 2);
+    const a0 = R() * 6.283, ends = [];
+    for (let i = 0; i < nb; i++) {
+      const a = v === 2 ? side + (i - (nb - 1) / 2) * 0.75 + (R() - 0.5) * 0.3 : a0 + (i / nb) * 6.283 + (R() - 0.5) * 0.7;
+      const dx = Math.cos(a), dz = Math.sin(a), rise = 0.3 + R() * 0.55;
+      const len = (v === 1 ? 3 + R() * 2 : 4.5 + R() * 2.5) * (v === 2 && Math.abs(i - (nb - 1) / 2) < 1 ? 1.35 : 1) * cw / 15;
+      let px = T[0] - lx * 0.5, py = th - 1.2 - (i % 2) * 1.4, pz = T[2] - lz * 0.5;
+      const steps = D < 2 ? 1 : Math.max(2, Math.round(len / 2));   // 中远景主枝一节
+      const sl = len / steps;
+      for (let q = 0; q < steps; q++) {
+        const w = q === 0 ? 1.7 : 1.3;
+        rbox(b, (px + dx * sl * 0.5) * V, py * V, (pz + dz * sl * 0.5) * V, (sl + 1.2) * V, w * V, w * V, bark, 0, -a);
+        px += dx * sl; pz += dz * sl; py += (v === 2 && q >= steps / 2 ? -0.3 : rise) * sl;   // 景观柳：主枝先扬后垂
+        /* 次级分枝：从主枝中段斜出一小截 */
+        if (D === 2 && q === 0 && R() < 0.7) { const a2 = a + (R() < 0.5 ? 0.9 : -0.9); rbox(b, (px + Math.cos(a2) * 1.2) * V, (py + 0.4) * V, (pz + Math.sin(a2) * 1.2) * V, 2.8 * V, 0.9 * V, 0.9 * V, bark, 0, -a2); }
+      }
+      ends.push({ x: px, y: py, z: pz, a, r: Math.hypot(px - T[0], pz - T[2]) });
+    }
+    /* 冠团：干顶一团（暗、托底）+ 冠顶一团（亮）+ 每个枝端一团，枝端团上再叠一小团 */
+    const cl = [];
+    const clump = (cx0, cy0, cz0, sw, sh, sd, pal, rot) => { rbox(b, cx0 * V, cy0 * V, cz0 * V, sw * V, sh * V, sd * V, shade(pal, R, cv), DE, rot); cl.push({ x: cx0, y: cy0, z: cz0, s: Math.min(sw, sd) }); };
+    const K = cw / 15;
+    clump(T[0], th + 0.2, T[2], 6.5 * K, 3, 6 * K, IN, R());
+    const sh = v === 2 ? 2.2 : 0;   // 景观柳冠顶偏向倾斜一侧
+    clump(T[0] + lx * sh + (R() - 0.5) * 1.6, th + 2.6 + (v === 1 ? 0 : v === 2 ? -0.4 : 0.6), T[2] + lz * sh + (R() - 0.5) * 1.6, 4.6 * K, 3, 4.2 * K, TOP, R());
+    if (D > 0) clump(T[0] + (R() - 0.5) * 2.4, th + 5 + (v === 1 ? 0 : 0.6), T[2] + (R() - 0.5) * 2.4, 2.6, 1.8, 2.6, TOP, R());
+    for (const e of ends) {
+      const sz = (v === 1 ? 4 : 4.6) * K * (0.85 + R() * 0.3);
+      clump(e.x, e.y - 1.4 + (R() - 0.5) * 1.6, e.z, sz, 3.2, sz * (0.8 + R() * 0.25), MID, -e.a + (R() - 0.5) * 0.4);
+      if (D > 0) clump(e.x - Math.cos(e.a) * 1.4, e.y + 1.4, e.z - Math.sin(e.a) * 1.4, sz * 0.62, 2.2, sz * 0.58, TOP, -e.a + 0.3);
+      /* 枝与干之间补一团，冠体连成一片而不是一圈孤岛 */
+      if (D === 2) clump((e.x + T[0]) / 2, (e.y + th) / 2 + 0.2, (e.z + T[2]) / 2, sz * 0.8, 2.8, sz * 0.7, IN, -e.a);
+    }
+    /* 柳丝：从枝端冠团的外缘垂下；离干越远越长，内侧短；每根 2–4 节，节间外移或侧移半格，成体素折线 */
+    const rMax = Math.max(...ends.map((e) => e.r), 1);
+    const strand = (sx, sy, sz, ox, oz, L, segs) => {
+      L = Math.min(L, sy - th * (v === 0 ? 0.42 : 0.28)); if (L < 1.5) return;   // 柳丝最多垂到干高三四成，不拖地、不入水
+      const col = shade(STR, R, cv * 0.5), sl = L / segs;
+      let px = sx, pz = sz, py = sy;
+      for (let q = 0; q < segs; q++) {
+        b.cbox(px * V, (py - sl) * V, pz * V, 0.8 * V, (sl + 0.15) * V, 0.8 * V, q === segs - 1 ? shade(TOP, R, cv * 0.4) : col, DE);
+        py -= sl; const k = R(); px += ox * (k < 0.55 ? 0.55 : 0) + (R() - 0.5) * 0.5; pz += oz * (k < 0.55 ? 0.55 : 0) + (R() - 0.5) * 0.5;
+      }
+    };
+    const perEnd = D === 0 ? 1 : D === 1 ? 3 : 5 + Math.floor(R() * 2) + (v === 2 ? 2 : 0);
+    for (const e of ends) {
+      const cxs = e.x, czs = e.z, sz = (v === 1 ? 4 : 4.6) * K;
+      for (let q = 0; q < perEnd; q++) {
+        const a = e.a + (q / (perEnd - 1 || 1) - 0.5) * 2.6 + (R() - 0.5) * 0.35, rr = sz * (0.38 + R() * 0.14);
+        const px = cxs + Math.cos(a) * rr, pz = czs + Math.sin(a) * rr;
+        const out = Math.hypot(px - T[0], pz - T[2]) / (rMax + sz * 0.5);   // 0 内侧 … 1 外缘
+        const L = (v === 0 ? 3 : 3.5) + out * (v === 1 ? 7 : v === 0 ? 10 : 11) * (0.7 + R() * 0.5);
+        strand(px, e.y - 1.1, pz, Math.cos(a), Math.sin(a), L, D < 2 ? 1 : 2 + Math.floor(R() * 3));
+      }
+    }
+    /* 冠心几缕短丝，免得下沿一刀切 */
+    if (D === 2) for (let q = 0; q < 4; q++) { const a = R() * 6.283, r = 3 * K + R() * 1.5; strand(T[0] + Math.cos(a) * r, th + 0.2, T[2] + Math.sin(a) * r, Math.cos(a), Math.sin(a), 2 + R() * 2.5, 2); }
+  }
+  /** 旧柳（仅样板对比）：弯曲主干，扁平冠顶，冠缘垂下长短不一的柳丝 */
+  function willowOld(b, P, R) {
     const th = P.trunkHeight, cw = P.crownWidth, cv = P.colorVariation, bark = shade(["#5a4a36", "#4f4030"], R, cv);
     b.cbox(0, -0.14, 0, 2 * V, 0.14, 2 * V, bark);
     let x = 0; const bend = R() < 0.5 ? 1 : -1;
@@ -2666,14 +2745,15 @@ const VoxelTree = (() => {
       }
     }
   }
-  const BUILD = { broad: broadleaf, pine: pineUpright, lpine: pineLandscape, peach, willow, bamboo };
+  const BUILD = { broad: broadleaf, pine: pineUpright, lpine: pineLandscape, peach, willow, willow0: willowOld, bamboo };
   /** 各树种的默认参数与变体数 */
   const SPEC = {
     broad: { variants: 4, p: (R, v) => ({ trunkHeight: 5 + Math.floor(R() * 3), crownWidth: 9 + R() * 3, crownHeight: 8 + R() * 3 + (v === 1 ? 3 : 0), branchCount: 2 + Math.floor(R() * 3), asymmetry: v === 3 ? 0.8 : 0.35 }) },
     pine: { variants: 3, p: (R) => ({ trunkHeight: 4 + Math.floor(R() * 3), crownWidth: 10 + R() * 3, crownHeight: 11 + R() * 4, branchCount: 0, asymmetry: 0.5 }) },
     lpine: { variants: 3, p: (R) => ({ trunkHeight: 9 + Math.floor(R() * 4), crownWidth: 13 + R() * 4, crownHeight: 4, branchCount: 2 + Math.floor(R() * 3), asymmetry: 0.6 }) },
     peach: { variants: 3, p: (R) => ({ trunkHeight: 5 + Math.floor(R() * 2), crownWidth: 9 + R() * 2, crownHeight: 6, branchCount: 2 + Math.floor(R() * 3), asymmetry: 0.4 }) },
-    willow: { variants: 3, p: (R) => ({ trunkHeight: 8 + Math.floor(R() * 3), crownWidth: 11 + R() * 3, crownHeight: 3, branchCount: 0, asymmetry: 0.3 }) },
+    willow: { variants: 3, p: (R, v) => (v === 1 ? { trunkHeight: 5 + Math.floor(R() * 2), crownWidth: 12 + R() * 2 } : v === 2 ? { trunkHeight: 7 + Math.floor(R() * 2), crownWidth: 15 + R() * 2 } : { trunkHeight: 8 + Math.floor(R() * 2), crownWidth: 16 + R() * 2 }) },
+    willow0: { variants: 3, p: (R) => ({ trunkHeight: 8 + Math.floor(R() * 3), crownWidth: 11 + R() * 3, crownHeight: 3, branchCount: 0, asymmetry: 0.3 }) },
     bamboo: { variants: 3, p: () => ({ trunkHeight: 0, crownWidth: 6, crownHeight: 18, branchCount: 0, asymmetry: 0 }) },
   };
   const cache = {};
@@ -4575,10 +4655,48 @@ function renderFrame(dt) {
   placeList();
   tickTrail(dt); tickNightFx(dt);
 }
+/* ===== 树木样板（?lab=willow,willow0）：单独场景，拖动旋转，逐棵检查造型 =====
+   每个树种一行：各变体的近景（LOD0/细节 2），右侧是变体 0 的中景与远景（细节 1、0） */
+let LAB = null;
+function startLab(types) {
+  const sc = new THREE.Scene(); sc.background = new THREE.Color("#ebe4d3");
+  sc.add(new THREE.HemisphereLight("#f6f1e4", "#6f6752", 1.3));
+  const sun = new THREE.DirectionalLight("#fff3dc", 2.4); sun.position.set(2.5, 5, 3); sun.castShadow = true;
+  Object.assign(sun.shadow.camera, { left: -4, right: 4, top: 4, bottom: -4, near: 0.1, far: 20 }); sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0005; sc.add(sun, sun.target);
+  const GAP = 0.6, cells = [], labMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0 });   // 地图草木材质带雾与地图边缘淡出，样板场景用素材质
+  types.forEach((t, r) => {
+    const n = VoxelTree.variants(t), row = [];
+    for (let v = 0; v < n; v++) row.push([t, v, 2]);
+    row.push(null, [t, 0, 1], [t, 0, 0]);
+    row.forEach((c, i) => {
+      if (!c) return;
+      const x = (i - (row.length - 1) / 2) * GAP, z = -r * GAP * 1.4;
+      const pad = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.2, 0.44), new THREE.MeshStandardMaterial({ color: "#9aa56e", roughness: 1 }));
+      pad.position.set(x, -0.1, z); pad.receiveShadow = true; sc.add(pad);
+      const m = new THREE.Mesh(VoxelTree.geo(c[0], c[1], c[2]), labMat); m.position.set(x, 0, z); m.castShadow = m.receiveShadow = true; sc.add(m);
+      cells.push({ m, pad, t: c[0], v: c[1], d: c[2], x, z, tris: m.geometry.index ? m.geometry.index.count / 3 : m.geometry.attributes.position.count / 3 });
+    });
+  });
+  const cam = new THREE.PerspectiveCamera(28, innerWidth / innerHeight, 0.01, 60);
+  const ctl = new OrbitControls(cam, canvas); controls.enabled = false;
+  const cz0 = -(types.length - 1) * GAP * 0.7; ctl.target.set(0, 0.1, cz0); cam.position.set(0, 1.5, cz0 + 3.2); ctl.update();
+  document.body.classList.add("ui-hidden", "lab");
+  const st = document.createElement("style"); st.textContent = "body.lab > *:not(canvas):not(#lab-legend){display:none!important}#lab-legend{position:fixed;left:16px;top:12px;font:13px/1.6 serif;color:#3b3226;background:#f2ead8cc;padding:6px 10px;border-radius:6px;z-index:9}";
+  const lg = document.createElement("div"); lg.id = "lab-legend";
+  lg.innerHTML = types.map((t) => t + "：变体 " + [...Array(VoxelTree.variants(t)).keys()].join(" · ") + " ｜ 中景 · 远景").join("<br>");
+  document.head.appendChild(st); document.body.appendChild(lg);
+  LAB = { sc, cam, ctl, cells, sun,
+    /** 单棵特写：i 为第几棵，az 方位角（0 正面），el 仰角 */
+    view(i, az = 0, el = 0.12, dist = 1.1) { const c = cells[i], h = 0.17; cells.forEach((o) => (o.m.visible = o.pad.visible = o === c)); ctl.target.set(c.x, h, c.z); cam.position.set(c.x + Math.sin(az) * Math.cos(el) * dist, h + Math.sin(el) * dist, c.z + Math.cos(az) * Math.cos(el) * dist); ctl.update(); },
+    all() { cells.forEach((o) => (o.m.visible = o.pad.visible = true)); ctl.target.set(0, 0.1, cz0); cam.position.set(0, 1.5, cz0 + 3.2); ctl.update(); },
+  };
+  return LAB;
+}
 let boatMesh = null;
 const SPEED = +QS.get("speed") || 1;
 function loop() {
   const dt = Math.min(0.05, clock.getDelta()) * SPEED;
+  if (LAB) { LAB.ctl.update(); renderer.shadowMap.needsUpdate = true; renderer.render(LAB.sc, LAB.cam); requestAnimationFrame(loop); return; }
   renderFrame(dt);
   frames++;
   if (!perfChecked && frames > 30) {
@@ -4634,6 +4752,7 @@ document.addEventListener("visibilitychange", () => { if (audio) (document.hidde
     const v0 = viewPose(HOME); controls.target.copy(v0.target); camera.position.copy(v0.pos); controls.update();
     renderer.compile(scene, camera);
     renderFrame(0);
+    if (QS.get("lab")) startLab(QS.get("lab").split(","));
     window.__ready = true;
     $("#loader").classList.add("done");
     setTimeout(() => { $("#loader").remove(); }, 1200);
@@ -4642,7 +4761,7 @@ document.addEventListener("visibilitychange", () => { if (audio) (document.hidde
     setTimeout(openFromHash, 400);
     setTimeout(loadTourFont, 600); setTimeout(loadDetail, 2500); setTimeout(loadPoemFont, 5000);
     addEventListener("hashchange", () => { if (!curPlace || !location.hash.includes(curPlace.poems[curPoem].id)) openFromHash(); });
-    window.__app = { THREE, scene, camera, get water() { return [reflector, waterFlat]; }, controls, renderer, PLACES, VIEWS, flyView, setMood, setSeason, setWeather, GU, FALLS, startTrail, closeTrail, get trail() { return trail; }, get TOUR() { return TOUR; }, TS, tourPlan, groundAt, nearFlora, PATCHES, bldGroup, VoxelTree, treeGeoKey, floraMat, landAt, wx, wz, y2m, get EXTRA() { return EXTRA_TREES; }, get flora() { return floraMeshes; }, tourAt(i) { startTour(); tourGo(i); }, startTour, stopTour, HOME, get autoFocus() { return autoFocus; }, openPlace, openPoem, closeAll, get listOpen() { return listOpen; }, get scrollOpen() { return scrollOpen; }, applyQuality, get quality() { return QUALITY; }, viewPose,
+    window.__app = { get lab() { return LAB; }, startLab, THREE, scene, camera, get water() { return [reflector, waterFlat]; }, controls, renderer, PLACES, VIEWS, flyView, setMood, setSeason, setWeather, GU, FALLS, startTrail, closeTrail, get trail() { return trail; }, get TOUR() { return TOUR; }, TS, tourPlan, groundAt, nearFlora, PATCHES, bldGroup, VoxelTree, treeGeoKey, floraMat, landAt, wx, wz, y2m, get EXTRA() { return EXTRA_TREES; }, get flora() { return floraMeshes; }, tourAt(i) { startTour(); tourGo(i); }, startTour, stopTour, HOME, get autoFocus() { return autoFocus; }, openPlace, openPoem, closeAll, get listOpen() { return listOpen; }, get scrollOpen() { return scrollOpen; }, applyQuality, get quality() { return QUALITY; }, viewPose,
       setView(v) { const { target, pos } = viewPose(v); controls.target.copy(target); camera.position.copy(pos); fly = null; controls.update(); },
       cell(lng, lat) { const k = idx(wx(lng), wz(lat)); return { y: TY[k], m: Math.round(y2m(TY[k])), kind: KIND[k], snow: SNOW[k], col: [...TOPC.slice(k * 3, k * 3 + 3)].map((v) => +v.toFixed(2)) }; },
       bench(n = 60) { const gl = renderer.getContext(); composer.render(); gl.finish(); const t = performance.now(); for (let i = 0; i < n; i++) { if (window.__benchShadow) renderer.shadowMap.needsUpdate = true; composer.render(); } gl.finish(); return +((performance.now() - t) / n).toFixed(2); },
