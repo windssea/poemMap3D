@@ -2444,6 +2444,7 @@ function buildPlaces() {
     const water = nearWater(p);
     let face = water ? Math.atan2(water[0] - p.x, water[1] - p.z) : (rng() - 0.5) * 0.6;
     face = Math.round(face / (Math.PI / 2)) * (Math.PI / 2) + (rng() - 0.5) * 0.25;
+    { const [fx, fz] = rotp(0, 1, face); p.front = [fx, fz]; }   // 建筑群正面朝向（视线通道方向）
     const put = (name, opts, dx, dz, rot = 0, s = 1, lift = 0) => {
       const [ox, oz] = rotp(dx * S, dz * S, face);
       const x = p.x + ox, z = p.z + oz;
@@ -2996,6 +2997,81 @@ const treeKey = (t, R, zone) => {
 };
 const treeGeoKey = (key, detail) => { const [t, v] = key.split(":"); return v != null ? VoxelTree.geo(t, +v, detail) : treeGeo(t); };
 
+/* ================= 建筑避让与视线控制 =================
+   占用区：每座建筑（含城墙、敌楼、城门、桥）按实际实例取地面外轮廓，存成有向矩形，分桶索引。
+   缓冲区：树冠（按尺度规范的冠幅）离外轮廓至少 BLD_BUF；树冠不得伸进屋顶。
+   入口：民居、殿、楼、亭、塔等在正面（局部 +z）留一条通道，城门两面都留；通道里不栽树。
+   视线通道：每个诗词地点沿建筑群正面向外开一条扇形通道（长约 3 + 占地 × 3），
+     通道里不栽成熟乔木、景观大树；庭院树只在通道后半段、且减半；地被照常。
+   框景：地点两侧与后方的一圈格子加密（见 buildEcoMasks 的 FRAME）。 */
+const BLD_BUF = 0.06, ENTRY_NONE = /^(wall|wallTower|cwall|ctower|bridge|fiveBridge|terrace|rockery|waterfall|beacon|fort)/, ENTRY_BOTH = /^gate/;
+let BLD = null;
+function buildBldIndex() {
+  const list = [], H = new Map(), M = new THREE.Matrix4(), P = new THREE.Vector3(), Q = new THREE.Quaternion(), Sc = new THREE.Vector3(), E = new THREE.Euler();
+  for (const m of bldGroup.children) {
+    if (!m.isInstancedMesh || !m.count || /^boat/.test(m.name)) continue;
+    const g = m.geometry; if (!g.boundingBox) g.computeBoundingBox(); const bb = g.boundingBox, nm = m.name.split("|")[0];
+    const entry = ENTRY_NONE.test(nm) ? 0 : ENTRY_BOTH.test(nm) ? 2 : 1;
+    for (let i = 0; i < m.count; i++) {
+      m.getMatrixAt(i, M); M.decompose(P, Q, Sc); E.setFromQuaternion(Q, "YXZ");
+      const th = E.y, c = Math.cos(th), sn = Math.sin(th);
+      const lcx = ((bb.min.x + bb.max.x) / 2) * Sc.x, lcz = ((bb.min.z + bb.max.z) / 2) * Sc.z;
+      const o = { x: P.x + lcx * c + lcz * sn, z: P.z - lcx * sn + lcz * c, c, s: sn, hx: ((bb.max.x - bb.min.x) / 2) * Sc.x, hz: ((bb.max.z - bb.min.z) / 2) * Sc.z, entry };
+      const R = Math.hypot(o.hx, o.hz) + 1.0;   // 1.0：足够覆盖最大树冠半径 + 入口通道
+      for (let gx = Math.floor(o.x - R); gx <= Math.floor(o.x + R); gx++) for (let gz = Math.floor(o.z - R); gz <= Math.floor(o.z + R); gz++) { const k = gx + "," + gz; if (!H.has(k)) H.set(k, []); H.get(k).push(o); }
+      list.push(o);
+    }
+  }
+  BLD = { list, H };
+}
+/** 点在建筑局部坐标：lx 沿宽、lz 沿进深（+z 为正面） */
+const bldLocal = (o, x, z) => { const dx = x - o.x, dz = z - o.z; return [dx * o.c - dz * o.s, dx * o.s + dz * o.c]; };
+/** 半径 r 的树冠落在 (x,z) 是否碰建筑（占用 + 缓冲）或挡入口 */
+function bldBlocked(x, z, r) {
+  if (!BLD) return false;
+  const L = BLD.H.get(Math.floor(x) + "," + Math.floor(z)); if (!L) return false;
+  for (const o of L) {
+    const [lx, lz] = bldLocal(o, x, z), ex = Math.max(Math.abs(lx) - o.hx, 0), ez = Math.max(Math.abs(lz) - o.hz, 0);
+    if (Math.hypot(ex, ez) < r + BLD_BUF) return true;
+    if (o.entry) {   // 入口通道：正面（城门两面）宽约建筑六成、长约进深 1.2 倍 + 0.2
+      const front = o.entry === 2 ? Math.abs(lz) : lz, len = o.hz * 1.2 + 0.2, half = Math.max(o.hx * 0.3, 0.08) + r * 0.6;
+      if (front > o.hz && front < o.hz + len + r && Math.abs(lx) < half) return true;
+    }
+  }
+  return false;
+}
+let LMK = null;
+function buildLmkIndex() {
+  LMK = new Map();
+  for (const p of PLACES) {
+    if (p.x == null) continue;
+    /* 通道大小随占地增长但封顶：大景区（杭州、长安等）只在主入口前开一条，不把整片街巷都清空 */
+    const f = p.front || [0, 1], foot = Math.min(p.foot || 0.5, 1.2), L = 1.5 + foot * 2.5;
+    const o = { x: p.x, z: p.z, fx: f[0], fz: f[1], L, w0: foot * 0.6 + 0.15 };
+    for (let gx = Math.floor(p.x - L - 1); gx <= Math.floor(p.x + L + 1); gx++) for (let gz = Math.floor(p.z - L - 1); gz <= Math.floor(p.z + L + 1); gz++) { const k = gx + "," + gz; if (!LMK.has(k)) LMK.set(k, []); LMK.get(k).push(o); }
+  }
+}
+/** 视线通道：0 不在通道；否则返回沿通道的相对位置 0–1（越小越靠近地标） */
+function inSightline(x, z) {
+  if (!LMK) return 0;
+  const L = LMK.get(Math.floor(x) + "," + Math.floor(z)); if (!L) return 0;
+  let best = 0;
+  for (const o of L) {
+    const dx = x - o.x, dz = z - o.z, along = dx * o.fx + dz * o.fz; if (along < 0 || along > o.L) continue;
+    const lat = Math.abs(dx * o.fz - dz * o.fx); if (lat > o.w0 + along * 0.28) continue;
+    const t = Math.max(0.001, along / o.L); if (!best || t < best) best = t;
+  }
+  return best;
+}
+/** 能否在 (x,z) 种下这株（按尺度规范的缩放 sc）：避让建筑与入口；视线通道里只留小树、且靠近地标处不留 */
+function plantOK(key, sc, x, z, R) {
+  const d = plantDim(key), r = d.w * sc * 0.42, h = d.h * sc;
+  if (bldBlocked(x, z, r)) return false;
+  const t = inSightline(x, z);
+  if (t) { if (h > 0.38) return false; if (t < 0.5 || R() < 0.5) return false; }
+  return true;
+}
+
 /* ================= 景观空间配额 =================
    SPACE_Q[区] = [留白上限, 疏林上限]（按分位）：低于前者留白，介于两者疏林，其余密林。
    SPACE_D[区] = [密林密度, 疏林密度, 北方系数]。
@@ -3041,6 +3117,7 @@ function floraInfo(i, j) {
   if (Q) { const u = spaceU(x, z); space = u < Q[0] ? "open" : u < Q[1] ? "sparse" : "dense"; }
   dens = !sd || space === "open" ? 0 : sd[space === "dense" ? 0 : 1] * (south ? 1 : sd[2]);
   if (zone === "plain" && (kd === 2 || kd === 5)) dens *= 0.2;   // 干草原、荒漠边缘：林团也稀
+  if (FRAME[k] && sd) { if (space === "open") { space = "sparse"; dens = sd[1]; } dens *= 1.3; }   // 地标两侧与后方框景
   /* 区域尺度的疏密起伏（大片林区与少林地带），只做温和调制 */
   dens *= 0.55 + 0.45 * smooth(-0.15, 0.3, fbm(nD, x * 0.055, z * 0.055, 3));
   const grove = space === "dense" ? 1 : 0;
@@ -3129,7 +3206,7 @@ function refreshNearFlora(center, radius) {
   cells.sort((a, b) => a[0] - b[0]);
   const cnt = {}; for (const k in nearFlora.meshes) cnt[k] = 0;
   const fullR = Math.min(8, radius * 0.4)   /* 完整细节只给最近一圈：新树近景块多，外圈用中景已足够 */, dcap = DECO_CAP[QUALITY]; let dcount = 0;
-  const decoAt = (k, x, y, z, R) => { const mk = "deco:" + k, m = nearFlora.meshes[mk]; if (!m || cnt[mk] >= 2500 || dcount >= dcap) return; const L = landAt(x, z); if (L.water ? !(k === "reeds" || k === "pebble") : Math.abs(L.y - y) > 0.05) return; if (L.water) y = L.y - 0.02; const sc = decoScale(k, R); _ne.set(0, R() * 6.28, 0); _nq.setFromEuler(_ne); _np.set(x, y + (k === "soil" ? 0.003 : 0), z); _ns.set(sc, sc, sc); m.setMatrixAt(cnt[mk], _nm.compose(_np, _nq, _ns)); m.setColorAt(cnt[mk], _nc.setRGB(1, 1, 1)); cnt[mk]++; dcount++; };
+  const decoAt = (k, x, y, z, R) => { const mk = "deco:" + k, m = nearFlora.meshes[mk]; if (!m || cnt[mk] >= 2500 || dcount >= dcap) return; const L = landAt(x, z); if (L.water ? !(k === "reeds" || k === "pebble") : Math.abs(L.y - y) > 0.05) return; if (bldBlocked(x, z, 0.02)) return; if (L.water) y = L.y - 0.02; const sc = decoScale(k, R); _ne.set(0, R() * 6.28, 0); _nq.setFromEuler(_ne); _np.set(x, y + (k === "soil" ? 0.003 : 0), z); _ns.set(sc, sc, sc); m.setMatrixAt(cnt[mk], _nm.compose(_np, _nq, _ns)); m.setColorAt(cnt[mk], _nc.setRGB(1, 1, 1)); cnt[mk]++; dcount++; };
   let total = 0;
   for (const [d2, i, j] of cells) {
     if (total >= cap) break;
@@ -3148,7 +3225,7 @@ function refreshNearFlora(center, radius) {
       const key = treeKey(pickTree(f, R), R, f.zone), sp = slotPos(f, R, taken); if (!sp) continue;
       const sc = plantScale(key, R) * (f.zone === "plateau" ? 0.8 : 1);
       taken |= 1 << sp[0]; if (bigCrown(key, sc)) taken |= SLOT_NEI[sp[0]]; const tx = sp[1], tz = sp[2];
-      if (FLAT[idx(tx, tz)] && R() < 0.9) continue;
+      if ((FLAT[idx(tx, tz)] && R() < 0.9) || !plantOK(key, sc, tx, tz, R)) continue;
       const mk = key + "@" + (Math.hypot(tx - center.x, tz - center.z) < fullR ? 2 : 1), m = nearFlora.meshes[mk]; if (!m || cnt[mk] >= 3000) continue;
       const g = 0.88 + R() * 0.24;
       _ne.set(0, R() * 6.28, 0); _nq.setFromEuler(_ne); _np.set(tx, f.y, tz); _ns.set(sc, sc, sc);
@@ -3170,7 +3247,7 @@ function tickNearFlora() {
   const radius = clamp(d * 1.15, 9, 26);
   if (!nearFlora.center || nearFlora.q !== QUALITY || nearFlora.center.distanceTo(t) > radius * 0.3 || Math.abs(nearFlora.r - radius) > radius * 0.35) refreshNearFlora(t, radius);
 }
-const GARDEN = new Uint8Array(N);
+const GARDEN = new Uint8Array(N), FRAME = new Uint8Array(N);
 function buildEcoMasks() {
   CLEAR = new Uint8Array(N);
   for (const p of PLACES) {
@@ -3181,11 +3258,13 @@ function buildEcoMasks() {
       const k = j * W + i, dx = cx(i) - p.x, dz = cz(j) - p.z, d = Math.hypot(dx, dz);
       if (d < r0 || (dz > 0 && d < r0 + 2.4 && Math.abs(dx) < 0.9)) CLEAR[k] = 1;   // 地标本身与朝南入口
       else if (d < rg && latOf(p.z) < 35) GARDEN[k] = 1;
+      const fr = p.front || [0, 1];
+      if (d >= r0 && d < rg + 0.6 && (dx * fr[0] + dz * fr[1]) / Math.max(d, 1e-3) < 0.35) FRAME[k] = 1;   // 两侧与后方
     }
   }
 }
 function buildFlora() {
-  buildEcoMasks();
+  buildEcoMasks(); buildBldIndex(); buildLmkIndex();
   const map = new Map();
   const TILE = +(QS.get("tile") || 72);
   /* 按 48 单位分块实例化，视锥外（含倒影渲染）整块剔除 */
@@ -3193,13 +3272,13 @@ function buildFlora() {
   const put = (t, it) => { const tk = t.includes(":") || !VoxelTree.SPEC[t] ? t : treeKey(t, R), key = tk + "|" + Math.floor(it.x / TILE) + "," + Math.floor(it.z / TILE); if (!map.has(key)) map.set(key, { geo: treeGeoKey(tk, 1), list: [] }); map.get(key).list.push(it); };
   /* 名胜与地标的点景树放在最前：画质削减草木数量时从末尾截掉，不会截到它们 */
   for (const t of EXTRA_TREES) {
-    if (t.y != null) { if (landAt(t.x, t.z).water) continue; const tk = treeKey(t.t, R, "garden");   /* 名胜点景树紧挨建筑：按庭院树尺度 */ put(tk, { x: t.x, y: t.y, z: t.z, rot: R() * 6.28, s: plantScale(tk, R), tint: [1, 1, 1] }); continue; }
+    if (t.y != null) { if (landAt(t.x, t.z).water) continue; const tk = treeKey(t.t, R, "garden");   /* 名胜点景树紧挨建筑：按庭院树尺度 */ const s0 = plantScale(tk, R); if (!plantOK(tk, s0, t.x, t.z, R)) continue; put(tk, { x: t.x, y: t.y, z: t.z, rot: R() * 6.28, s: s0, tint: [1, 1, 1] }); continue; }
     const k = idx(t.x, t.z); if (isWater(k)) continue;
     /* 收进所在格内 */
     const ci = k % W, cj = (k / W) | 0, hx = CS / 2 - 0.13;
     t.x = clamp(t.x, cx(ci) - hx, cx(ci) + hx); t.z = clamp(t.z, cz(cj) - hx, cz(cj) + hx);
     const L = landAt(t.x, t.z); if (L.water) continue;   // 景片细网格里可能是水
-    const tk = treeKey(t.t, R, "garden"); put(tk, { x: t.x, y: L.y, z: t.z, rot: R() * 6.28, s: plantScale(tk, R), tint: [1, 1, 1] }); }
+    const tk = treeKey(t.t, R, "garden"), s0 = plantScale(tk, R); if (!plantOK(tk, s0, t.x, t.z, R)) continue; put(tk, { x: t.x, y: L.y, z: t.z, rot: R() * 6.28, s: s0, tint: [1, 1, 1] }); }
   const cap = 26000; let count = 0;
   const flatNear = (i, j) => { for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { const k = (j + dj) * W + i + di; if (FLAT[k]) return true; } return false; };
   for (let j = 1; j < H - 1; j++) for (let i = 1; i < W - 1; i++) {
@@ -3211,7 +3290,8 @@ function buildFlora() {
     const slope = Math.max(Math.abs(TY[k + 1] - TY[k - 1]), Math.abs(TY[k + W] - TY[k - W]));
     if (wn && !SNOW[k] && R() < (y < 3 ? 0.45 : 0.25)) {
       const t = R() < 0.5 || kd === 1 || y > 5 ? "rock" : "reed";
-      put(t, { x: x + (R() - 0.5) * (CS - 0.3), y, z: z + (R() - 0.5) * (CS - 0.3), rot: R() * 6.28, s: 0.7 + R() * 0.9, tint: [0.9 + R() * 0.2, 0.9 + R() * 0.2, 0.9 + R() * 0.2] });
+      const rx = x + (R() - 0.5) * (CS - 0.3), rz = z + (R() - 0.5) * (CS - 0.3), it = { x: rx, y, z: rz, rot: R() * 6.28, s: 0.7 + R() * 0.9, tint: [0.9 + R() * 0.2, 0.9 + R() * 0.2, 0.9 + R() * 0.2] };
+      if (!bldBlocked(rx, rz, 0.08)) put(t, it);   // 岸石、芦苇也不压建筑
     }
     if (slope > 2.5 && !SNOW[k] && R() < 0.05) put("rock", { x, y, z, rot: R() * 6.28, s: 1 + R(), tint: [1, 1, 1] });
     const f = floraInfo(i, j); if (!f || f.dens <= 0) continue;
@@ -3220,7 +3300,7 @@ function buildFlora() {
       const t = treeKey(pickTree(f, R), R, f.zone), sp = slotPos(f, R, taken); if (!sp) continue;
       const sc = plantScale(t, R) * (f.zone === "plateau" ? 0.8 : 1);
       taken |= 1 << sp[0]; if (bigCrown(t, sc)) taken |= SLOT_NEI[sp[0]]; const tx = sp[1], tz = sp[2];
-      if (NOTREE[idx(tx, tz)] || (FLAT[idx(tx, tz)] && R() < 0.85)) continue;
+      if (NOTREE[idx(tx, tz)] || (FLAT[idx(tx, tz)] && R() < 0.85) || !plantOK(t, sc, tx, tz, R)) continue;
       let ty = y; if (PATCH_OF[idx(tx, tz)]) { const L = landAt(tx, tz); if (L.water) continue; ty = L.y; }   // 景片：按细格判水、取高
       const g = 0.85 + R() * 0.3;
       put(t, { x: tx, y: ty, z: tz, rot: R() * 6.28, s: sc, tint: [g, g * (0.95 + R() * 0.1), g] });
