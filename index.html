@@ -2600,7 +2600,7 @@ const VoxelTree = (() => {
   /** 一段「梁」：水平方向对准 from→to 的长方块，高度盖住这段的起伏——中远景的枝用它，一段一块，必然相连 */
   function beam(b, from, to, w, col, glow = 0) {
     /* 又长又陡的一段拆成 2–3 级台阶，免得一块盖住整段起伏、成了一堵板 */
-    const k = Math.min(3, Math.max(1, Math.round(Math.min(Math.abs(to[1] - from[1]), Math.hypot(to[0] - from[0], to[2] - from[2])) / (w * 2.2))));
+    const k = Math.min(2, Math.max(1, Math.round(Math.min(Math.abs(to[1] - from[1]), Math.hypot(to[0] - from[0], to[2] - from[2])) / (w * 2.2))));
     if (k > 1) { for (let i = 0; i < k; i++) beam1(b, from.map((v, j) => v + (to[j] - v) * (i / k)), from.map((v, j) => v + (to[j] - v) * ((i + 1) / k)), w, col, glow); return; }
     beam1(b, from, to, w, col, glow);
   }
@@ -2818,7 +2818,7 @@ const VoxelTree = (() => {
   /** 体量团：一块主体，再贴 1–3 块向不同方向鼓出的副块（高处亮、低处暗）；不做对称的层层叠放 */
   function mass(b, c, s, cols, R, glow, D, bulge) {
     const [x, y, z] = c, [w, h, d] = s;
-    ebox(b, [x, y, z], [w, h, d], cols[1], glow);
+    if (D >= 0) ebox(b, [x, y, z], [w, h, d], cols[1], glow);
     const n = D === 2 ? bulge : D === 1 ? Math.min(1, bulge) : 0, a0 = R() * 6.283;
     for (let i = 0; i < 3; i++) {
       const a = a0 + i * 2.094 + btw(R, -0.5, 0.5), up = i === 0 ? btw(R, 0.3, 0.45) : btw(R, -0.25, 0.2);
@@ -2836,7 +2836,7 @@ const VoxelTree = (() => {
     const th = 2.6 * K; let tx = 0, tz = 0;
     for (let i = 0; i < 3; i++) {
       const y0 = (th * i) / 3, h = th / 3 + 0.1, w = (0.8 - i * 0.09) * K;
-      ebox(b, [tx, y0 + h / 2, tz], [w, h, w], wood);
+      if (D > 0 || i === 0) ebox(b, D === 0 ? [tx + ld[0] * lean * 0.4, th / 2, tz + ld[2] * lean * 0.4] : [tx, y0 + h / 2, tz], D === 0 ? [w, th + 0.1, w] : [w, h, w], wood);   // 远景一根干
       if (i < 2) { tx += ld[0] * lean * 0.4; tz += ld[2] * lean * 0.4; }
     }
     const nb = v === 1 ? 4 : 5, tips = [];
@@ -2911,16 +2911,18 @@ const VoxelTree = (() => {
       const a = a0 + (i * 6.283) / S.nb + btw(R, -0.45, 0.45) - (bias && i % 2 ? 1.2 : 0) * bias;
       const r = S.cw * btw(R, 0.36, 0.44), y = S.th + S.ch * btw(R, 0.2, 0.62);
       const e = [C[0] + Math.cos(a) * r, y, C[2] + Math.sin(a) * r];
-      voxelBranch(b, [C[0] * 0.8, S.th - 0.1, C[2] * 0.8], e, 0.3, wood, D);
-      mass(b, [e[0], e[1] + 0.2, e[2]], [S.cw * btw(R, 0.36, 0.48), S.ch * btw(R, 0.4, 0.56), S.cw * btw(R, 0.34, 0.46)], y < S.th + S.ch * 0.4 ? [PAL.broad[0], PAL.broad[0], PAL.broad[1]] : PAL.broad, R, DE, D, 2);
+      const ms = [S.cw * btw(R, 0.36, 0.48), S.ch * btw(R, 0.4, 0.56), S.cw * btw(R, 0.34, 0.46)];
+      if (D === 0 && i >= 2) { mass(b, [0, -99, 0], [0, 0, 0], PAL.broad, R, DE, -1, 0); continue; }   // 远景只留两团辅助冠（随机数照常消耗，三级结构一致）
+      if (D > 0) voxelBranch(b, [C[0] * 0.8, S.th - 0.1, C[2] * 0.8], e, 0.3, wood, D);   // 远景辅助冠直接贴着主冠，不画枝
+      mass(b, [e[0], e[1] + 0.2, e[2]], ms, y < S.th + S.ch * 0.4 ? [PAL.broad[0], PAL.broad[0], PAL.broad[1]] : PAL.broad, R, DE, D, 2);
     }
     /* 顶冠：不居中，偏向一侧 */
     if (S.top) { const a = a0 + btw(R, 0.6, 2.2); mass(b, [C[0] + Math.cos(a) * S.cw * 0.14 * S.top, S.th + S.ch * 0.88, C[2] + Math.sin(a) * S.cw * 0.14 * S.top], [S.cw * 0.38, S.ch * 0.36, S.cw * 0.36], [PAL.broad[1], PAL.broad[2], PAL.broad[2]], R, DE, D, 1); }
   }
-  const BUILD = { broad: broadleaf, pine: pineUpright, lpine: pineLandscape, peach, willow, bamboo, willowN, broadN };   // willowN / broadN：评审中的第二版，地图暂不使用
+  const BUILD = { broad: broadN, pine: pineUpright, lpine: pineLandscape, peach, willow: willowN, bamboo, willowV1: willow, broadV1: broadleaf };   // 柳、阔叶已换第二版；V1 只留在树木样板里对照
   /** 各树种的默认参数与变体数 */
-  const SPEC = { broad: { variants: 4 }, pine: { variants: 3 }, lpine: { variants: 3 }, peach: { variants: 3 }, willow: { variants: 3 }, bamboo: { variants: 3 }, willowN: { variants: 3 }, broadN: { variants: 5 } };
-  const NAMES = { willow: "柳树", broad: "阔叶树", pine: "松树", lpine: "横枝松", peach: "桃花树", bamboo: "竹林", willowN: "柳树·新", broadN: "阔叶树·新" };
+  const SPEC = { broad: { variants: 5 }, pine: { variants: 3 }, lpine: { variants: 3 }, peach: { variants: 3 }, willow: { variants: 3 }, bamboo: { variants: 3 }, willowV1: { variants: 3 }, broadV1: { variants: 4 } };
+  const NAMES = { willow: "柳树", broad: "阔叶树", pine: "松树", lpine: "横枝松", peach: "桃花树", bamboo: "竹林", willowV1: "柳树·旧", broadV1: "阔叶树·旧" };
   const cache = {};
   return {
     SPEC,
@@ -2948,7 +2950,50 @@ const VoxelTree = (() => {
     },
   };
 })();
-const treeKey = (t, R) => (VoxelTree.SPEC[t] ? t + ":" + Math.floor(R() * VoxelTree.variants(t)) : t);
+/* ================= 植物尺度规范 =================
+   以地图里的民居（高 0.25）为参照。每类植物有自己的基础高度，随机只在 ±浮动 范围内：
+     草簇 0.045（±15%）· 灌木 0.09（±12%）· 庭院树 0.33（±10%）· 成熟乔木 0.50（±8%）· 景观大树 0.62（±6%）
+   每个树种变体归入一类并给定目标高度；摆放时按「目标高 ÷ 模型实际高」换算缩放，不再对所有树一律乘 0.75–1.25。 */
+const PLANT_VAR = { tuft: 0.15, shrub: 0.12, garden: 0.1, mature: 0.08, grand: 0.06 };
+const PLANT_SIZE = {
+  "willow:0": ["mature", 0.5], "willow:1": ["garden", 0.34], "willow:2": ["mature", 0.52],
+  "broad:0": ["mature", 0.5], "broad:1": ["mature", 0.42], "broad:2": ["grand", 0.62], "broad:3": ["mature", 0.48], "broad:4": ["garden", 0.33],
+  "pine:0": ["mature", 0.56], "pine:1": ["mature", 0.46], "pine:2": ["mature", 0.56],
+  lpine: ["grand", 0.46], peach: ["garden", 0.31], bamboo: ["garden", 0.36],
+};
+const DECO_SIZE = { tuft: ["tuft", 0.045], tuft2: ["tuft", 0.05], reeds: ["shrub", 0.11], shrub: ["shrub", 0.09] };
+const _plantDim = {};
+/** 模型实际尺寸（中景几何的包围盒；三级细节结构一致） */
+function plantDim(key) {
+  if (!_plantDim[key]) { const g = key.startsWith("deco:") ? nearFlora.meshes[key].geometry : treeGeoKey(key, 1); g.computeBoundingBox(); const b = g.boundingBox; _plantDim[key] = { h: b.max.y, w: Math.max(b.max.x - b.min.x, b.max.z - b.min.z) }; }
+  return _plantDim[key];
+}
+/** 按尺度规范换算的缩放：同一株树由固定随机数决定，刷新、镜头变化都不变 */
+function plantScale(key, R) {
+  const e = PLANT_SIZE[key] || PLANT_SIZE[key.split(":")[0]];
+  if (!e) return 0.9 + R() * 0.3;
+  const v = PLANT_VAR[e[0]];
+  return (e[1] / plantDim(key).h) * (1 - v + R() * 2 * v);
+}
+function decoScale(k, R) {
+  const e = DECO_SIZE[k]; if (!e) return 0.8 + R() * 0.4;
+  const v = PLANT_VAR[e[0]];
+  return (e[1] / plantDim("deco:" + k).h) * (1 - v + R() * 2 * v);
+}
+/** 冠幅（按规范缩放后）超过 0.42 的算大冠：占住相邻子格，树冠不互相穿插 */
+const bigCrown = (key, sc) => plantDim(key).w * sc > 0.42;
+const SLOT_NEI = [0, 1, 2, 3, 4, 5, 6, 7, 8].map((s) => { const c = s % 3, r = (s / 3) | 0; let m = 0; for (const [dc, dr] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const cc = c + dc, rr = r + dr; if (cc >= 0 && cc < 3 && rr >= 0 && rr < 3) m |= 1 << (rr * 3 + cc); } return m; });
+/* 变体随分区：园林里多用庭院小树与庭院柳，自然地带用成熟乔木与景观大树 */
+const VARIANT_MIX = {
+  broad: { garden: [0, 0, 0, 0.15, 0.85], def: [0.35, 0.25, 0.12, 0.28, 0] },
+  willow: { garden: [0, 1, 0], riverside: [0.6, 0, 0.4], def: [0.7, 0, 0.3] },
+};
+const treeKey = (t, R, zone) => {
+  if (!VoxelTree.SPEC[t]) return t;
+  const M = VARIANT_MIX[t];
+  if (M) { const w = M[zone] || M.def; let r = R(), i = 0; for (; i < w.length - 1; i++) { r -= w[i]; if (r <= 0) break; } return t + ":" + i; }
+  return t + ":" + Math.floor(R() * VoxelTree.variants(t));
+};
 const treeGeoKey = (key, detail) => { const [t, v] = key.split(":"); return v != null ? VoxelTree.geo(t, +v, detail) : treeGeo(t); };
 
 /** 某格的草木密度与树种（全局草木与近景加密共用同一套规则） */
@@ -3066,7 +3111,7 @@ function refreshNearFlora(center, radius) {
   cells.sort((a, b) => a[0] - b[0]);
   const cnt = {}; for (const k in nearFlora.meshes) cnt[k] = 0;
   const fullR = Math.min(8, radius * 0.4)   /* 完整细节只给最近一圈：新树近景块多，外圈用中景已足够 */, dcap = DECO_CAP[QUALITY]; let dcount = 0;
-  const decoAt = (k, x, y, z, R) => { const mk = "deco:" + k, m = nearFlora.meshes[mk]; if (!m || cnt[mk] >= 2500 || dcount >= dcap) return; const L = landAt(x, z); if (L.water ? !(k === "reeds" || k === "pebble") : Math.abs(L.y - y) > 0.05) return; if (L.water) y = L.y - 0.02; const sc = 0.8 + R() * 0.7; _ne.set(0, R() * 6.28, 0); _nq.setFromEuler(_ne); _np.set(x, y + (k === "soil" ? 0.003 : 0), z); _ns.set(sc, sc, sc); m.setMatrixAt(cnt[mk], _nm.compose(_np, _nq, _ns)); m.setColorAt(cnt[mk], _nc.setRGB(1, 1, 1)); cnt[mk]++; dcount++; };
+  const decoAt = (k, x, y, z, R) => { const mk = "deco:" + k, m = nearFlora.meshes[mk]; if (!m || cnt[mk] >= 2500 || dcount >= dcap) return; const L = landAt(x, z); if (L.water ? !(k === "reeds" || k === "pebble") : Math.abs(L.y - y) > 0.05) return; if (L.water) y = L.y - 0.02; const sc = decoScale(k, R); _ne.set(0, R() * 6.28, 0); _nq.setFromEuler(_ne); _np.set(x, y + (k === "soil" ? 0.003 : 0), z); _ns.set(sc, sc, sc); m.setMatrixAt(cnt[mk], _nm.compose(_np, _nq, _ns)); m.setColorAt(cnt[mk], _nc.setRGB(1, 1, 1)); cnt[mk]++; dcount++; };
   let total = 0;
   for (const [d2, i, j] of cells) {
     if (total >= cap) break;
@@ -3083,11 +3128,12 @@ function refreshNearFlora(center, radius) {
       for (let q = 0, nq = 1 + Math.floor(R() * 3); q < nq; q++) decoAt(zk[Math.floor(R() * zk.length)], f.x + (R() - 0.5) * (CS - 0.2), f.y, f.z + (R() - 0.5) * (CS - 0.2), R);
     }
     while (n-- > 0 && total < cap) {
-      const key = treeKey(pickTree(f, R), R), sp = slotPos(f, R, taken); if (!sp) continue;
-      taken |= 1 << sp[0]; const tx = sp[1], tz = sp[2];
+      const key = treeKey(pickTree(f, R), R, f.zone), sp = slotPos(f, R, taken); if (!sp) continue;
+      const sc = plantScale(key, R) * (f.zone === "plateau" ? 0.8 : 1);
+      taken |= 1 << sp[0]; if (bigCrown(key, sc)) taken |= SLOT_NEI[sp[0]]; const tx = sp[1], tz = sp[2];
       if (FLAT[idx(tx, tz)] && R() < 0.9) continue;
       const mk = key + "@" + (Math.hypot(tx - center.x, tz - center.z) < fullR ? 2 : 1), m = nearFlora.meshes[mk]; if (!m || cnt[mk] >= 3000) continue;
-      const g = 0.88 + R() * 0.24, sc = (0.75 + R() * 0.5) * (key.startsWith("pine") && f.m > 1500 ? 1.15 : 1);
+      const g = 0.88 + R() * 0.24;
       _ne.set(0, R() * 6.28, 0); _nq.setFromEuler(_ne); _np.set(tx, f.y, tz); _ns.set(sc, sc, sc);
       m.setMatrixAt(cnt[mk], _nm.compose(_np, _nq, _ns)); m.setColorAt(cnt[mk], _nc.setRGB(g, g * (0.96 + R() * 0.08), g));
       cnt[mk]++; total++;
@@ -3127,16 +3173,16 @@ function buildFlora() {
   const TILE = +(QS.get("tile") || 72);
   /* 按 48 单位分块实例化，视锥外（含倒影渲染）整块剔除 */
   const R = mulberry32(99);
-  const put = (t, it) => { const tk = treeKey(t, R), key = tk + "|" + Math.floor(it.x / TILE) + "," + Math.floor(it.z / TILE); if (!map.has(key)) map.set(key, { geo: treeGeoKey(tk, 1), list: [] }); map.get(key).list.push(it); };
+  const put = (t, it) => { const tk = t.includes(":") || !VoxelTree.SPEC[t] ? t : treeKey(t, R), key = tk + "|" + Math.floor(it.x / TILE) + "," + Math.floor(it.z / TILE); if (!map.has(key)) map.set(key, { geo: treeGeoKey(tk, 1), list: [] }); map.get(key).list.push(it); };
   /* 名胜与地标的点景树放在最前：画质削减草木数量时从末尾截掉，不会截到它们 */
   for (const t of EXTRA_TREES) {
-    if (t.y != null) { if (landAt(t.x, t.z).water) continue; put(t.t, { x: t.x, y: t.y, z: t.z, rot: R() * 6.28, s: 0.95 + R() * 0.4, tint: [1, 1, 1] }); continue; }
+    if (t.y != null) { if (landAt(t.x, t.z).water) continue; const tk = treeKey(t.t, R, "garden");   /* 名胜点景树紧挨建筑：按庭院树尺度 */ put(tk, { x: t.x, y: t.y, z: t.z, rot: R() * 6.28, s: plantScale(tk, R), tint: [1, 1, 1] }); continue; }
     const k = idx(t.x, t.z); if (isWater(k)) continue;
     /* 收进所在格内 */
     const ci = k % W, cj = (k / W) | 0, hx = CS / 2 - 0.13;
     t.x = clamp(t.x, cx(ci) - hx, cx(ci) + hx); t.z = clamp(t.z, cz(cj) - hx, cz(cj) + hx);
     const L = landAt(t.x, t.z); if (L.water) continue;   // 景片细网格里可能是水
-    put(t.t, { x: t.x, y: L.y, z: t.z, rot: R() * 6.28, s: 0.9 + R() * 0.4, tint: [1, 1, 1] }); }
+    const tk = treeKey(t.t, R, "garden"); put(tk, { x: t.x, y: L.y, z: t.z, rot: R() * 6.28, s: plantScale(tk, R), tint: [1, 1, 1] }); }
   const cap = 26000; let count = 0;
   const flatNear = (i, j) => { for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { const k = (j + dj) * W + i + di; if (FLAT[k]) return true; } return false; };
   for (let j = 1; j < H - 1; j++) for (let i = 1; i < W - 1; i++) {
@@ -3154,12 +3200,13 @@ function buildFlora() {
     const f = floraInfo(i, j); if (!f || f.dens <= 0) continue;
     let nT = Math.min(6, Math.floor(f.dens * 2.4 * CS * CS + R())), taken = 0;
     while (nT-- > 0 && count < cap) {
-      const t = pickTree(f, R), sp = slotPos(f, R, taken); if (!sp) continue;
-      taken |= 1 << sp[0]; const tx = sp[1], tz = sp[2];
+      const t = treeKey(pickTree(f, R), R, f.zone), sp = slotPos(f, R, taken); if (!sp) continue;
+      const sc = plantScale(t, R) * (f.zone === "plateau" ? 0.8 : 1);
+      taken |= 1 << sp[0]; if (bigCrown(t, sc)) taken |= SLOT_NEI[sp[0]]; const tx = sp[1], tz = sp[2];
       if (NOTREE[idx(tx, tz)] || (FLAT[idx(tx, tz)] && R() < 0.85)) continue;
       let ty = y; if (PATCH_OF[idx(tx, tz)]) { const L = landAt(tx, tz); if (L.water) continue; ty = L.y; }   // 景片：按细格判水、取高
       const g = 0.85 + R() * 0.3;
-      put(t, { x: tx, y: ty, z: tz, rot: R() * 6.28, s: (0.85 + R() * 0.5) * (f.zone === "plateau" ? 0.7 : t === "pine" && m > 1500 ? 1.15 : 1), tint: [g, g * (0.95 + R() * 0.1), g] });
+      put(t, { x: tx, y: ty, z: tz, rot: R() * 6.28, s: sc, tint: [g, g * (0.95 + R() * 0.1), g] });
       count++;
     }
   }
@@ -4927,7 +4974,7 @@ function renderFrame(dt) {
 let LAB = null;
 function startLab(types) {
   if (types[0] === "all") types = ["willow", "broad", "pine", "lpine", "peach", "bamboo"];
-  if (types[0] === "review") types = ["willow", "willowN", "broad", "broadN"];   // 评审：现行与第二版上下对照
+  if (types[0] === "review") types = ["willowV1", "willow", "broadV1", "broad"];   // 评审：第一版与现行（第二版）上下对照
   const sc = new THREE.Scene(); sc.background = new THREE.Color("#ebe4d3");
   sc.add(new THREE.HemisphereLight("#f6f1e4", "#6f6752", 1.3));
   const sun = new THREE.DirectionalLight("#fff3dc", 2.4); sun.position.set(2.5, 5, 3); sun.castShadow = true;
