@@ -5253,7 +5253,7 @@ function buildLandscape(win, opt = {}) {
     const fine = fbm(nA, x * 1.3, z * 1.3, 2);
     BASE[k] = yb; AMPL[k] = a;
     Y[k] = yb + a * (0.6 * (rd - 0.45) - 0.35 * vl + 0.03 * fine);   // 细节幅度全随当地起伏：平原不起麻点
-    CLIFF[k] = a > 1.2 && nB(x * 0.5 + 31, z * 0.5) > 0.42 ? 1 : 0;           // 少量「崖」区：允许更陡
+    CLIFF[k] = a > 1.4 && nB(x * 0.3 + 31, z * 0.3) > 0.62 ? 1 : 0;   // 少量「崖」区（成片）：允许更陡
   }
   /* 名胜微缩景（如庐山）：保留其自己设计的地形与水面，不叠自然噪声 */
   const PT = new Uint8Array(n);
@@ -5270,6 +5270,8 @@ function buildLandscape(win, opt = {}) {
     const S = []; for (let s = 1; s < P.length; s++) { const m = Math.max(1, Math.ceil((Lc[s] - Lc[s - 1]) / 0.3)); for (let q = 0; q < m; q++) { const t = q / m; S.push([lerp(P[s - 1][0], P[s][0], t), lerp(P[s - 1][1], P[s][1], t), (Lc[s - 1] + t * (Lc[s] - Lc[s - 1])) / tot]); } }
     const lv = S.map(([x, z]) => { const kk = clamp(gj(z), 0, H - 1) * W + clamp(gi(x), 0, W - 1); return isNaN(WY[kk]) ? TY[kk] - 0.2 : WY[kk]; });
     for (let s = 1; s < lv.length; s++) lv[s] = Math.min(lv[s], lv[s - 1]);
+    for (let it = 0; it < 30; it++) for (let s = 1; s < lv.length - 1; s++) lv[s] = Math.min(lv[s - 1], (lv[s - 1] + lv[s] + lv[s + 1]) / 3);
+    for (let s = 0; s < lv.length; s++) lv[s] = Math.round(lv[s] / (Q / 2)) * (Q / 2);
     const hwOf = (t) => Math.max(CS * 0.74, lerp(w0 * 0.75, w1, Math.pow(t, 3)));
     for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
       const x = px(i), z = pz(j), k = j * nx + i; let best = 1e9, bt = 0;
@@ -5314,9 +5316,10 @@ function buildLandscape(win, opt = {}) {
   }
   /* —— 4. 热侵蚀：单格落差超过安息角（随噪声 0.35–0.6，崖区 1.4）时削高补低 —— */
   const talus = new Float32Array(n);
-  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) { const k = j * nx + i; talus[k] = CLIFF[k] || STEEP[k] ? 1.4 : 0.35 + 0.25 * (0.5 + 0.5 * nD(px(i) * 0.3, pz(j) * 0.3)); }
+  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) { const k = j * nx + i; talus[k] = CLIFF[k] || STEEP[k] ? 0.6 : 0.3 + 0.2 * (0.5 + 0.5 * nD(px(i) * 0.3, pz(j) * 0.3)) /* 单格落差：常规 0.3–0.5，崖区 0.75 */; }
   const isW = (k) => !isNaN(WL[k]);
-  for (let it = 0; it < 14; it++) for (let j = 1; j < nz - 1; j++) for (let i = 1; i < nx - 1; i++) {
+  for (let pass = 0; pass < 2; pass++) { const T0 = Float32Array.from(Y); for (let j = 1; j < nz - 1; j++) for (let i = 1; i < nx - 1; i++) { const k = j * nx + i; if (isW(k) || PT[k] || CLIFF[k]) continue; let sm = 0, c = 0; for (const o of [1, -1, nx, -nx]) if (!isW(k + o) && !PT[k + o]) { sm += T0[k + o]; c++; } if (c) Y[k] = T0[k] * 0.5 + (sm / c) * 0.5; } }
+  for (let it = 0; it < 22; it++) for (let j = 1; j < nz - 1; j++) for (let i = 1; i < nx - 1; i++) {
     const k = j * nx + i; if (isW(k) || PT[k]) continue;
     for (const o of [1, -1, nx, -nx]) { const q = k + o; if (isW(q) || PT[q]) continue; const d = Y[k] - Y[q], m = Math.min(talus[k], talus[q]); if (d > m) { const mv = (d - m) * 0.25; Y[k] -= mv; Y[q] += mv; } }
   }
@@ -5330,7 +5333,7 @@ function buildLandscape(win, opt = {}) {
     const k = j * nx + i, g = (ii, jj) => Y[clamp(jj, 0, nz - 1) * nx + clamp(ii, 0, nx - 1)];
     SL[k] = Math.hypot(g(i + 1, j) - g(i - 1, j), g(i, j + 1) - g(i, j - 1)) / (2 * h);
     const m = y2m(Y[k]);
-    BI[k] = isW(k) ? "water" : SD[k] < 0.3 && SL[k] < 0.8 ? "shore" : SD[k] < 0.75 && !STEEP[k] && SL[k] < 0.6 && ((i * 7 + j * 13) % 5 > 0 || SD[k] < 0.5) ? "wetland" : Y[k] > snowY ? "snow" : SL[k] > 2.2 || (m > 1300 && SL[k] > 1.4) ? "rock" : m > 700 || AMPL[k] > 1.2 ? "mountain" : AMPL[k] > 0.35 || SL[k] > 0.8 ? "hillside" : "plain";
+    BI[k] = isW(k) ? "water" : SD[k] < 0.3 && SL[k] < 0.8 ? "shore" : SD[k] < 0.75 && !STEEP[k] && SL[k] < 0.6 && ((i * 7 + j * 13) % 5 > 0 || SD[k] < 0.5) ? "wetland" : Y[k] > snowY ? "snow" : SL[k] > 2.6 || (m > 1600 && SL[k] > 1.8) ? "rock" : m > 700 || AMPL[k] > 1.2 ? "mountain" : AMPL[k] > 0.35 || SL[k] > 0.8 ? "hillside" : "plain";
   }
   const res = { win, h, nx, nz, x0, z0, Y, WL, SD, SL, BI, STEEP, CLIFF, AMPL, ms: 0,
     /** 地形查询：植被与后续模块只从这里取高度、坡度、分区与离岸距离 */
@@ -5342,7 +5345,7 @@ function buildLandscape(win, opt = {}) {
 /** 材质分层与合并网格：顶面按分区；侧面只在邻格更低时生成（内部面不出），按 草皮口 → 土层 → 岩层 分段 */
 const LPAL = {
   grass: ["#8faa62", "#86a15c", "#98b068"], meadow: ["#7d9a5c", "#748f55", "#86a062"], plain: ["#a3b172", "#9aab6c", "#aab777"],
-  rock: ["#7f8b87", "#8a948f", "#76827e"], rockS: ["#6c7875", "#75807c", "#66726f"], snow: ["#e9eef0", "#dfe6ea"],
+  rock: ["#8b958c", "#949d93", "#838e85"], rockS: ["#7a857d", "#838d85", "#737e76"], snow: ["#e9eef0", "#dfe6ea"],
   shore: ["#c2b98e", "#b8b086", "#cabf95"], wet: ["#8c8a64", "#838259", "#94916a"], soil: ["#a3805a", "#9b7a56", "#ab8861"], soilW: ["#8f7d5c", "#877657"],
   bed: ["#7c9a8a", "#86a292", "#6f8f80"],
 };
@@ -5372,8 +5375,9 @@ function landscapeMesh(T, dbg) {
       const drop = y - ny, b = BI[k], rocky = b === "rock" || b === "snow" || STEEP[k] || T.CLIFF[k], wet = b === "shore" || b === "wetland" || b === "water";
       /* 侧面分段：草皮口 0.04 → 土层（到 0.3 深）→ 岩层；岩区全为岩；水边为湿土 */
       let ya = y;
+      const mtn = b === "mountain", soilD = wet ? drop : mtn ? 0.08 : b === "hillside" ? 0.18 : 0.3;   // 土层厚：平原 0.3、丘陵 0.18、山地 0.08
       if (!rocky && !wet && b !== "water") { const yb = Math.max(ny, y - 0.045); face(ya, yb, tc.clone().multiplyScalar(0.9)); ya = yb; }
-      if (ya > ny && !rocky) { const yb = Math.max(ny, y - (wet ? drop : 0.32)); face(ya, yb, col(wet ? LPAL.soilW : LPAL.soil, k + di * 3 + dj * 7, -0.04)); ya = yb; }
+      if (ya > ny && !rocky) { const yb = Math.max(ny, y - soilD); face(ya, yb, col(wet ? LPAL.soilW : LPAL.soil, k + di * 3 + dj * 7, -0.04)); ya = yb; }
       if (ya > ny) { let yy = ya; while (yy > ny + 1e-4) { const yb = Math.max(ny, yy - 0.3); face(yy, yb, col(drop > 0.9 ? LPAL.rockS : LPAL.rock, k + Math.round(yy * 10), -0.03 - Math.min(0.15, (y - yy) * 0.04))); yy = yb; } }
     }
   }
@@ -5388,9 +5392,15 @@ function landscapeMesh(T, dbg) {
     c.multiplyScalar(0.97 + 0.06 * Math.abs(Math.sin(k * 7.13) % 1));
     const ax = x0 + i * h, bx = ax + h, az = z0 + j * h, bz = az + h;
     for (const v of [[ax, az], [ax, bz], [bx, bz], [ax, az], [bx, bz], [bx, az]]) { WP.push(v[0], L, v[1]); WC.push(c.r, c.g, c.b); }
+    for (const [di, dj] of [[1, 0], [0, 1], [-1, 0], [0, -1]]) {
+      const ii = i + di, jj = j + dj; if (ii < 0 || jj < 0 || ii >= nx || jj >= nz) continue;
+      const L2 = T.WL[jj * nx + ii]; if (isNaN(L2) || L2 >= L - 1e-4) continue;   // 只在本格比邻格高时补
+      const e = di === 1 ? [[bx, az], [bx, bz]] : di === -1 ? [[ax, bz], [ax, az]] : dj === 1 ? [[bx, bz], [ax, bz]] : [[ax, az], [bx, az]];
+      for (const [p, yy] of [[e[0], L], [e[0], L2], [e[1], L2], [e[0], L], [e[1], L2], [e[1], L]]) { WP.push(p[0], yy, p[1]); WC.push(c.r, c.g, c.b); }
+    }
   }
   const wg = new THREE.BufferGeometry(); wg.setAttribute("position", new THREE.Float32BufferAttribute(WP, 3)); wg.setAttribute("color", new THREE.Float32BufferAttribute(WC, 3)); wg.computeVertexNormals();
-  const wm = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0, transparent: true, opacity: 0.9 });
+  const wm = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0 });
   wm.onBeforeCompile = (sh) => {
     sh.uniforms.uTime = GU.uTime;
     sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nvarying vec3 vWp;").replace("#include <worldpos_vertex>", "#include <worldpos_vertex>\nvWp = (modelMatrix * vec4(transformed, 1.0)).xyz;");
