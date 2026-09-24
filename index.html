@@ -5299,7 +5299,13 @@ function buildLandscape(win, opt = {}) {
     const relax = (k, kk, d) => { if (D[kk] + d < D[k]) { D[k] = D[kk] + d; NL[k] = NL[kk]; } };
     for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) { const k = j * nx + i; if (i) relax(k, k - 1, d1); if (j) { relax(k, k - nx, d1); if (i) relax(k, k - nx - 1, d2); if (i < nx - 1) relax(k, k - nx + 1, d2); } }
     for (let j = nz - 1; j >= 0; j--) for (let i = nx - 1; i >= 0; i--) { const k = j * nx + i; if (i < nx - 1) relax(k, k + 1, d1); if (j < nz - 1) { relax(k, k + nx, d1); if (i < nx - 1) relax(k, k + nx + 1, d2); if (i) relax(k, k + nx - 1, d2); } }
-    for (let k = 0; k < n; k++) if (isNaN(WL[k])) SD[k] = Math.min(SD[k] < 1e8 ? SD[k] : 1e9, D[k] - h * 0.5); }
+    for (let k = 0; k < n; k++) if (isNaN(WL[k])) SD[k] = Math.min(SD[k] < 1e8 ? SD[k] : 1e9, D[k] - h * 0.5);
+    /* 水里也要离岸距离（湖心为负的大值）：从陆地向水里再做一遍距离变换 */
+    const Dw = new Float32Array(n); for (let k = 0; k < n; k++) Dw[k] = isNaN(WL[k]) ? 0 : 1e9;
+    const rw = (k, kk, d) => { if (Dw[kk] + d < Dw[k]) Dw[k] = Dw[kk] + d; };
+    for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) { const k = j * nx + i; if (i) rw(k, k - 1, d1); if (j) { rw(k, k - nx, d1); if (i) rw(k, k - nx - 1, d2); if (i < nx - 1) rw(k, k - nx + 1, d2); } }
+    for (let j = nz - 1; j >= 0; j--) for (let i = nx - 1; i >= 0; i--) { const k = j * nx + i; if (i < nx - 1) rw(k, k + 1, d1); if (j < nz - 1) { rw(k, k + nx, d1); if (i < nx - 1) rw(k, k + nx + 1, d2); if (i) rw(k, k + nx - 1, d2); } }
+    for (let k = 0; k < n; k++) if (!isNaN(WL[k]) && Dw[k] < 1e8) SD[k] = Math.min(SD[k], -(Dw[k] - h * 0.5)); }
   /* —— 3. 岸：水格压成河床；岸上从低处向后方抬升；少数岸段陡峭 —— */
   const STEEP = new Uint8Array(n);
   for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
@@ -5335,7 +5341,7 @@ function buildLandscape(win, opt = {}) {
     const m = y2m(Y[k]);
     BI[k] = isW(k) ? "water" : SD[k] < 0.3 && SL[k] < 0.8 ? "shore" : SD[k] < 0.75 && !STEEP[k] && SL[k] < 0.6 && ((i * 7 + j * 13) % 5 > 0 || SD[k] < 0.5) ? "wetland" : Y[k] > snowY ? "snow" : SL[k] > 2.6 || (m > 1600 && SL[k] > 1.8) ? "rock" : m > 700 || AMPL[k] > 1.2 ? "mountain" : AMPL[k] > 0.35 || SL[k] > 0.8 ? "hillside" : "plain";
   }
-  const res = { win, h, nx, nz, x0, z0, Y, WL, SD, SL, BI, STEEP, CLIFF, AMPL, ms: 0,
+  const res = { win, h, nx, nz, x0, z0, Y, WL, SD, SL, BI, STEEP, CLIFF, AMPL, PT, ms: 0,
     /** 地形查询：植被与后续模块只从这里取高度、坡度、分区与离岸距离 */
     sample(x, z) { const i = Math.floor((x - x0) / h), j = Math.floor((z - z0) / h); if (i < 0 || j < 0 || i >= nx || j >= nz) return null; const k = j * nx + i; return { height: Y[k], slope: SL[k], biome: BI[k], shoreDistance: SD[k], water: isW(k) ? WL[k] : null }; },
   };
@@ -5409,6 +5415,113 @@ function landscapeMesh(T, dbg) {
   };
   return { terrain: new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 })), water: new THREE.Mesh(wg, wm), tris: P.length / 9 + WP.length / 9 };
 }
+/* ================================================================
+   地形预览的植被（第四至六步）：只读 buildLandscape 的查询数据（高度、坡度、分区、离岸距离），与地形同一套高度，
+   不另算高度函数。树木用地图现有资产（直立松、横枝松、柳、阔叶、桃、竹）与地被（草簇、灌木、芦苇、卵石），
+   尺度按植物尺度规范（plantScale / decoScale）。
+   · 生态分区各有规则：
+     山地 —— 松为主（陡坡边缘横枝松），低处杂以阔叶；山顶（邻域最高处）、裸岩、积雪、崖区不栽乔木，只点灌木；
+     丘陵 —— 松与阔叶成片（林片噪声定优势树种）；平原 —— 阔叶林团与大片留白；
+     河岸 —— 柳树成簇、只栽在稳定岸地（离岸 ≥ 0.25、坡缓），不下水；芦苇成丛落在浅水与滩边，卵石、草簇沿岸点缀；
+   · 景观空间：密林 / 疏林 / 留白由低频噪声切分；成簇：簇心噪声 + 树冠间距约束（按规范冠幅，空间哈希）；
+   · 禁种：名胜微缩景及外扩一圈、建筑占用与入口（沿用全国图 bldBlocked）、地标视线通道（inSightline）；
+   · 渲染：按「树种:变体 × 细节级」分批 InstancedMesh；三级 LOD 按到镜头距离分桶（近 < 6、中 < 16、远），
+     镜头移动超过 0.6 单位才重新分桶，切换带回差；地被只在近、中距离显示。
+   ================================================================ */
+function buildLandscapeFlora(T, sc) {
+  const t0 = performance.now(), R = mulberry32(20260925);
+  const { nx, nz, h, x0, z0, Y, SL, BI, SD, STEEP, CLIFF } = T, PT = T.PT || new Uint8Array(nx * nz);
+  const at = (i, j) => clamp(j, 0, nz - 1) * nx + clamp(i, 0, nx - 1);
+  /* 禁种：微缩景外扩 2 格 */
+  const RES = new Uint8Array(nx * nz);
+  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) if (PT[j * nx + i]) for (let dj = -2; dj <= 2; dj++) for (let di = -2; di <= 2; di++) RES[at(i + di, j + dj)] = 1;
+  /* 山顶：5×5 邻域里最高的一圈（高于邻域最高 − 0.15）且有起伏 */
+  const TOP = new Uint8Array(nx * nz);
+  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) { const k = j * nx + i; let mx = -1e9, mn = 1e9; for (let dj = -3; dj <= 3; dj++) for (let di = -3; di <= 3; di++) { const y = Y[at(i + di, j + dj)]; mx = Math.max(mx, y); mn = Math.min(mn, y); } if (Y[k] >= mx - 0.15 && mx - mn > 0.8) TOP[k] = 1; }
+  const MIX = {
+    mountain: (u) => (u < 0.72 ? "pine" : u < 0.84 ? "lpine" : "broad"),
+    hillside: (u) => (u < 0.5 ? "broad" : u < 0.92 ? "pine" : "bamboo"),
+    plain: (u) => (u < 0.9 ? "broad" : "willow"),
+    wetland: (u) => (u < 0.8 ? "willow" : "broad"),
+    shore: (u) => "willow",
+  };
+  const DENS = { mountain: [0.55, 0.16], hillside: [0.45, 0.14], plain: [0.32, 0.05], wetland: [0.42, 0.12], shore: [0.3, 0.1] };   // [密林, 疏林]（每格期望株数）
+  const QS3 = { mountain: [0.22, 0.52], hillside: [0.3, 0.68], plain: [0.62, 0.86], wetland: [0.35, 0.8], shore: [0.4, 0.85] };      // [留白上限, 疏林上限]
+  const trees = [], deco = [], stats = { reject: {}, zone: {} };
+  const rej = (why) => (stats.reject[why] = (stats.reject[why] || 0) + 1);
+  const HS = new Map(), hkey = (x, z) => Math.floor(x / 0.5) + "," + Math.floor(z / 0.5);
+  const spaced = (x, z, r) => { for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) for (const o of HS.get((Math.floor(x / 0.5) + a) + "," + (Math.floor(z / 0.5) + b)) || []) if (Math.hypot(o[0] - x, o[1] - z) < (o[2] + r) * 0.85) return false; return true; };
+  const u01 = (n) => 0.5 + 0.5 * n;
+  for (let j = 1; j < nz - 1; j++) for (let i = 1; i < nx - 1; i++) {
+    const k = j * nx + i, b = BI[k], x = x0 + (i + 0.5) * h, z = z0 + (j + 0.5) * h;
+    /* —— 地被：按分区挑种类，局部成簇 —— */
+    const clump = u01(nB(x * 1.1 + 5, z * 1.1));
+    if (b === "water" && SD[k] > -0.35 && R() < 0.45 * clump) deco.push(["reeds", x + (R() - 0.5) * h, T.WL[k] - 0.02, z + (R() - 0.5) * h]);   // 浅水芦苇
+    else if (b === "shore") { if (R() < 0.5 * clump) deco.push([R() < 0.55 ? "reeds" : "pebble", x + (R() - 0.5) * h, Y[k], z + (R() - 0.5) * h]); if (R() < 0.25) deco.push(["pebble", x + (R() - 0.5) * h, Y[k], z + (R() - 0.5) * h]); }
+    else if (b === "wetland") { if (R() < 0.45 * clump) deco.push([R() < 0.4 ? "reeds" : R() < 0.7 ? "tuft" : "shrub", x + (R() - 0.5) * h, Y[k], z + (R() - 0.5) * h]); }
+    else if (b === "rock" || b === "snow" || CLIFF[k]) { if (b !== "snow" && R() < 0.12) deco.push([R() < 0.6 ? "shrub" : "stone", x, Y[k], z]); }
+    else if (R() < 0.22 * clump) deco.push([b === "mountain" ? (R() < 0.5 ? "shrub" : "tuft2") : R() < 0.6 ? "tuft" : "shrub", x + (R() - 0.5) * h, Y[k], z + (R() - 0.5) * h]);
+    /* —— 乔木 —— */
+    if (!DENS[b]) { rej(b); continue; }
+    if (RES[k]) { rej("微缩景禁种"); continue; }
+    if (STEEP[k] || CLIFF[k]) { rej("崖与陡岸"); continue; }
+    if (TOP[k] && R() < 0.85) { rej("山顶"); continue; }
+    if (SL[k] > 2.2) { rej("陡坡"); continue; }
+    if ((b === "shore" || b === "wetland") && (SD[k] < 0.25 || SL[k] > 0.9)) { rej("岸边不稳"); continue; }
+    const u = spaceU(x * 4.2, z * 4.2), Qz = QS3[b], space = u < Qz[0] ? "open" : u < Qz[1] ? "sparse" : "dense";
+    if (space === "open") { rej("留白"); continue; }
+    /* 成簇：簇心噪声调制期望株数；柳树沿岸成簇而非等距 */
+    const cl = b === "shore" || b === "wetland" || (SD[k] < 1.4 && SL[k] < 1.0) ? smooth(0.15, 0.7, u01(nC(x * 0.9 + 3, z * 0.9 - 8))) : 0.4 + 0.6 * smooth(0.2, 0.8, clump);
+    let nT = DENS[b][space === "dense" ? 0 : 1] * cl * (h / 0.19) ** 2 * 2.2;
+    nT = Math.floor(nT) + (R() < nT % 1 ? 1 : 0);
+    for (let q = 0; q < nT; q++) {
+      const tx = x + (R() - 0.5) * h * 0.9, tz = z + (R() - 0.5) * h * 0.9;
+      const zoneU = u01(nD(tx * 0.9 + 41, tz * 0.9 - 17)) * 0.8 + R() * 0.2;   // 林片：同一片同一优势树种，两成混种
+      const nearWater = SD[k] < 1.4 && SL[k] < 1.0 && (b === "plain" || b === "hillside" || b === "wetland" || b === "shore");   // 岸后缓坡带：柳为主
+      let sp = nearWater ? (zoneU < 0.78 ? "willow" : "broad") : MIX[b](zoneU); if (b === "mountain" && sp === "lpine" && SL[k] < 1.0) sp = "pine";   // 横枝松只在陡坡边
+      const key = treeKey(sp, R, nearWater ? "riverside" : b), s0 = plantScale(key, R) * (b === "mountain" && Y[k] > 3.5 ? 0.85 : 1);
+      const r = plantDim(key).w * s0 * 0.42;
+      if (!spaced(tx, tz, r)) { rej("树冠间距"); continue; }
+      if (bldBlocked(tx, tz, r)) { rej("建筑与入口"); continue; }
+      if (inSightline(tx, tz) && plantDim(key).h * s0 > 0.38) { rej("地标视线"); continue; }
+      trees.push({ key, x: tx, y: Y[k], z: tz, s: s0, rot: R() * 6.283, g: 0.9 + R() * 0.2 });
+      const hk = hkey(tx, tz); if (!HS.has(hk)) HS.set(hk, []); HS.get(hk).push([tx, tz, r]);
+      stats.zone[b] = (stats.zone[b] || 0) + 1;
+    }
+  }
+  /* —— 实例化：每个 树种:变体 × 细节级 一个 InstancedMesh（容量按总数），每帧按距离分桶 —— */
+  const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0 });
+  const byKey = {}; for (const t of trees) (byKey[t.key] = byKey[t.key] || []).push(t);
+  const meshes = {};
+  for (const key in byKey) for (const d of [2, 1, 0]) {
+    const m = new THREE.InstancedMesh(treeGeoKey(key, d), mat, byKey[key].length); m.count = 0; m.castShadow = d > 0; m.receiveShadow = true; m.frustumCulled = false; sc.add(m); meshes[key + "@" + d] = m;
+  }
+  const decoMeshes = {}, byDeco = {}; for (const d of deco) (byDeco[d[0]] = byDeco[d[0]] || []).push(d);
+  const M4 = new THREE.Matrix4(), Qn = new THREE.Quaternion(), E3 = new THREE.Euler(), V3 = new THREE.Vector3(), S3 = new THREE.Vector3(), Cc = new THREE.Color();
+  for (const kd in byDeco) {
+    const L = byDeco[kd], m = new THREE.InstancedMesh(decoGeo(kd), mat, L.length); m.receiveShadow = true; m.frustumCulled = false;
+    L.forEach((d, n) => { const s1 = decoScale(kd, R); E3.set(0, R() * 6.283, 0); Qn.setFromEuler(E3); V3.set(d[1], d[2], d[3]); S3.set(s1, s1, s1); m.setMatrixAt(n, M4.compose(V3, Qn, S3)); });
+    m.instanceMatrix.needsUpdate = true; sc.add(m); decoMeshes[kd] = m;
+  }
+  const LODR = [6, 16];
+  let last = null;
+  function update(cam, force) {
+    if (!force && last && last.distanceTo(cam.position) < 0.6) return;
+    last = cam.position.clone();
+    const cnt = {};
+    for (const t of trees) {
+      const d = Math.hypot(t.x - cam.position.x, t.y - cam.position.y, t.z - cam.position.z), was = t.lod ?? 1;
+      /* 回差：往远换要超出界线 0.8，往近换要进入界线 0.8 以内 */
+      const lod = d < LODR[0] - (was === 2 ? -0.8 : 0.8) ? 2 : d < LODR[1] - (was >= 1 ? -0.8 : 0.8) ? 1 : 0;
+      t.lod = lod; const mk = t.key + "@" + lod, m = meshes[mk], n = (cnt[mk] = (cnt[mk] || 0) + 1) - 1;
+      E3.set(0, t.rot, 0); Qn.setFromEuler(E3); V3.set(t.x, t.y, t.z); S3.set(t.s, t.s, t.s); m.setMatrixAt(n, M4.compose(V3, Qn, S3)); m.setColorAt(n, Cc.setRGB(t.g, t.g, t.g));
+    }
+    for (const mk in meshes) { const m = meshes[mk]; m.count = cnt[mk] || 0; m.visible = m.count > 0; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; }
+    const dd = cam.position.distanceTo(LAB && LAB.ctl ? LAB.ctl.target : cam.position);
+    for (const kd in decoMeshes) decoMeshes[kd].visible = dd < 22;   // 地被：远看不画
+  }
+  return { trees, deco, meshes, decoMeshes, update, stats, ms: performance.now() - t0 };
+}
 function startTerrainLab() {
   TLAB_WIN = TLAB_WINS[QS.get("w")] || TLAB_WINS.sanxia; TLAB_VIEWS = TLAB_WIN.views;
   const sc = new THREE.Scene(); sc.background = new THREE.Color("#ebe4d3");
@@ -5428,7 +5541,9 @@ function startTerrainLab() {
   document.head.appendChild(st); document.body.appendChild(lg);
   const view = (v) => { const p = viewPose(v); ctl.target.copy(p.target); cam.position.copy(p.pos); ctl.update(); };   // 与主地图 setView 同一机位，便于前后对比
   view(TLAB_VIEWS.mtn);
-  LAB = { sc, cam, ctl, T, sun, view: (name) => view(TLAB_VIEWS[name] || name),
+  const FL = QS.get("veg") === "0" ? null : buildLandscapeFlora(T, sc);
+  if (FL) { FL.update(cam, true); lg.innerHTML += `<br>乔木 ${FL.trees.length} 株 · 地被 ${FL.deco.length} · 植被生成 ${FL.ms.toFixed(0)} ms`; }
+  LAB = { sc, cam, ctl, T, sun, FL, tick() { if (FL) FL.update(cam); }, view: (name) => view(TLAB_VIEWS[name] || name),
     /** 调试着色：shore（离岸距离分带）/ biome（分区）/ 空（正常材质） */
     debug(mode) { sc.remove(M.terrain, M.water); M = landscapeMesh(T, mode); M.terrain.castShadow = true; M.terrain.receiveShadow = M.water.receiveShadow = true; sc.add(M.terrain, M.water); return M.tris; },
     get tris() { return M.tris; } };
@@ -5486,7 +5601,7 @@ let boatMesh = null;
 const SPEED = +QS.get("speed") || 1;
 function loop() {
   const dt = Math.min(0.05, clock.getDelta()) * SPEED;
-  if (LAB) { LAB.ctl.update(); renderer.shadowMap.needsUpdate = true; renderer.render(LAB.sc, LAB.cam); requestAnimationFrame(loop); return; }
+  if (LAB) { LAB.ctl.update(); if (LAB.tick) LAB.tick(); renderer.shadowMap.needsUpdate = true; renderer.render(LAB.sc, LAB.cam); requestAnimationFrame(loop); return; }
   renderFrame(dt);
   frames++;
   if (!perfChecked && frames > 30) {
