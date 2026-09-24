@@ -556,7 +556,12 @@ const REGIONS = [
   [[[104,39.8],[107,41.4],[111,41.8],[115,42],[117,43],[119.5,44],[120,42.5],[117.5,41.8],[114.5,41],[111,40.4],[107,39.5]], 1150, 0.8, 260],
   [[[72,19],[72,32],[76,31.5],[79,29.8],[84,27.6],[88,26.6],[92,26.2],[92,21],[80,20]], 120, 0.9, 60],
   [[[101.5,36.5],[103.5,37.8],[105.5,38.5],[107.5,39.2],[110.5,39.4],[112,38.2],[112.3,36],[111.2,34.9],[108,34.8],[105.5,34.7],[103,35.2]], 1250, 0.7, 420, "loess"],
-  [[[97.8,28],[100,28.5],[103,29],[105.5,28.8],[108.5,28.2],[109.3,26.5],[108,25.2],[106,24.3],[104.5,23],[102,22],[100,21.8],[98.5,23.5]], 1600, 0.9, 900],
+  [[[97.8,28],[100,28.5],[103,29],[105.5,28.8],[108.5,28.2],[109.3,26.5],[108,25.2],[106,24.3],[104.5,23],[102,22],[100,21.8],[98.5,23.5]], 1750, 0.9, 700],
+  /* —— 按实际海拔校正 —— */
+  [[[104.6,25.2],[109.2,25.6],[109.2,28.4],[105.2,28.3]], 950, 0.5, 450],                       // 贵州高原（贵阳 1100）
+  [[[110.8,35.3],[114.2,35.8],[114.3,40],[112,40.3],[110.9,38.6]], 950, 0.5, 380],               // 山西高原（太原 800）
+  [[[99.4,35.6],[101.5,35.3],[102.6,35.9],[102.6,37.3],[100.8,37.7],[99.5,37.1]], 2350, 0.35, 350], // 湟水谷地（西宁 2260）
+  [[[102.6,35.4],[104.9,35.4],[104.9,37.1],[102.6,37.1]], 1650, 0.3, 350],                      // 陇中（兰州 1520）
   [[[77,35.8],[80,36.3],[84,36.3],[88,36.6],[92,36.6],[96,36.1],[99.5,35.6],[102,34.4],[103,33],[102.4,31],[101.5,29],[99.8,27.6],[98.5,27.5],[97,28.3],[95,28.9],[92.5,27.7],[89,27.7],[86.5,27.8],[84,28.4],[81.5,29.9],[79,31.4],[77.5,33.2]], 4550, 0.75, 850, "plateau"],
   [[[90.5,37.8],[92.5,38.6],[95.5,37.8],[98,37],[97,36.2],[94,36.3],[91.5,36.9]], 2900, 0.45, 80, "desert"],
   [[[75.5,39.5],[78,40.8],[81,41.4],[84.5,41.8],[88,41.3],[90,40.3],[89.5,38.8],[87,38.1],[84,37.2],[80,37],[77,37.6],[75.5,38.6]], 1100, 0.6, 90, "desert"],
@@ -564,12 +569,17 @@ const REGIONS = [
   [[[82.5,45],[84.5,46.3],[87.5,46.8],[90.5,46],[91,45],[88.5,44.3],[85,44.5]], 450, 0.6, 90, "steppe"],
   [[[88.3,42.95],[89.8,43.1],[90.6,42.7],[89.4,42.45]], 60, 0.3, 30, "gobi"],
   [[[103.6,31.2],[105,32.2],[106.5,32.1],[108,31.2],[107.5,29.8],[106.5,29],[105,28.8],[104,29.2],[103.4,30.2]], 450, 0.45, 260],
+  [[[104,28],[110,30],[116.5,30],[119.2,29.85],[121.9,29.5],[121,26],[117,22.5],[110,21],[104,22]], null, 0.9, 780],
   [[[113.8,40],[117,40.1],[118.3,39.3],[117.9,38.3],[118.8,37.6],[118.2,36.9],[116.5,36.2],[117.3,35.0],[118.5,34.6],[119.3,34.5],[120.6,33.2],[121.3,32.1],[121.8,31.3],[120.8,30.6],[119.3,31.3],[118,31.5],[116.5,31.8],[114.5,32.3],[113.5,33.2],[112.8,34.6],[113.6,35.4],[114,37],[114.2,38.5]], 50, 0.45, 30, "plain"],
   [[[111.5,30.9],[113,31.1],[114.5,30.9],[116,30.2],[117,29.8],[116.8,28.6],[116,28.3],[114.5,29.2],[113.3,28.3],[112.3,28.6],[111.6,29.5]], 35, 0.35, 30, "plain"],
   [[[122.2,41.2],[123.5,42],[124.5,43.5],[125.2,45],[126.2,46.5],[125.5,48],[124,47.8],[123,46.5],[122.3,44.5],[121.8,42.8]], 150, 0.6, 50, "plain"],
   [[[112.5,22.6],[113.2,23.4],[114,23.1],[113.6,22.3]], 20, 0.25, 20, "plain"],
+  [[[111.9,34.45],[113.2,34.45],[113.2,34.85],[111.9,34.85]], 150, 0.15, 60, "plain"],          // 伊洛盆地（洛阳 150）
+  [[[121.4,40.7],[124.0,40.9],[124.3,42.3],[122.2,42.5]], 40, 0.3, 30, "plain"],                  // 辽河平原（沈阳 50）
+  [[[86.3,43.6],[88.6,43.6],[88.6,44.4],[86.3,44.4]], 700, 0.25, 80, "plain"],                    // 乌鲁木齐山前（800）
+  [[[88,29.0],[94,29.1],[94,29.95],[88,29.85]], 3700, 0.25, 250],                                 // 雅鲁藏布谷地（拉萨 3650）
+  [[[119.9,31.05],[121.0,31.05],[121.2,30.6],[120.9,30.35],[121.7,30.1],[121.7,29.85],[120.9,29.9],[120.35,30.05],[120.05,30.2],[119.9,30.55]], 10, 0.25, 20, "plain"],
   [[[107,34.5],[108.5,34.55],[109.5,34.6],[110.3,34.75],[110.2,34.3],[108.5,34.15],[107,34.2]], 400, 0.22, 40, "plain"],
-  [[[104,28],[110,30],[117,30.2],[122,30],[121,26],[117,22.5],[110,21],[104,22]], null, 0.9, 780],
 ];
 /* 山脉：[折线, 高出(米), 半宽(°)] */
 const RANGES = [
@@ -611,9 +621,9 @@ const RANGES = [
 ];
 /* 名山：[经, 纬, 高出(米), 半宽(°)] */
 const PEAKS = [
-  [118.17,30.13,1500,0.2],[116.0,29.57,1200,0.17],[117.1,36.26,1300,0.22],[110.08,34.48,1300,0.15],
-  [113.0,34.48,1000,0.2],[112.7,27.27,1000,0.2],[103.33,29.52,2300,0.2],[117.8,30.48,900,0.16],
-  [113.6,39.0,1700,0.28],[111.0,32.4,1100,0.2],[121.0,29.1,700,0.2],[118.75,30.97,450,0.13],
+  [118.17,30.13,2300,0.2],[116.0,29.57,2200,0.17],[117.1,36.26,2100,0.22],[110.08,34.48,3400,0.2],
+  [113.0,34.48,2700,0.2],[112.7,27.27,1700,0.2],[103.33,29.52,3600,0.2],[117.8,30.48,900,0.16],
+  [113.6,39.0,2600,0.28],[111.0,32.4,1100,0.2],[121.0,29.1,700,0.2],[118.75,30.97,450,0.13],
   [119.4,30.35,800,0.18],[121.05,28.4,700,0.2],[107.8,34.0,1500,0.2],[86.9,27.99,1500,0.3],[101.9,29.6,1400,0.2],
 ];
 /* 江河：[折线, 起宽, 止宽]（宽为半宽，世界单位） */
@@ -815,6 +825,8 @@ async function buildHeights() {
     for (let s = 1; s < lvl.length; s++) lvl[s] = Math.min(lvl[s], lvl[s - 1]);
     for (let it = 0; it < 3; it++) for (let s = 1; s < lvl.length - 1; s++) lvl[s] = Math.min(lvl[s], (lvl[s - 1] + lvl[s] + lvl[s + 1]) / 3);
     for (let s = 0; s < lvl.length; s++) lvl[s] = Math.max(0.04, lvl[s]);
+    /* 水面不许陡：从河口往上游推，每 0.5 单位最多升 0.0125；山地里河道改为下切成谷 */
+    for (let s = lvl.length - 2; s >= 0; s--) lvl[s] = Math.min(lvl[s], lvl[s + 1] + 0.036);
     const nS = samples.length;
     const hwOf = (t) => Math.max(CS * 0.74, lerp(w0 * 0.75, w1, Math.pow(t, 3)));
     forPolyline(pts, Math.max(hwOf(0), hwOf(1)) + 3.2, (k, d, t) => {
@@ -1339,7 +1351,10 @@ function buildWater() {
   /* 名胜微缩景边界：河面顶点对齐微缩景的水位，两边水面无缝相接 */
   for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
     const pi = PATCH_OF[j * W + i]; if (!pi) continue;
-    const wl = PATCHES[pi - 1].wl;
+    const pp = PATCHES[pi - 1], wl = pp.wl;
+    let hasW = false; const a0 = (i - pp.i0) * PATCH_F, b0 = (j - pp.j0) * PATCH_F;
+    for (let b = 0; b < PATCH_F && !hasW; b++) for (let a = 0; a < PATCH_F; a++) if (!isNaN(pp.WL[(b0 + b) * pp.n + a0 + a])) { hasW = true; break; }
+    if (!hasW) continue;
     for (const [da, db] of [[0, 0], [1, 0], [0, 1], [1, 1]]) { const v = (j + db) * (W + 1) + i + da; vy[v] = wl; vc[v] = 1; }
   }
   const pos = [], ind = [], map = new Int32Array((W + 1) * (H + 1)).fill(-1);
@@ -1754,13 +1769,12 @@ const DIORAMAS = [
     P.trees("broad", [[-0.3, -0.75], [0.3, -0.78], [-0.72, -0.2], [0.74, -0.25]]);
   } },
   /* 杭州：城在湖东，西湖居中，苏堤白堤、三潭小岛；西、南群山环抱，南屏雷峰、北山保俶；钱塘江在南 */
-  { names: ["杭州"], dry: 1, low: 1, ops: [
+  { names: ["杭州"], low: 1, ops: [
     { t: "flat", u: 0, v: 0, r: 0.98, sq: 1, level: "low" },
     { t: "hill", u: -0.86, v: -0.28, r: 0.36, h: 0.85 }, { t: "hill", u: -0.8, v: 0.32, r: 0.32, h: 0.7 }, { t: "hill", u: -0.52, v: 0.66, r: 0.3, h: 0.55 }, { t: "hill", u: -0.36, v: -0.8, r: 0.22, h: 0.42 },
     { t: "lake", u: -0.2, v: -0.02, rx: 0.4, rz: 0.52 },
     { t: "land", pts: [[-0.34, -0.52], [-0.38, 0.0], [-0.33, 0.48]], w: 0.035 }, { t: "land", pts: [[-0.22, -0.5], [0.16, -0.4]], w: 0.035 },
     { t: "isle", u: -0.08, v: 0.12, r: 0.07 },
-    { t: "strip", pts: [[-1.2, 0.97], [0.1, 0.9], [1.2, 0.74]], w: 0.09 },
     { t: "flat", u: 0.58, v: -0.12, r: 0.3, sq: 1, pave: 1 },
   ], build(P) {
     P.put("pagoda", { levels: 5 }, -0.5, 0.64, 0, 1.25);
@@ -1790,7 +1804,7 @@ const DIORAMAS = [
     P.grid(-0.8, 0.8, 0.55, 0.85, 0.2, 0.18);
     P.hillTrees("pine", 0, -0.05, 0.55, 12); P.ringTrees(0.9, 10, "willow");
   } },
-  { names: ["庐山"], dry: 1, off: [0, 1], ops: [{ t: "hill", u: -0.46, v: -0.22, r: 0.5, h: 1.3 }, { t: "hill", u: 0.36, v: -0.48, r: 0.46, h: 1.8 }, { t: "hill", u: 0.08, v: 0.5, r: 0.5, h: 0.9 }, { t: "hill", u: -0.62, v: 0.62, r: 0.34, h: 0.6 }, { t: "lake", u: 0.2, v: 0.04, rx: 0.15, rz: 0.12 }], build(P) {
+  { names: ["庐山"], dry: 1, off: [0, 1], ops: [{ t: "hill", u: -0.46, v: -0.22, r: 0.5, h: 3.2 }, { t: "hill", u: 0.36, v: -0.48, r: 0.46, h: 4.6 }, { t: "hill", u: 0.08, v: 0.5, r: 0.5, h: 2.2 }, { t: "hill", u: -0.62, v: 0.62, r: 0.34, h: 1.4 }, { t: "lake", u: 0.2, v: 0.04, rx: 0.15, rz: 0.12 }], build(P) {
     P.waterfall(0.24, -0.12, 0.3, -0.3); P.put("pavilion", {}, 0.36, -0.48, 0, 1.1); P.put("pavilion", {}, -0.46, -0.22, 0, 1);
     P.put("hall", { w: 0.4, d: 0.26, h: 0.12, lanterns: true }, 0.66, 0.66, 0, 1.2); P.put("pagoda", { levels: 5 }, 0.8, 0.4, 0, 1);
     for (const [u, v, r] of [[-0.46, -0.22, 0.5], [0.36, -0.48, 0.46], [0.08, 0.5, 0.5], [-0.62, 0.62, 0.34]]) P.hillTrees("pine", u, v, r, 9);
@@ -2429,8 +2443,8 @@ function buildClouds() {
    11. 天色（氛围）
    ================================================================ */
 const MOODS = {
-  dawn:  { name: "晨", sun: [0.8, 0.38, 0.3], sunC: "#ffd6aa", sunI: 2.0, hemiS: "#d9dde6", hemiG: "#b39c86", hemiI: 1.28, fog: "#ebe3da", dens: 0.0026, top: "#94b0d0", hor: "#f2dccb", glow: 0.6, mist: 0.16, night: 0, exp: 1.18, bloom: 0.22, tint: "#f2e6e6" },
-  day:   { name: "昼", sun: [0.3, 0.85, 0.55], sunC: "#fff3e2", sunI: 3.4, hemiS: "#e8f1f4", hemiG: "#cdb386", hemiI: 1.38, fog: "#e2e6dc", dens: 0.0015, top: "#6ea7c6", hor: "#ede6d0", glow: 0.35, mist: 0.02, night: 0, exp: 1.2, bloom: 0.18, tint: "#ffffff" },
+  dawn:  { name: "晨", sun: [0.8, 0.38, 0.3], sunC: "#ffd6aa", sunI: 2.0, hemiS: "#d9dde6", hemiG: "#b39c86", hemiI: 1.18, fog: "#ebe3da", dens: 0.0026, top: "#94b0d0", hor: "#f2dccb", glow: 0.6, mist: 0.16, night: 0, exp: 1.1, bloom: 0.22, tint: "#f2e6e6" },
+  day:   { name: "昼", sun: [0.3, 0.85, 0.55], sunC: "#fff3e2", sunI: 2.9, hemiS: "#e4eef2", hemiG: "#c6ab7c", hemiI: 1.2, fog: "#e2e6dc", dens: 0.0015, top: "#6ea7c6", hor: "#ede6d0", glow: 0.35, mist: 0.02, night: 0, exp: 1.06, bloom: 0.18, tint: "#ffffff" },
   dusk:  { name: "暮", sun: [-0.75, 0.33, 0.3], sunC: "#ffb070", sunI: 2.5, hemiS: "#c4c8d6", hemiG: "#a47f60", hemiI: 1.12, fog: "#e6c7a0", dens: 0.0022, top: "#8298b0", hor: "#f2c38e", glow: 0.9, mist: 0.08, night: 0.2, exp: 1.16, bloom: 0.3, tint: "#c9a88a" },
   night: { name: "夜", sun: [0.35, 0.6, -0.5], sunC: "#b4c6ff", sunI: 0.8, hemiS: "#667aa6", hemiG: "#2c3440", hemiI: 0.85, fog: "#2e3b57", dens: 0.0026, top: "#122038", hor: "#384a6c", glow: 0.25, mist: 0.1, night: 1, exp: 1.4, bloom: 0.55, tint: "#33475e" },
 };
@@ -3029,7 +3043,7 @@ const riverLines = [];
 function buildRiverLines() {
   const { Line2, LineMaterial, LineGeometry } = window.THREE_ADDONS;
   if (!Line2) return;
-  [[RIVERS[0][0], 0x2f6f96], [RIVERS[1][0], 0xb07a24]].forEach(([pts, col]) => {
+  [[RIVERS[0][0], 0x3f86b0], [RIVERS[1][0], 0xc2903a]].forEach(([pts, col]) => {
     const P = pts.map(([lng, lat]) => [wx(lng), wz(lat)]), pos = [];
     for (let i = 0; i < P.length - 1; i++) {
       const p0 = P[Math.max(0, i - 1)], p1 = P[i], p2 = P[i + 1], p3 = P[Math.min(P.length - 1, i + 2)];
@@ -3041,14 +3055,14 @@ function buildRiverLines() {
       }
     }
     const g = new LineGeometry(); g.setPositions(pos);
-    const m = new LineMaterial({ color: col, linewidth: 3, transparent: true, opacity: 0, depthWrite: false, worldUnits: false });
+    const m = new LineMaterial({ color: col, linewidth: 1.6, transparent: true, opacity: 0, depthWrite: false, worldUnits: false });
     m.resolution.set(innerWidth, innerHeight);
     const l = new Line2(g, m); l.computeLineDistances(); l.renderOrder = 4; l.frustumCulled = false; scene.add(l); riverLines.push(l);
   });
 }
 function tickWallLine() {
-  const d0 = camera.position.distanceTo(controls.target), o0 = smooth(38, 95, d0) * 0.85;
-  for (const l of riverLines) { l.material.opacity = o0; l.visible = o0 > 0.01; l.material.linewidth = 2 + smooth(95, 400, d0) * 1.6; }
+  const d0 = camera.position.distanceTo(controls.target), o0 = smooth(45, 110, d0) * 0.5;
+  for (const l of riverLines) { l.material.opacity = o0; l.visible = o0 > 0.01; l.material.linewidth = 1.3 + smooth(110, 400, d0) * 0.9; }
   if (!wallLine) return;
   const d = camera.position.distanceTo(controls.target), o = smooth(38, 95, d) * 0.9;
   wallLine.material.opacity = o; wallLine.visible = o > 0.01;
@@ -3703,7 +3717,7 @@ document.addEventListener("visibilitychange", () => { if (audio) (document.hidde
     setTimeout(openFromHash, 400);
     setTimeout(loadPoemFont, 3500);
     addEventListener("hashchange", () => { if (!curPlace || !location.hash.includes(curPlace.poems[curPoem].id)) openFromHash(); });
-    window.__app = { THREE, scene, camera, controls, renderer, PLACES, VIEWS, flyView, setMood, setSeason, setWeather, GU, get TOUR() { return TOUR; }, TS, tourPlan, groundAt, nearFlora, PATCHES, get EXTRA() { return EXTRA_TREES; }, get flora() { return floraMeshes; }, tourAt(i) { startTour(); tourGo(i); }, startTour, stopTour, HOME, get autoFocus() { return autoFocus; }, openPlace, openPoem, closeAll, get listOpen() { return listOpen; }, get scrollOpen() { return scrollOpen; }, applyQuality, get quality() { return QUALITY; }, viewPose,
+    window.__app = { THREE, scene, camera, controls, renderer, PLACES, VIEWS, flyView, setMood, setSeason, setWeather, GU, get TOUR() { return TOUR; }, TS, tourPlan, groundAt, nearFlora, PATCHES, landAt, wx, wz, y2m, get EXTRA() { return EXTRA_TREES; }, get flora() { return floraMeshes; }, tourAt(i) { startTour(); tourGo(i); }, startTour, stopTour, HOME, get autoFocus() { return autoFocus; }, openPlace, openPoem, closeAll, get listOpen() { return listOpen; }, get scrollOpen() { return scrollOpen; }, applyQuality, get quality() { return QUALITY; }, viewPose,
       setView(v) { const { target, pos } = viewPose(v); controls.target.copy(target); camera.position.copy(pos); fly = null; controls.update(); },
       cell(lng, lat) { const k = idx(wx(lng), wz(lat)); return { y: TY[k], m: Math.round(y2m(TY[k])), kind: KIND[k], snow: SNOW[k], col: [...TOPC.slice(k * 3, k * 3 + 3)].map((v) => +v.toFixed(2)) }; },
       bench(n = 60) { const gl = renderer.getContext(); composer.render(); gl.finish(); const t = performance.now(); for (let i = 0; i < n; i++) { if (window.__benchShadow) renderer.shadowMap.needsUpdate = true; composer.render(); } gl.finish(); return +((performance.now() - t) / n).toFixed(2); },
