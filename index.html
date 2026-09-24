@@ -275,6 +275,41 @@ body.panel-open .sbar{opacity:1;pointer-events:auto}
 @keyframes rollerIn{from{transform:translateX(var(--sw,900px))}to{transform:none}}
 @keyframes rollerOut{from{transform:none}to{transform:translateX(var(--sw,900px))}}
 
+/* ———— 诗人足迹 ———— */
+#trailPanel{position:fixed;z-index:9;left:18px;top:90px;bottom:84px;width:300px;display:flex;flex-direction:column;padding:8px;border-radius:3px;background:var(--brocade);
+  box-shadow:0 20px 46px rgba(30,20,8,.34),inset 0 0 0 1px rgba(40,60,50,.4);opacity:0;visibility:hidden;transform:translateX(-20px);transition:opacity .4s,transform .4s,visibility 0s linear .4s}
+#trailPanel.on{opacity:1;visibility:visible;transform:none;transition:opacity .4s,transform .4s}
+.tr-h{position:relative;display:flex;align-items:center;gap:10px;padding:12px 40px 10px 12px;background:var(--xuan),linear-gradient(180deg,#f7f0de,#f1e7cf);border-bottom:1px solid rgba(177,64,44,.35)}
+.tr-seal{writing-mode:vertical-rl;padding:5px 3px;background:var(--c,#b1402c);color:#f7ecdd;font-size:12.5px;letter-spacing:3px;border-radius:2px;line-height:1.1}
+.tr-n{font-family:var(--brush);font-size:30px;letter-spacing:6px;line-height:1.1}
+.tr-y{font-size:12.5px;color:var(--ink3);letter-spacing:1px;margin-top:3px}
+.tr-x{position:absolute;right:8px;top:10px;width:30px;height:30px;border-radius:50%;border:0;background:rgba(60,48,36,.08);font:inherit;font-size:16px;cursor:pointer;color:var(--ink2)}
+#trList{list-style:none;margin:0;padding:6px 8px 6px 10px;flex:1;overflow-y:auto;background:var(--xuan),linear-gradient(180deg,#f4ecd6,#efe4c9);scrollbar-width:thin;scrollbar-color:rgba(150,100,60,.35) transparent;counter-reset:st}
+#trList li{position:relative;display:flex;gap:10px;padding:7px 4px 7px 18px;cursor:pointer;border-radius:2px;opacity:.45;transition:opacity .35s,background .2s}
+#trList li::before{content:"";position:absolute;left:4px;top:12px;width:7px;height:7px;border-radius:50%;background:var(--c);box-shadow:0 0 0 2px rgba(246,239,222,.9)}
+#trList li::after{content:"";position:absolute;left:7px;top:22px;bottom:-12px;width:1px;background:linear-gradient(var(--c),transparent)}
+#trList li:last-child::after{display:none}
+#trList li.done{opacity:1}
+#trList li.cur{background:rgba(177,64,44,.08)}
+#trList li:hover{background:rgba(177,64,44,.1)}
+#trList b{flex:none;width:3.1em;font-weight:400;font-size:13px;color:var(--c);padding-top:1px}
+#trList span{font-size:16px;letter-spacing:2px;color:#1a1612}
+#trList p{margin:2px 0 0;font-size:12.5px;line-height:1.6;color:var(--ink2)}
+.tr-b{display:flex;gap:6px;padding:8px 6px 4px;background:linear-gradient(180deg,#efe4c9,#ebdfc2)}
+.tr-b button{flex:1;height:30px;border:1px solid rgba(120,90,50,.3);border-radius:15px;background:rgba(255,255,255,.4);font:inherit;font-size:13.5px;letter-spacing:2px;cursor:pointer;color:var(--ink2)}
+.tr-b button:hover{background:#fff}
+.tr-pt{position:absolute;left:0;top:0;width:0;height:0;opacity:0;transition:opacity .5s;pointer-events:none}
+.tr-pt.on{opacity:1}
+.tr-pt i{position:absolute;left:-6px;top:-6px;width:12px;height:12px;border-radius:50%;background:var(--c);box-shadow:0 0 0 3px rgba(246,239,222,.9),0 2px 6px rgba(0,0,0,.3)}
+.tr-pt span{position:absolute;left:10px;top:-24px;white-space:nowrap;font-size:13.5px;letter-spacing:1px;color:#1a1612;background:rgba(247,240,224,.92);padding:2px 7px;border-radius:2px;box-shadow:0 0 0 1px rgba(120,90,50,.25),0 2px 5px rgba(30,20,10,.18)}
+.tr-pt em{font-style:normal;font-size:11px;color:var(--c);margin-left:5px}
+.tr-head{position:absolute;left:0;top:0;width:0;height:0;opacity:0;pointer-events:none}
+.tr-head::before{content:"";position:absolute;left:-8px;top:-8px;width:16px;height:16px;border-radius:50%;background:radial-gradient(circle,var(--c) 0 40%,transparent 72%);animation:pulse 1.2s ease-in-out infinite}
+body.trail-on #labels .lbl{opacity:0!important;pointer-events:none}
+body.trail-on #labels .lbl .in{pointer-events:none}
+body.trail-on #dock,body.trail-on #search,body.trail-on #hint{opacity:0;pointer-events:none}
+.sbar .trail{background:rgba(45,93,113,.12);color:#2d5d71}
+.sbar .trail:hover{background:rgba(45,93,113,.22);color:#1f4555}
 /* ———— 加载 ———— */
 #loader{position:fixed;inset:0;z-index:20;display:grid;place-items:center;background:radial-gradient(ellipse at 50% 40%,#f3ead6,#e2d5b8);transition:opacity .9s ease}
 #loader.done{opacity:0;pointer-events:none}
@@ -322,6 +357,7 @@ body.panel-open .sbar{opacity:1;pointer-events:auto}
   .sbar{bottom:calc(14px + var(--safe-b))!important;gap:0;padding:4px}
   .sbar button{padding:0 9px;font-size:13.5px;letter-spacing:1px}
   .yin,.yin + .gs{display:none}
+  #trailPanel{left:10px;right:10px;top:auto;bottom:calc(10px + var(--safe-b));width:auto;height:40vh}
   #plist{left:10px!important;right:10px;top:auto!important;bottom:calc(10px + var(--safe-b));width:auto;padding:7px;transform:none!important}
   #plist .lead{display:none}
   #plo{max-height:46vh}
@@ -385,13 +421,18 @@ body.panel-open .sbar{opacity:1;pointer-events:auto}
   <button class="pl-x" id="plx" aria-label="关闭">×</button>
 </div>
 <div id="veil"></div>
+<aside id="trailPanel" aria-label="诗人足迹">
+  <div class="tr-h"><div class="tr-seal">足迹</div><div><div class="tr-n" id="trName"></div><div class="tr-y" id="trYears"></div></div><button class="tr-x" id="trX" aria-label="关闭">×</button></div>
+  <ol id="trList"></ol>
+  <div class="tr-b"><button id="trAll">全程</button><button id="trReplay">重播</button></div>
+</aside>
 <div id="scroll" aria-hidden="true" aria-label="诗卷" role="dialog">
   <div class="roller"></div>
   <div class="strip"><div class="track" id="track"></div></div>
   <div class="stick"><i class="band"></i><i class="jade"></i></div>
 </div>
 <div class="sbar" id="sbar">
-  <button id="sPrev">‹ 上一首</button><button id="sList">诗目</button><span class="cnt" id="sCnt"></span><button id="sNext">下一首 ›</button><button class="shut" id="sx" title="收卷 (Esc)">收卷</button>
+  <button id="sPrev">‹ 上一首</button><button id="sList">诗目</button><span class="cnt" id="sCnt"></span><button id="sNext">下一首 ›</button><button class="trail" id="sTrail" title="在全国地图上看诗人一生的足迹">诗人足迹</button><button class="shut" id="sx" title="收卷 (Esc)">收卷</button>
 </div>
 
 <div id="loader"><div class="in"><div class="ring"></div><h2>山河诗卷</h2><div class="st" id="lst">研墨</div><div class="bar"><i id="lbar"></i></div><div class="err" id="lerr"></div></div></div>
@@ -1804,8 +1845,8 @@ const DIORAMAS = [
     P.grid(-0.8, 0.8, 0.55, 0.85, 0.2, 0.18);
     P.hillTrees("pine", 0, -0.05, 0.55, 12); P.ringTrees(0.9, 10, "willow");
   } },
-  { names: ["庐山"], dry: 1, off: [0, 1], ops: [{ t: "hill", u: -0.46, v: -0.22, r: 0.5, h: 3.2 }, { t: "hill", u: 0.36, v: -0.48, r: 0.46, h: 4.6 }, { t: "hill", u: 0.08, v: 0.5, r: 0.5, h: 2.2 }, { t: "hill", u: -0.62, v: 0.62, r: 0.34, h: 1.4 }, { t: "lake", u: 0.2, v: 0.04, rx: 0.15, rz: 0.12 }], build(P) {
-    P.waterfall(0.24, -0.12, 0.3, -0.3); P.put("pavilion", {}, 0.36, -0.48, 0, 1.1); P.put("pavilion", {}, -0.46, -0.22, 0, 1);
+  { names: ["庐山"], dry: 1, off: [0, 1], ops: [{ t: "hill", u: -0.46, v: -0.22, r: 0.5, h: 3.2 }, { t: "hill", u: 0.36, v: -0.48, r: 0.46, h: 4.6 }, { t: "hill", u: 0.08, v: 0.5, r: 0.5, h: 2.2 }, { t: "hill", u: -0.62, v: 0.62, r: 0.34, h: 1.4 }, { t: "lake", u: 0.14, v: 0.1, rx: 0.17, rz: 0.13 }, { t: "fall", u: 0.17, v: -0.06, tu: 0.34, tv: -0.44, w: 0.12 }], build(P) {
+    P.put("pavilion", {}, 0.36, -0.48, 0, 1.1); P.put("pavilion", {}, -0.46, -0.22, 0, 1);
     P.put("hall", { w: 0.4, d: 0.26, h: 0.12, lanterns: true }, 0.66, 0.66, 0, 1.2); P.put("pagoda", { levels: 5 }, 0.8, 0.4, 0, 1);
     for (const [u, v, r] of [[-0.46, -0.22, 0.5], [0.36, -0.48, 0.46], [0.08, 0.5, 0.5], [-0.62, 0.62, 0.34]]) P.hillTrees("pine", u, v, r, 9);
   } },
@@ -1837,6 +1878,65 @@ const DIORAMAS = [
   } },
 ];
 const PATCH_PLACES = new Set();
+/* —— 瀑布 —— */
+const FALLS = [];
+const fallMat = new THREE.ShaderMaterial({
+  transparent: true, depthWrite: false, side: THREE.DoubleSide,
+  uniforms: { uTime: GU.uTime, uNight: GU.uNight },
+  vertexShader: `varying vec2 vUv; varying vec3 vW; void main(){ vUv = uv; vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
+  fragmentShader: `uniform float uTime, uNight; varying vec2 vUv; varying vec3 vW;
+    float h21(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
+    float vn(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.-2.*f); return mix(mix(h21(i),h21(i+vec2(1,0)),f.x),mix(h21(i+vec2(0,1)),h21(i+vec2(1,1)),f.x),f.y); }
+    void main(){
+      float x = vUv.x, y = vW.y;
+      float s1 = vn(vec2(x * 22.0, y * 2.2 + uTime * 3.2)), s2 = vn(vec2(x * 47.0 + 3.0, y * 4.5 + uTime * 5.0));
+      float streak = smoothstep(0.45, 0.85, s1 * 0.6 + s2 * 0.4);
+      float edge = smoothstep(0.0, 0.14, x) * smoothstep(1.0, 0.86, x);
+      vec3 deep = vec3(0.36, 0.62, 0.7), foam = vec3(0.95, 0.98, 1.0);
+      vec3 c = mix(deep, foam, 0.35 + streak * 0.65);
+      c *= 1.0 - uNight * 0.55;
+      float a = (0.62 + streak * 0.36) * edge;
+      gl_FragColor = vec4(c, a);
+    }`,
+});
+const mistMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false,
+  uniforms: { uTime: GU.uTime, uNight: GU.uNight },
+  vertexShader: `attribute vec4 aSeed; uniform float uTime; varying float vA; varying vec2 vQ;
+    void main(){ vQ = position.xy; float t = fract(uTime * 0.35 + aSeed.w);
+      vec3 wp = aSeed.xyz + vec3(sin(aSeed.w * 30.0) * t * 0.35, t * 0.55, cos(aSeed.w * 23.0) * t * 0.35);
+      vec4 mv = viewMatrix * vec4(wp, 1.0); mv.xy += position.xy * (0.12 + t * 0.35);
+      vA = smoothstep(0.0, 0.2, t) * (1.0 - smoothstep(0.45, 1.0, t)); gl_Position = projectionMatrix * mv; }`,
+  fragmentShader: `uniform float uNight; varying float vA; varying vec2 vQ; void main(){ float a = smoothstep(0.5, 0.0, length(vQ)) * vA * 0.55; if (a < 0.01) discard; gl_FragColor = vec4(vec3(0.96, 0.98, 1.0) * (1.0 - uNight * 0.5), a); }`,
+});
+function buildFalls() {
+  for (const f of FALLS) {
+    const g = new THREE.Group();
+    const dir = new THREE.Vector3(f.tx - f.x, 0, f.tz - f.z).normalize(), rot = Math.atan2(dir.x, dir.z);
+    /* 分三级跌落：每级之间一块突出的岩台，水面略向外 */
+    const H = f.y1 - f.y0, steps = 1;
+    for (let q = 0; q < steps; q++) {
+      const ya = f.y0 + H * q / steps, yb = f.y0 + H * (q + 1) / steps, back = (steps - 1 - q) * 0.12;
+      const w = f.w * (1 - q * 0.12);
+      const pl = new THREE.Mesh(new THREE.PlaneGeometry(w, yb - ya + 0.02), fallMat);
+      pl.position.set(f.x + dir.x * back, (ya + yb) / 2, f.z + dir.z * back); pl.rotation.y = rot;
+      g.add(pl);
+      const ledge = new THREE.Mesh(new THREE.BoxGeometry(w + 0.14, 0.08, 0.2), terrainLedgeMat);
+      ledge.position.set(f.x + dir.x * (back + 0.06), ya - 0.04, f.z + dir.z * (back + 0.06)); ledge.rotation.y = rot; ledge.castShadow = true;
+      if (q) g.add(ledge);
+    }
+    /* 潭：一圈白浪 */
+    const pool = new THREE.Mesh(new THREE.CircleGeometry(f.w * 0.9, 20), new THREE.MeshBasicMaterial({ color: 0xeef6f7, transparent: true, opacity: 0.55, depthWrite: false }));
+    pool.rotation.x = -Math.PI / 2; pool.position.set(f.x - dir.x * 0.18, f.y0 + 0.03, f.z - dir.z * 0.18); g.add(pool);
+    /* 水雾 */
+    const n = 26, seeds = new Float32Array(n * 4), R = mulberry32(77);
+    for (let q = 0; q < n; q++) seeds.set([f.x - dir.x * 0.2 + (R() - 0.5) * f.w, f.y0 + 0.05, f.z - dir.z * 0.2 + (R() - 0.5) * f.w, q / n + R() * 0.03], q * 4);
+    const mg = new THREE.InstancedBufferGeometry(), pg = new THREE.PlaneGeometry(1, 1);
+    mg.index = pg.index; mg.attributes.position = pg.attributes.position; mg.setAttribute("aSeed", new THREE.InstancedBufferAttribute(seeds, 4)); mg.instanceCount = n;
+    const mist = new THREE.Mesh(mg, mistMat); mist.frustumCulled = false; mist.renderOrder = 6; g.add(mist);
+    scene.add(g);
+  }
+}
+const terrainLedgeMat = new THREE.MeshStandardMaterial({ color: 0x7c8a8c, roughness: 0.95 });
 function buildPatches() {
   const HS = PATCH_N * CS / 2, fs = CS / PATCH_F, n = PATCH_N * PATCH_F;
   for (const spec of DIORAMAS) {
@@ -1871,6 +1971,7 @@ function buildPatches() {
     const segD = (u, v, pts) => { let d = Infinity; for (let q = 1; q < pts.length; q++) d = Math.min(d, segDist(u, v, pts[q - 1][0], pts[q - 1][1], pts[q][0], pts[q][1])[0]); return d; };
     const at = (u, v) => { const a = clamp(Math.round((u * HS + pp.cx - pp.x0) / fs - 0.5), 0, n - 1), b = clamp(Math.round((v * HS + pp.cz - pp.z0) / fs - 0.5), 0, n - 1); return b * n + a; };
     for (const op of spec.ops) {
+      if (op.t === "fall") op.top = Hh[at(op.tu, op.tv)];
       const level = op.t === "flat" ? (op.level === "low" ? (spec.low ? wl + 0.2 : Math.max(wl + 0.2, Math.round(landMed / 0.08) * 0.08)) : Math.max(wl + 0.2, Hh[at(op.u, op.v)])) : 0;
       for (let b = 0; b < n; b++) for (let a = 0; a < n; a++) {
         const f = b * n + a, u = U(a), v = V(b);
@@ -1879,6 +1980,12 @@ function buildPatches() {
         else if (op.t === "lake") { if (Math.hypot((u - op.u) / op.rx, (v - op.v) / op.rz) + 0.08 * nC(u * 6, v * 6) < 1) force[f] = 1; }
         else if (op.t === "strip") { if (segD(u, v, op.pts) < op.w) force[f] = 1; }
         else if (op.t === "land") { if (segD(u, v, op.pts) < op.w) { force[f] = 3; Hh[f] = wl + 0.14; } }
+        else if (op.t === "fall") {
+          const dx = op.tu - op.u, dv = op.tv - op.v, L = Math.hypot(dx, dv), du_ = dx / L, dv_ = dv / L;
+          const ru = u - op.u, rv = v - op.v, sAlong = ru * du_ + rv * dv_, lat = Math.abs(ru * dv_ - rv * du_);
+          if (sAlong <= 0.03 && Math.hypot(ru, rv) < op.w * 1.6) force[f] = 1;                          // 潭
+          else if (sAlong > 0.03 && sAlong < L + 0.05 && lat < op.w * 1.6 + sAlong * 0.7) { Hh[f] = Math.max(Hh[f], op.top - Math.max(0, lat - op.w * 1.6) * 3); force[f] = 3; }   // 崖壁连到主峰
+        }
         else if (op.t === "isle") { if (Math.hypot(u - op.u, v - op.v) < op.r) { force[f] = 3; Hh[f] = Math.max(Hh[f], wl + 0.16); } }
       }
     }
@@ -1932,6 +2039,12 @@ function buildPatches() {
       pp.C.set(c, f * 3); pp.S.set(hill[f] > 0.3 ? mix3(hex("#8e7a5e"), hex("#6f858c"), smooth(0.3, 1.2, hill[f])) : [SIDEC[k * 3], SIDEC[k * 3 + 1], SIDEC[k * 3 + 2]], f * 3);
     }
     pp.min = mn;
+    for (const op of spec.ops) if (op.t === "fall") {
+      const L = Math.hypot(op.tu - op.u, op.tv - op.v), du_ = (op.tu - op.u) / L, dv_ = (op.tv - op.v) / L;
+      const fu = op.u + du_ * 0.015, fv = op.v + dv_ * 0.015, wu = op.u + du_ * 0.12, wv = op.v + dv_ * 0.12;
+      const x = pp.cx + fu * HS, z = pp.cz + fv * HS, top = pp.H[patchCell(pp, pp.cx + wu * HS, pp.cz + wv * HS)];
+      FALLS.push({ x, z, y0: wl, y1: top, tx: x + du_, tz: z + dv_, w: op.w * HS * 2.8 });
+    }
     /* 外圈两格：粗地形向微缩景边缘高度收拢，景与四周不以悬崖相接 */
     { let es = 0, en = 0; for (let q = 0; q < n; q++) for (const f of [q, (n - 1) * n + q, q * n, q * n + n - 1]) if (isNaN(pp.WL[f])) { es += pp.H[f]; en++; }
       const edge = en ? es / en : wl + 0.2;
@@ -2014,7 +2127,7 @@ function makeP(pp, pads) {
     bridge(u, v, rot) { if (pads) return; const [x, z] = W_(u, v); const L = patchLand(pp, x, z); addInst("bridge", {}, x, (L.water ? L.y : L.y - 0.05), z, rot, 1.1 * K * 1.2, [1, 1, 1], 1.6 * K * 1.2 * 1.3); },
     waterfall(u, v, tu, tv) { if (pads) return;
       const [x, z] = W_(u, v), [tx, tz] = W_(tu, tv), y0 = patchLand(pp, x, z).y, y1 = patchLand(pp, tx, tz).y;
-      if (y1 - y0 > 0.3) addInst("waterfall", {}, x, y0, z, Math.atan2(tx - x, tz - z) + Math.PI, 1.2 * K, [1, 1, 1], 1.2 * K, y1 - y0);
+      if (y1 - y0 > 0.3) FALLS.push({ x, z, y0, y1, tx, tz, w: 0.34 * K * 1.2 });
     },
     tree(t, u, v) { if (pads) return; const [x, z] = W_(u, v), L = patchLand(pp, x, z); if (!L.water) EXTRA_TREES.push({ t, x, z, y: L.y }); },
     trees(t, list) { for (const [u, v] of list) P.tree(t, u, v); },
@@ -3259,6 +3372,197 @@ function tickDrift(dt) {
   pm.uDens.value = (snow ? 0.55 : 0.75) * qual; pm.uCol.value.set(snow ? "#ffffff" : moodKey === "night" ? "#8a9ab8" : "#d5dde2");
 }
 
+/* ================= 诗人足迹 =================
+   一生行迹：年份、地点（经纬度）、一句事略。同一地点多次到访，地图上合为一处标记。 */
+const TRAILS = {
+  李白: { years: "701—762", color: 0xb1402c, css: "#b1402c", stops: [
+    ["701", "碎叶", 75.3, 42.8, "生于碎叶城，约五岁随父迁入蜀中"],
+    ["705", "绵州昌隆", 104.75, 31.78, "少居青莲乡，读书、习剑、访道"],
+    ["724", "峨眉山", 103.33, 29.52, "游峨眉，作《峨眉山月歌》"],
+    ["725", "荆门", 111.3, 30.8, "仗剑去国，辞亲远游，《渡荆门送别》"],
+    ["726", "金陵", 118.8, 32.05, "东游金陵，《金陵酒肆留别》"],
+    ["726", "扬州", 119.42, 32.39, "旅居扬州，病中作《静夜思》"],
+    ["727", "安陆", 113.7, 31.26, "娶故相许圉师孙女，「酒隐安陆，蹉跎十年」"],
+    ["730", "黄鹤楼", 114.3, 30.55, "送孟浩然之广陵"],
+    ["730", "长安", 108.95, 34.27, "初入长安，求仕无门，《行路难》"],
+    ["736", "东鲁", 116.6, 35.4, "移家任城，与孔巢父等为「竹溪六逸」"],
+    ["742", "长安", 108.95, 34.27, "奉诏入京，供奉翰林，「仰天大笑出门去」"],
+    ["744", "洛阳", 112.45, 34.62, "赐金放还，与杜甫相遇"],
+    ["744", "梁宋", 115.65, 34.45, "与杜甫、高适同游梁园"],
+    ["753", "宣城", 118.75, 30.95, "「相看两不厌，只有敬亭山」"],
+    ["756", "庐山", 116.0, 29.57, "避乱隐居屏风叠，应永王之召"],
+    ["757", "浔阳", 115.99, 29.7, "永王兵败，系浔阳狱"],
+    ["759", "白帝城", 109.6, 31.0, "流放夜郎途中遇赦，「千里江陵一日还」"],
+    ["760", "江夏", 114.3, 30.55, "重游江夏"],
+    ["762", "当涂", 118.5, 31.55, "依族叔李阳冰，病卒于当涂"],
+  ] },
+  苏轼: { years: "1037—1101", color: 0x2d5d71, css: "#2d5d71", stops: [
+    ["1037", "眉山", 103.83, 30.05, "生于眉州眉山"],
+    ["1057", "汴京", 114.3, 34.8, "与弟苏辙同榜进士，欧阳修激赏"],
+    ["1061", "凤翔", 107.4, 34.52, "签书凤翔府判官"],
+    ["1071", "杭州", 120.15, 30.28, "通判杭州，《饮湖上初晴后雨》"],
+    ["1074", "密州", 119.4, 36.0, "知密州，《水调歌头》《江城子·密州出猎》"],
+    ["1077", "徐州", 117.2, 34.27, "知徐州，率军民抗洪"],
+    ["1079", "湖州", 120.1, 30.87, "知湖州，因「乌台诗案」下狱"],
+    ["1080", "黄州", 114.87, 30.45, "贬黄州团练副使，躬耕东坡，前后《赤壁赋》"],
+    ["1084", "庐山", 116.0, 29.57, "量移汝州，途经庐山，《题西林壁》"],
+    ["1086", "汴京", 114.3, 34.8, "还朝，任翰林学士"],
+    ["1089", "杭州", 120.15, 30.28, "再至杭州为知州，疏浚西湖、筑苏堤"],
+    ["1091", "颍州", 115.8, 32.9, "知颍州"],
+    ["1092", "扬州", 119.42, 32.39, "知扬州"],
+    ["1093", "定州", 114.99, 38.52, "知定州"],
+    ["1094", "惠州", 114.4, 23.1, "贬惠州，「日啖荔枝三百颗」"],
+    ["1097", "儋州", 109.58, 19.52, "再贬儋州，「九死南荒吾不恨」"],
+    ["1101", "常州", 119.95, 31.78, "遇赦北归，卒于常州"],
+  ] },
+};
+const trailPanel = $("#trailPanel");
+let trail = null;
+function startTrail(poet) {
+  const T = TRAILS[poet]; if (!T) return;
+  closeTrail(true); closeAll(); stopTour(); toggleAmb(false);
+  const { Line2, LineMaterial, LineGeometry } = window.THREE_ADDONS;
+  const P = T.stops.map(([y, n, lng, lat]) => { const x = wx(lng), z = wz(lat); return new THREE.Vector3(x, Math.max(0.3, groundAt(x, z)), z); });
+  /* 段与段之间抬成弧线，远程弧高、近程弧低 */
+  const pos = [], segStart = [0];
+  for (let i = 1; i < P.length; i++) {
+    const a = P[i - 1], b = P[i], d = Math.hypot(b.x - a.x, b.z - a.z), n = Math.max(8, Math.ceil(d / 1.5)), hh = 2 + d * 0.16;
+    for (let q = i === 1 ? 0 : 1; q <= n; q++) {
+      const t = q / n, x = lerp(a.x, b.x, t), z = lerp(a.z, b.z, t);
+      pos.push(x, Math.max(lerp(a.y, b.y, t) + 1 + Math.sin(t * Math.PI) * hh, groundAt(x, z) + 1), z);
+    }
+    segStart.push(pos.length / 3 - 1);
+  }
+  const g = new LineGeometry(); g.setPositions(pos);
+  const m = new LineMaterial({ color: T.color, linewidth: 3, transparent: true, opacity: 0.92, depthTest: false, depthWrite: false, worldUnits: false });
+  m.resolution.set(innerWidth, innerHeight);
+  const line = new Line2(g, m); line.computeLineDistances(); line.renderOrder = 20; line.frustumCulled = false; g.instanceCount = 0;
+  scene.add(line);
+  /* 标记：同一地点合并 */
+  const marks = [], byName = {};
+  T.stops.forEach(([y, n], i) => {
+    if (byName[n]) { byName[n].years.push(y); byName[n].idx.push(i); return; }
+    const el = document.createElement("div"); el.className = "tr-pt"; el.style.setProperty("--c", T.css);
+    labelsEl.appendChild(el);
+    byName[n] = { el, name: n, years: [y], idx: [i], p: P[i] }; marks.push(byName[n]);
+  });
+  const head = document.createElement("div"); head.className = "tr-head"; head.style.setProperty("--c", T.css); labelsEl.appendChild(head);
+  trail = { poet, T, P, pos, segStart, line, marks, head, prog: 0, playing: false, active: -1 };
+  /* 年谱面板 */
+  $("#trName").textContent = poet; $("#trYears").textContent = T.years + " · " + T.stops.length + " 站";
+  $("#trList").innerHTML = T.stops.map(([y, n, , , t], i) => `<li data-i="${i}"><b>${y}</b><div><span>${esc(n)}</span><p>${esc(t)}</p></div></li>`).join("");
+  trailPanel.style.setProperty("--c", T.css);
+  trailPanel.classList.add("on"); document.body.classList.add("trail-on");
+  flyTrailFit(1.8);
+  setTimeout(() => { if (trail) trail.playing = true; }, REDUCED ? 0 : 1900);
+  if (REDUCED) trail.prog = P.length - 1;
+}
+/** 俯瞰全部足迹：按行迹范围取景，并为左侧年谱让出位置 */
+function flyTrailFit(dur) {
+  if (!trail) return;
+  let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+  for (const p of trail.P) { x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); z0 = Math.min(z0, p.z); z1 = Math.max(z1, p.z); }
+  const mob = innerWidth <= 760, polar = 0.42, th = Math.tan(camera.fov * Math.PI / 360);
+  const availW = mob ? innerWidth : innerWidth - 340, availH = mob ? innerHeight * 0.58 : innerHeight - 120, a = availW / innerHeight;
+  const spanX = (x1 - x0) * 1.12 + 22, spanZ = (z1 - z0) * 1.12 + 20;
+  const dist = Math.max(spanZ / (2 * th) * innerHeight / availH, spanX / (2 * th * a)) * 1.05;
+  const visW = 2 * dist * th * innerWidth / innerHeight, visH = 2 * dist * th;
+  const cx0 = (x0 + x1) / 2 - (mob ? 0 : 170 / innerWidth * visW), cz0 = (z0 + z1) / 2 + (mob ? 0.2 * visH : 0);
+  const t = new THREE.Vector3(cx0, 0.5, cz0), pos = t.clone().add(new THREE.Vector3().setFromSphericalCoords(dist, polar, 0));
+  flyTo(t, pos, dur, 0.3);
+}
+function closeTrail(silent) {
+  if (!trail) return;
+  scene.remove(trail.line); trail.line.geometry.dispose(); trail.line.material.dispose();
+  trail.marks.forEach((m) => m.el.remove()); trail.head.remove();
+  trail = null; trailPanel.classList.remove("on"); document.body.classList.remove("trail-on");
+}
+function trailGoto(i) {
+  if (!trail) return;
+  trail.prog = Math.max(trail.prog, i); trail.playing = false;
+  const [, , lng, lat] = trail.T.stops[i];
+  const off = new THREE.Spherical().setFromVector3(camera.position.clone().sub(controls.target));
+  flyView({ k: "", lng, lat, dist: 26, polar: 1.02, az: off.theta }, 1.8);
+}
+function tickTrail(dt) {
+  if (!trail) return;
+  const N = trail.P.length - 1;
+  if (trail.playing && trail.prog < N) trail.prog = Math.min(N, trail.prog + dt / 1.05);
+  /* 线条按进度显出 */
+  const k = Math.floor(trail.prog), f = trail.prog - k;
+  const segs = k >= N ? trail.segStart[N] : Math.round(lerp(trail.segStart[k], trail.segStart[k + 1], f));
+  trail.line.geometry.instanceCount = Math.max(0, segs);
+  const active = Math.min(N, Math.round(trail.prog - 0.35 + 0.35));
+  if (active !== trail.active) {
+    trail.active = active;
+    document.querySelectorAll("#trList li").forEach((li) => { const i = +li.dataset.i; li.classList.toggle("done", i <= Math.floor(trail.prog)); li.classList.toggle("cur", i === Math.floor(trail.prog)); });
+    const cur = $("#trList li.cur"); if (cur) cur.scrollIntoView({ block: "nearest", behavior: REDUCED ? "auto" : "smooth" });
+  }
+  /* 标记与笔头 */
+  const w = innerWidth, h = innerHeight;
+  for (const m of trail.marks) {
+    const on = m.idx[0] <= trail.prog + 0.02;
+    _v.copy(m.p).setY(m.p.y + 0.6).project(camera);
+    const vis = on && _v.z < 1 && Math.abs(_v.x) < 1.1 && Math.abs(_v.y) < 1.1;
+    m.el.classList.toggle("on", vis);
+    if (vis) { m.el.style.transform = `translate3d(${((_v.x * 0.5 + 0.5) * w).toFixed(1)}px,${((-_v.y * 0.5 + 0.5) * h).toFixed(1)}px,0)`; }
+    const txt = `<i></i><span>${esc(m.name)}<em>${m.years.join(" · ")}</em></span>`;
+    if (m.el._t !== txt) { m.el.innerHTML = txt; m.el._t = txt; }
+  }
+  const hi = Math.min(trail.line.geometry.instanceCount, trail.pos.length / 3 - 1) * 3;
+  if (trail.prog < N && hi >= 0) {
+    _v.set(trail.pos[hi], trail.pos[hi + 1], trail.pos[hi + 2]).project(camera);
+    trail.head.style.opacity = 1; trail.head.style.transform = `translate3d(${((_v.x * 0.5 + 0.5) * w).toFixed(1)}px,${((-_v.y * 0.5 + 0.5) * h).toFixed(1)}px,0)`;
+  } else trail.head.style.opacity = 0;
+}
+
+/* —— 近景夜色：孔明灯缓缓升空、河灯随波漂流 —— */
+const skyLanternGeo = (() => { const b = new VB();
+  b.cbox(0, 0, 0, 0.1, 0.13, 0.1, "#ffcf7a", 1); b.cbox(0, 0.13, 0, 0.11, 0.012, 0.11, "#c4492f", 0.6); b.cbox(0, -0.012, 0, 0.07, 0.012, 0.07, "#ffe2a0", 1);
+  return b.geometry(); })();
+const riverLanternGeo = (() => { const b = new VB();
+  b.cbox(0, 0, 0, 0.09, 0.02, 0.09, "#e3a64f", 0.8); for (let q = 0; q < 5; q++) { const a = q / 5 * 6.283; b.cbox(Math.cos(a) * 0.035, 0.02, Math.sin(a) * 0.035, 0.035, 0.03, 0.035, "#f28aa0", 0.9, a); } b.cbox(0, 0.02, 0, 0.022, 0.05, 0.022, "#fff1b8", 1.2);
+  return b.geometry(); })();
+const lanternMat = new THREE.MeshBasicMaterial({ vertexColors: true, fog: false });
+lanternMat.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace("#include <opaque_fragment>", "outgoingLight *= 1.6;\n#include <opaque_fragment>"); };
+const NL_N = 48, RL_N = 40;
+const nightFx = { sky: null, river: null, sky0: [], river0: [], center: null, amt: 0 };
+function buildNightFx() {
+  nightFx.sky = new THREE.InstancedMesh(skyLanternGeo, lanternMat, NL_N); nightFx.river = new THREE.InstancedMesh(riverLanternGeo, lanternMat, RL_N);
+  for (const m of [nightFx.sky, nightFx.river]) { m.frustumCulled = false; m.visible = false; m.renderOrder = 7; scene.add(m); }
+}
+function seedNightFx(c) {
+  const R = mulberry32(Math.round(c.x * 13 + c.z * 7));
+  nightFx.sky0 = []; nightFx.river0 = [];
+  for (let q = 0; q < NL_N; q++) { const a = R() * 6.283, r = 1 + Math.sqrt(R()) * 7; const x = c.x + Math.cos(a) * r, z = c.z + Math.sin(a) * r; nightFx.sky0.push({ x, z, g: groundAt(x, z), ph: R(), sp: 0.08 + R() * 0.07, sw: R() * 6.28 }); }
+  for (let q = 0, t = 0; q < RL_N && t < 800; t++) { const a = R() * 6.283, r = Math.sqrt(R()) * 9; const x = c.x + Math.cos(a) * r, z = c.z + Math.sin(a) * r, L = landAt(x, z); if (!L.water) continue; nightFx.river0.push({ x, z, y: L.y, ph: R() * 6.28, dr: R() * 6.28 }); q++; }
+  nightFx.center = c.clone();
+}
+function tickNightFx(dt) {
+  if (!nightFx.sky) return;
+  const d = camera.position.distanceTo(controls.target);
+  const want = GU.uNight.value > 0.55 && d < 34 && !trail ? 1 : 0;
+  nightFx.amt = want ? Math.min(1, nightFx.amt + dt / 2) : Math.max(0, nightFx.amt - dt / 1.5);
+  const on = nightFx.amt > 0.01;
+  nightFx.sky.visible = nightFx.river.visible = on; if (!on) return;
+  if (!nightFx.center || nightFx.center.distanceTo(controls.target) > 6) seedNightFx(controls.target);
+  const t = GU.uTime.value, s = nightFx.amt;
+  nightFx.sky0.forEach((L, i) => {
+    const u = (t * L.sp * 0.1 + L.ph) % 1, rise = u * 9;       // 一路升到九个单位高，再从地面换一盏
+    const sc = s * smooth(0, 0.08, u) * (1 - smooth(0.8, 1, u)) * 1.1;
+    _p.set(L.x + Math.sin(t * 0.3 + L.sw) * 0.4 + u * 1.2, L.g + 0.4 + rise, L.z + Math.cos(t * 0.25 + L.sw) * 0.4);
+    _e.set(0, t * 0.2 + L.sw, 0); _q.setFromEuler(_e);
+    nightFx.sky.setMatrixAt(i, _m4.compose(_p, _q, _s.set(sc, sc, sc)));
+  });
+  nightFx.sky.count = nightFx.sky0.length; nightFx.sky.instanceMatrix.needsUpdate = true;
+  nightFx.river0.forEach((L, i) => {
+    _p.set(L.x + Math.cos(L.dr) * Math.sin(t * 0.05 + L.ph) * 0.6, L.y + 0.01 + Math.sin(t * 1.3 + L.ph) * 0.008, L.z + Math.sin(L.dr) * Math.sin(t * 0.05 + L.ph) * 0.6);
+    _e.set(0, L.ph + t * 0.1, 0); _q.setFromEuler(_e);
+    nightFx.river.setMatrixAt(i, _m4.compose(_p, _q, _s.set(s, s, s)));
+  });
+  nightFx.river.count = nightFx.river0.length; nightFx.river.instanceMatrix.needsUpdate = true;
+}
+
 /* 选中标记：地上一圈淡朱光环 */
 const ringMat = new THREE.MeshBasicMaterial({ color: 0xd4553a, transparent: true, opacity: 0, depthWrite: false, fog: false });
 const ring = new THREE.Mesh(new THREE.RingGeometry(0.62, 0.72, 48), ringMat);
@@ -3369,6 +3673,7 @@ function closeAll() {
 }
 const closePanel = closeAll;
 $("#sx").onclick = () => closeAll();
+$("#sTrail").onclick = () => { const q = curPlace && curPlace.poems[curPoem]; if (q) startTrail(q.a); };
 $("#sList").onclick = backToList;
 $("#sPrev").onclick = () => stepPoem(-1);
 $("#sNext").onclick = () => stepPoem(1);
@@ -3394,6 +3699,7 @@ function renderPoem() {
   h += `<div class="end">山河诗卷　敬录</div></div><div class="seg gs"></div><div class="seg silk"></div>`;
   track.innerHTML = h; track.scrollLeft = 0;
   $("#sCnt").textContent = `${cnum(curPoem + 1)} / ${cnum(p.poems.length)}`;
+  const st = $("#sTrail"); st.style.display = TRAILS[q.a] ? "" : "none"; st.textContent = TRAILS[q.a] ? q.a + "足迹" : "";
   setHash(q);
 }
 function setHash(q) { try { history.replaceState(null, "", q ? "#/p/" + q.id : location.pathname + location.search); } catch (e) {} }
@@ -3522,7 +3828,14 @@ function toggleAmb(open) {
     p.style.left = x + "px"; p.style.top = Math.round(r.top - h - 12) + "px"; p.style.setProperty("--ax", Math.round(r.left + r.width / 2 - x - 6) + "px");
   }
 }
+function buildTrailUI() {
+  $("#trX").onclick = () => closeTrail();
+  $("#trAll").onclick = () => { if (trail) { trail.prog = trail.P.length - 1; flyTrailFit(1.6); } };
+  $("#trReplay").onclick = () => { if (trail) { trail.prog = 0; trail.playing = true; flyTrailFit(1.2); } };
+  $("#trList").addEventListener("click", (e) => { const li = e.target.closest("li"); if (li) trailGoto(+li.dataset.i); });
+}
 function buildUI() {
+  buildTrailUI();
   const vg = $("#views");
   VIEWS.forEach((v, n) => { const b = document.createElement("button"); b.className = "chip"; b.dataset.k = v.k; b.textContent = v.name; b.title = `${v.name}（${n + 1}）`; b.onclick = () => { stopTour(); flyView(v); }; vg.appendChild(b); });
   const mk = (host, entries, fn) => entries.forEach(([k, name]) => { const b = document.createElement("button"); b.className = "chip"; b.dataset.k = k; b.textContent = name; b.onclick = () => fn(k); $(host).appendChild(b); });
@@ -3573,6 +3886,7 @@ function buildUI() {
     else if (k === "t") $("#bTour").click();
     else if (k === "p") saveShot();
     else if (k >= "1" && k <= "6") { stopTour(); flyView(VIEWS[+k - 1]); }
+    else if (k === "escape" && trail) closeTrail();
     else if (k === "escape" && $("#tourPanel").classList.contains("on")) toggleTourPanel(false);
     else if (k === "escape" && $("#ambPanel").classList.contains("on")) toggleAmb(false);
     else if (k === "escape") { if (scrollOpen && curPlace && curPlace.poems.length > 1) backToList(); else if (scrollOpen || listOpen) closeAll(); else if (document.body.classList.contains("ui-hidden")) hideT(); }
@@ -3650,6 +3964,7 @@ function renderFrame(dt) {
   composer.render(dt);
   if (!document.body.classList.contains("ui-hidden")) updateLabels();
   placeList();
+  tickTrail(dt); tickNightFx(dt);
 }
 let boatMesh = null;
 const SPEED = +QS.get("speed") || 1;
@@ -3674,6 +3989,7 @@ addEventListener("resize", () => {
   controls.maxDistance = Math.max(115, natDist() * 1.1);
   applyQuality(); if (scrollOpen) placeBar();
   if (wallLine) wallLine.material.resolution.set(innerWidth, innerHeight);
+  if (trail) trail.line.material.resolution.set(innerWidth, innerHeight);
   for (const l of riverLines) l.material.resolution.set(innerWidth, innerHeight);
 });
 document.addEventListener("visibilitychange", () => { if (audio) (document.hidden ? audio.ac.suspend() : audio.ac.resume()); });
@@ -3700,7 +4016,7 @@ document.addEventListener("visibilitychange", () => { if (audio) (document.hidde
     const bm = new Map([["boat", { geo: pieceGeo("boat"), list: BOATS.map((b) => ({ ...b, s: 1.1 })) }]]);
     boatMesh = flushInst(bldGroup, bldMat, bm, false)[0];
     await stage("植树 · 点苔", 88);
-    buildFlora(); buildNearFlora(); buildClouds(); buildWallLine(); buildRiverLines(); buildDrift();
+    buildFalls(); buildFlora(); buildNearFlora(); buildClouds(); buildWallLine(); buildRiverLines(); buildDrift(); buildNightFx();
     await stage("落款", 95);
     buildComposer(); buildLabels(); buildGeoLabels(); buildUI();
     moodCur.sun = null; applyMood(moodVals(MOODS[moodKey])); setMood(moodKey, true); setSeason(seasonKey, true); setWeather(weatherKey, true, false);
@@ -3717,7 +4033,7 @@ document.addEventListener("visibilitychange", () => { if (audio) (document.hidde
     setTimeout(openFromHash, 400);
     setTimeout(loadPoemFont, 3500);
     addEventListener("hashchange", () => { if (!curPlace || !location.hash.includes(curPlace.poems[curPoem].id)) openFromHash(); });
-    window.__app = { THREE, scene, camera, controls, renderer, PLACES, VIEWS, flyView, setMood, setSeason, setWeather, GU, get TOUR() { return TOUR; }, TS, tourPlan, groundAt, nearFlora, PATCHES, landAt, wx, wz, y2m, get EXTRA() { return EXTRA_TREES; }, get flora() { return floraMeshes; }, tourAt(i) { startTour(); tourGo(i); }, startTour, stopTour, HOME, get autoFocus() { return autoFocus; }, openPlace, openPoem, closeAll, get listOpen() { return listOpen; }, get scrollOpen() { return scrollOpen; }, applyQuality, get quality() { return QUALITY; }, viewPose,
+    window.__app = { THREE, scene, camera, controls, renderer, PLACES, VIEWS, flyView, setMood, setSeason, setWeather, GU, FALLS, startTrail, closeTrail, get trail() { return trail; }, get TOUR() { return TOUR; }, TS, tourPlan, groundAt, nearFlora, PATCHES, landAt, wx, wz, y2m, get EXTRA() { return EXTRA_TREES; }, get flora() { return floraMeshes; }, tourAt(i) { startTour(); tourGo(i); }, startTour, stopTour, HOME, get autoFocus() { return autoFocus; }, openPlace, openPoem, closeAll, get listOpen() { return listOpen; }, get scrollOpen() { return scrollOpen; }, applyQuality, get quality() { return QUALITY; }, viewPose,
       setView(v) { const { target, pos } = viewPose(v); controls.target.copy(target); camera.position.copy(pos); fly = null; controls.update(); },
       cell(lng, lat) { const k = idx(wx(lng), wz(lat)); return { y: TY[k], m: Math.round(y2m(TY[k])), kind: KIND[k], snow: SNOW[k], col: [...TOPC.slice(k * 3, k * 3 + 3)].map((v) => +v.toFixed(2)) }; },
       bench(n = 60) { const gl = renderer.getContext(); composer.render(); gl.finish(); const t = performance.now(); for (let i = 0; i < n; i++) { if (window.__benchShadow) renderer.shadowMap.needsUpdate = true; composer.render(); } gl.finish(); return +((performance.now() - t) / n).toFixed(2); },
