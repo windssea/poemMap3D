@@ -44,42 +44,35 @@ const early = src.match(/<script>\s*(\/\* 早期错误兜底[\s\S]*?)<\/script>/
 const app = src.match(/<script>\s*("use strict";[\s\S]*?)<\/script>\s*<\/body>/)[1];
 const head = src.match(/<head>([\s\S]*?)<style>/)[1].replace(/<link rel="stylesheet" href="fonts\/brush\.css">/, "").replace(/\n\s*/g, "");
 /* 书法字体（data URI）与巡游路线一并内联 */
-const brushCss = fs.readFileSync(path.join(ROOT, "fonts/brush.css"), "utf8").replace(/^\/\*[\s\S]*?\*\/\s*/, "").trim();
-const tourJs = fs.readFileSync(path.join(ROOT, "data/tour.js"), "utf8").replace(/^\/\*[\s\S]*?\*\/\s*/, "").replace(/\s*\n\s*/g, "").trim();
-
 const css = (await esbuild.transform(style, { loader: "css", minify: true })).code;
 const appMin = (await esbuild.transform(`function APP(){${app}}`, { loader: "js", minify: true, target: "es2020", legalComments: "none" })).code;
 const earlyMin = (await esbuild.transform(early, { loader: "js", minify: true })).code;
 
-const poems = fs.readFileSync(path.join(ROOT, "data/poems.js"), "utf8").match(/window\.POEM_DATA=(.*);\s*$/s)[1];
-const mask = fs.readFileSync(path.join(ROOT, "data/landmask.js"), "utf8").replace(/^\/\*[\s\S]*?\*\/\s*/, "").trim();
-const gz = (s) => zlib.gzipSync(Buffer.from(s), { level: 9 }).toString("base64");
-const T = gz(three), D = gz(poems);
-
-const boot = `(async()=>{try{
-const gun=async b=>{if(!window.DecompressionStream)throw new Error("浏览器过旧，不支持解压（需 Chrome 80+ / Safari 16.4+ / Firefox 113+）");
-const u=Uint8Array.from(atob(b),c=>c.charCodeAt(0));return await new Response(new Blob([u]).stream().pipeThrough(new DecompressionStream("gzip"))).text()};
-const[t,d]=await Promise.all([gun(T3),gun(PD)]);(0,eval)(t);window.POEM_DATA=JSON.parse(d);APP()}catch(e){window.__fail("载入失败："+(e.message||e))}})();`;
-
+/* —— 数据拆分：启动必需（题目、作者、诗句、地点）与按需细节（译文、赏析、注释、诗话、小传） —— */
+globalThis.window = {};
+new Function(fs.readFileSync(path.join(ROOT, "data/poems.js"), "utf8"))();
+const FULL = window.POEM_DATA, CORE_KEYS = ["id", "t", "d", "a", "f", "pn", "rg", "lat", "lng", "l", "pr", "g"];
+const core = FULL.poems.map((q) => Object.fromEntries(CORE_KEYS.filter((k2) => q[k2] !== undefined).map((k2) => [k2, q[k2]])));
+const det = {}; for (const q of FULL.poems) { const o = {}; for (const k2 of Object.keys(q)) if (!CORE_KEYS.includes(k2)) o[k2] = q[k2]; det[q.id] = o; }
+const strip = (f2) => fs.readFileSync(path.join(ROOT, f2), "utf8").replace(/^\/\*[\s\S]*?\*\/\s*/, "").trim();
+const OUT = path.join(ROOT, "dist");
+fs.rmSync(OUT, { recursive: true, force: true }); fs.mkdirSync(path.join(OUT, "js"), { recursive: true }); fs.mkdirSync(path.join(OUT, "fonts"), { recursive: true });
+fs.writeFileSync(path.join(OUT, "js/core.js"), "window.POEM_DATA=" + JSON.stringify({ poems: core, authors: {}, detail: "js/detail.js" }) + ";\n" + strip("data/landmask.js") + "\n" + strip("data/tour.js") + "\n");
+fs.writeFileSync(path.join(OUT, "js/detail.js"), "window.POEM_DETAIL=" + JSON.stringify({ p: det, authors: FULL.authors }) + ";\n");
+fs.writeFileSync(path.join(OUT, "js/three.js"), threeFile);
+for (const f2 of ["brush-tour.js", "brush-poems.js"]) fs.copyFileSync(path.join(ROOT, "fonts", f2), path.join(OUT, "fonts", f2));
 const html = `<!doctype html>
 <html lang="zh-CN">
-<head>${head}<style>${brushCss}${css}</style></head>
+<head>${head}<style>${css}</style></head>
 <body>${body.replace(/\n\s+/g, "\n")}<script>${earlyMin}</script>
-<script>${mask}</script>
-<script>${tourJs}</script>
-<script>const T3="${T}";
-const PD="${D}";
-${boot}
-${appMin}</script>
+<script src="js/core.js"></script>
+<script src="js/three.js"></script>
+<script>${appMin}APP();</script>
 </body>
 </html>
 `;
-fs.mkdirSync(path.join(ROOT, "dist"), { recursive: true });
-fs.writeFileSync(path.join(ROOT, "dist/index.html"), html);
-fs.mkdirSync(path.join(ROOT, "dist/fonts"), { recursive: true });
-fs.copyFileSync(path.join(ROOT, "fonts/brush-poems.js"), path.join(ROOT, "dist/fonts/brush-poems.js"));   // 诗卷毛笔字，按需加载（缺了也能运行）
-
-const devTotal = ["index.html", "vendor/three-bundle.js", "data/poems.js", "data/landmask.js", "data/tour.js", "fonts/brush.css"].reduce((s, f) => s + fs.statSync(path.join(ROOT, f)).size, 0);
-console.log(`three 按需打包：${names.length} 个类 → ${kb(three.length)}（gzip ${kb(Buffer.from(T, "base64").length)}）`);
-console.log(`诗词数据：${kb(Buffer.byteLength(poems))} → gzip ${kb(Buffer.from(D, "base64").length)}`);
-console.log(`源码版合计：${kb(devTotal)}　单文件发行版 dist/index.html：${kb(Buffer.byteLength(html))}`);
+fs.writeFileSync(path.join(OUT, "index.html"), html);
+const sz = (f2) => fs.statSync(path.join(OUT, f2)).size, gzs = (f2) => zlib.gzipSync(fs.readFileSync(path.join(OUT, f2)), { level: 9 }).length;
+console.log("发行版 dist/（首屏加载 → 按需加载）：");
+for (const f2 of ["index.html", "js/core.js", "js/three.js", "js/detail.js", "fonts/brush-tour.js", "fonts/brush-poems.js"]) console.log(`  ${f2.padEnd(22)} ${kb(sz(f2)).padStart(10)}（gzip ${kb(gzs(f2))}）`);
+console.log("  首屏合计", kb(sz("index.html") + sz("js/core.js") + sz("js/three.js")));

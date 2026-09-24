@@ -7,7 +7,6 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%275%27 fill=%27%23b1402c%27/%3E%3Cpath d=%27M6 22l6-9 4 5 3-4 7 8z%27 fill=%27%23f6ecde%27/%3E%3C/svg%3E">
 <title>山河诗卷</title>
 <meta name="description" content="三维水墨体素山河上的诗词地图：先秦至宋三百余首诗词，落在一百五十余处地标上。">
-<link rel="stylesheet" href="fonts/brush.css">
 <style>
 :root{
   --xuan:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85 .05' numOctaves='3' seed='4'/%3E%3CfeColorMatrix values='0 0 0 0 .42 0 0 0 0 .33 0 0 0 0 .2 0 0 0 .11 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E");
@@ -87,6 +86,16 @@ body.ui-hidden .chrome *{pointer-events:none}
 #results{margin-top:6px;border-radius:12px;background:var(--silk-a);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
   box-shadow:var(--shadow);overflow:hidden;display:none;max-height:min(60vh,420px);overflow-y:auto}
 #results.on{display:block}
+#bTrails{flex:none;border:0;background:transparent;width:30px;height:30px;margin-right:-6px;border-radius:15px;display:grid;place-items:center;cursor:pointer;color:var(--zhu)}
+#bTrails:hover{background:rgba(177,64,44,.1)}
+#trailPick{margin-top:6px;border-radius:12px;background:var(--silk-a);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:var(--shadow);padding:10px 8px 8px;display:none}
+#trailPick.on{display:block}
+#trailPick .tp-t{font-size:12.5px;letter-spacing:3px;color:var(--ink3);padding:0 8px 6px}
+#tpList button{display:flex;align-items:center;gap:10px;width:100%;border:0;background:none;padding:8px;border-radius:8px;cursor:pointer;font:inherit;text-align:left}
+#tpList button:hover{background:rgba(177,64,44,.08)}
+#tpList i{flex:none;width:10px;height:10px;border-radius:50%;background:var(--c);box-shadow:0 0 0 2px rgba(246,239,222,.9)}
+#tpList b{font-weight:400;font-size:17px;letter-spacing:2px;color:var(--ink)}
+#tpList span{margin-left:auto;font-size:12.5px;color:var(--ink3)}
 #results button{display:block;width:100%;text-align:left;border:0;background:transparent;padding:9px 14px;cursor:pointer;border-bottom:1px solid var(--line)}
 #results button:last-child{border-bottom:0}
 #results button:hover,#results button.hl{background:rgba(177,64,44,.08)}
@@ -385,8 +394,10 @@ body.trail-on #dock,body.trail-on #search,body.trail-on #hint{opacity:0;pointer-
   <div class="box">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
     <input id="q" type="search" placeholder="寻诗：诗题 · 诗人 · 地名" autocomplete="off" aria-label="搜索诗词">
+    <button id="bTrails" title="诗人足迹" aria-label="诗人足迹"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><ellipse cx="8" cy="15.5" rx="2.6" ry="3.6" transform="rotate(-12 8 15.5)"/><circle cx="5.4" cy="10.2" r="1"/><circle cx="7.4" cy="9.3" r="1"/><circle cx="9.6" cy="9.6" r="1"/><ellipse cx="16" cy="9" rx="2.4" ry="3.4" transform="rotate(12 16 9)"/><circle cx="13.6" cy="4.1" r=".95"/><circle cx="15.6" cy="3.3" r=".95"/><circle cx="17.8" cy="3.8" r=".95"/></svg></button>
   </div>
   <div id="results" role="listbox"></div>
+  <div id="trailPick" role="menu"><div class="tp-t">诗人足迹</div><div id="tpList"></div></div>
 </div>
 
 <div id="dock" class="chrome" role="toolbar" aria-label="视角与控制">
@@ -2974,6 +2985,7 @@ function finishTour() {
   stopTour(); flyView(HOME, 5); toast("巡游一周已毕 · 可在巡游设置里选「无尽」");
 }
 function startTour() {
+  loadTourFont();
   closeAll(); touring = true; $("#bTour").classList.add("on"); hideHint(); toggleAmb(false);
   document.body.classList.add("touring"); document.body.classList.remove("dock-peek");
   toast("巡游开始 · 拖动或点击任意处即可接管镜头");
@@ -3484,12 +3496,14 @@ const trailCoreMat = (c0, c1) => new THREE.ShaderMaterial({
       float p = fract(vUv.x * uLen / 7.0 - uTime * 0.45);
       float pulse = smoothstep(0.0, 0.06, p) * smoothstep(0.22, 0.06, p);
       float head = smoothstep(uProg - 12.0 / uLen, uProg, vUv.x);
-      c = c * (0.55 + 0.6 * ndv) + vec3(1.0, 0.92, 0.75) * (pulse * 0.55 + head * 0.9) + vec3(1.0) * pow(ndv, 8.0) * 0.35;
-      gl_FragColor = vec4(c * 1.15, 1.0);
+      vec3 gold = vec3(0.95, 0.72, 0.32);
+      c = c * (0.62 + 0.5 * ndv) + gold * (pulse * 0.45 + head * 0.7) + gold * pow(ndv, 10.0) * 0.18;
+      float edge = smoothstep(0.25, 0.0, ndv); c = mix(c, c * 0.55, edge);
+      gl_FragColor = vec4(c, 1.0);
     }`,
 });
 const trailGlowMat = (c1) => new THREE.ShaderMaterial({
-  transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  transparent: true, depthWrite: false,
   uniforms: { uProg: { value: 0 }, uTime: GU.uTime, uC: { value: new THREE.Color(c1) }, uLen: { value: 100 }, uR0: { value: 0.42 }, uRpx: { value: 0.011 } },
   vertexShader: TRAIL_VS,
   fragmentShader: `uniform float uProg, uTime, uLen; uniform vec3 uC; varying vec2 vUv; varying vec3 vN; varying vec3 vW;
@@ -3499,14 +3513,14 @@ const trailGlowMat = (c1) => new THREE.ShaderMaterial({
       float rim = pow(1.0 - abs(dot(normalize(vN), V)), 1.6);
       float head = smoothstep(uProg - 18.0 / uLen, uProg, vUv.x);
       float a = (1.0 - rim) * 0.32 * (0.6 + 0.4 * sin(vUv.x * uLen * 0.6 - uTime * 3.0) * 0.5 + head * 0.9);
-      gl_FragColor = vec4(uC * 1.2, a * 0.8);
+      gl_FragColor = vec4(uC * 1.15, a * 0.5);
     }`,
 });
 /** 代表作：此人诗作里离该站最近的一首（名字对得上的优先） */
-function trailVerse(poet, name, lng, lat) {
+function trailVerse(poet, name, lng, lat, used) {
   let best = null, bd = 1.3;
   for (const q of POEMS) {
-    if (q.a !== poet) continue;
+    if (q.a !== poet || (used && used.has(q))) continue;
     const d = Math.hypot(q.lng - lng, q.lat - lat) - ((q.pn + q.t).includes(name) ? 0.8 : 0);
     if (d < bd) { bd = d; best = q; }
   }
@@ -3534,7 +3548,7 @@ function startTrail(poet) {
   const total = cum[cum.length - 1] || 1, stopFrac = stopAt.map((k) => cum[k] / total);
   const curve = new THREE.CatmullRomCurve3(pts, false, "centripetal"); curve.arcLengthDivisions = pts.length * 6;
   const segs = Math.min(3000, pts.length * 5);
-  const c0 = new THREE.Color(T.css).lerp(new THREE.Color("#f3c46a"), 0.3), c1 = new THREE.Color(T.css).multiplyScalar(0.9);
+  const c0 = new THREE.Color(T.css).multiplyScalar(1.35), c1 = new THREE.Color(T.css).multiplyScalar(0.72);
   const core = new THREE.Mesh(new THREE.TubeGeometry(curve, segs, 0.11, 8, false), trailCoreMat(c0, c1));
   const glow = new THREE.Mesh(new THREE.TubeGeometry(curve, segs, 0.42, 10, false), trailGlowMat(T.css));
   for (const m of [core, glow]) { m.material.uniforms.uLen.value = total; m.frustumCulled = false; m.renderOrder = 20; scene.add(m); }
@@ -3548,8 +3562,12 @@ function startTrail(poet) {
     byName[n] = { el, name: n, years: [y], idx: [i], p: P[i] }; marks.push(byName[n]);
   });
   const head = document.createElement("div"); head.className = "tr-head"; head.style.setProperty("--c", T.css); labelsEl.appendChild(head);
-  const verses = T.stops.map(([y, n, lng, lat]) => trailVerse(poet, n, lng, lat));
-  trail = { poet, T, P, pts, curve, stopFrac, core, glow, marks, head, verses, prog: 0, phase: "intro", clock: 0, follow: true, done: false, active: -1, frac: 0,
+  const usedQ = new Set(), verses = T.stops.map(([y, n, lng, lat]) => { const q = trailVerse(poet, n, lng, lat, usedQ); if (q) usedQ.add(q); return q; });
+  /* 意境：一生分作春夏秋冬，天气以晴为主（固定种子） */
+  const RR = mulberry32(poet.length * 977 + T.stops.length);
+  const amb = T.stops.map((_, i) => ({ season: SKEYS[Math.min(3, Math.floor(i * 4 / T.stops.length))], mood: RR() < 0.7 ? "day" : RR() < 0.5 ? "dawn" : "dusk", weather: RR() < 0.18 ? "wet" : "clear" }));
+  const saved = trail && trail.saved ? trail.saved : { season: seasonKey, mood: moodKey, weather: weatherKey };
+  trail = { poet, T, P, pts, curve, stopFrac, core, glow, marks, head, verses, amb, saved, prog: 0, phase: "intro", clock: 0, follow: true, done: false, active: -1, frac: 0,
     faz: 0.35, fdist: 30 };
   trail.color = T.color;
   $("#trName").textContent = poet; $("#trYears").textContent = T.years + " · " + T.stops.length + " 站";
@@ -3598,6 +3616,8 @@ function closeTrail(silent) {
   if (!trail) return;
   for (const m of [trail.core, trail.glow]) { scene.remove(m); m.geometry.dispose(); m.material.dispose(); }
   trail.marks.forEach((m) => m.el.remove()); trail.head.remove(); hideVerse();
+  const sv = trail.saved; if (!silent && sv) { setSeason(sv.season, false, false); setMood(sv.mood, false, false); setWeather(sv.weather, false, false); }
+  controls.enabled = true;
   trail = null; trailPanel.classList.remove("on"); document.body.classList.remove("trail-on");
 }
 function trailGoto(i) {
@@ -3606,6 +3626,12 @@ function trailGoto(i) {
   const p = trail.P[i];
   flyTo(p.clone(), p.clone().add(new THREE.Vector3().setFromSphericalCoords(22, 1.0, trail.faz)), 1.8);
   trailShowVerse(i);
+}
+function trailAmb(i) {
+  const A = trail.amb[i]; if (!A) return;
+  if (seasonKey !== A.season) setSeason(A.season, false, false);
+  if (moodKey !== A.mood) setMood(A.mood, false, false);
+  if (weatherKey !== A.weather) setWeather(A.weather, false, false);
 }
 function trailShowVerse(i) {
   const q = trail.verses[i]; hideVerse();
@@ -3618,13 +3644,13 @@ function tickTrail(dt) {
   if (!trail) return;
   const N = trail.P.length - 1;
   /* —— 节奏：开场 → [停留（题诗）→ 行进] × N → 收束全景 —— */
-  if (trail.phase === "intro") { if (!fly) { trail.phase = "stay"; trail.clock = 0; trailShowVerse(0); } }
+  if (trail.phase === "intro") { if (!fly) { trail.phase = "stay"; trail.clock = 0; trailAmb(0); trailShowVerse(0); } }
   else if (trail.phase === "stay") {
     trail.clock += dt;
     const stay = trail.verses[trail.prog] ? TRAIL_STAY : 1.6;
     if (trail.clock > stay) {
       if (trail.prog >= N) trailFinish(3.2);
-      else { hideVerse(); trail.phase = "move"; trail.clock = 0; const A = trail.P[trail.prog], B = trail.P[trail.prog + 1]; trail.segDur = clamp(2.2 + Math.hypot(B.x - A.x, B.z - A.z) * 0.045, 2.4, 6.5); }
+      else { hideVerse(); trail.phase = "move"; trail.clock = 0; const A = trail.P[trail.prog], B = trail.P[trail.prog + 1]; trail.segDur = clamp(2.2 + Math.hypot(B.x - A.x, B.z - A.z) * 0.045, 2.4, 6.5); trailAmb(trail.prog + 1); }
     }
   } else if (trail.phase === "move") {
     trail.clock += dt;
@@ -3633,16 +3659,30 @@ function tickTrail(dt) {
     if (u >= 1) { trail.prog = k + 1; trail.phase = "stay"; trail.clock = 0; trailShowVerse(trail.prog); }
   }
   for (const m of [trail.core, trail.glow]) m.material.uniforms.uProg.value = trail.done ? 1.001 : trail.frac + 0.0005;
+  controls.enabled = trail.done || trail.phase === "paused";
   /* —— 跟随镜头：中近景，目标跟着笔头，行进远途时略拉高 —— */
   const headP = trail.curve.getPointAt(clamp(trail.frac, 0, 1));
   if (trail.follow && !fly && (trail.phase === "move" || trail.phase === "stay")) {
     let want = 26;
     if (trail.phase === "move") { const A = trail.P[trail.prog], B = trail.P[trail.prog + 1], d = Math.hypot(B.x - A.x, B.z - A.z); want = clamp(22 + d * 0.3, 24, 70) * (0.75 + 0.25 * Math.sin(Math.PI * Math.min(1, trail.clock / trail.segDur))); }
     trail.fdist = lerp(trail.fdist, want, 1 - Math.exp(-dt * 1.2));
+    trail.losT = (trail.losT || 0) - dt;
+    if (trail.losT <= 0) {
+      trail.losT = 0.4;
+      const look = trail.phase === "stay" ? trail.P[trail.prog] : headP;
+      const ok = (az, ph) => !orbitBlocked(look.clone().add(new THREE.Vector3().setFromSphericalCoords(trail.fdist, ph, az)), look);
+      if (!ok(trail.fazT ?? trail.faz, trail.fphT ?? 1.0)) {
+        let found = null;
+        for (const ph of [1.0, 0.85, 0.7, 0.55]) { for (const d of [0, 0.4, -0.4, 0.8, -0.8, 1.3, -1.3, 1.9, -1.9, 2.6, -2.6, 3.1]) if (ok(0.35 + d, ph)) { found = [0.35 + d, ph]; break; } if (found) break; }
+        if (found) { trail.fazT = found[0]; trail.fphT = found[1]; }
+      } else if ((trail.fazT ?? 0.35) !== 0.35 && ok(0.35, 1.0)) { trail.fazT = 0.35; trail.fphT = 1.0; }
+    }
+    trail.faz = lerp(trail.faz, trail.fazT ?? 0.35, 1 - Math.exp(-dt * 1.1));
+    trail.fph = lerp(trail.fph ?? 1.0, trail.fphT ?? 1.0, 1 - Math.exp(-dt * 1.1));
     const tgt = trail.phase === "stay" ? trail.P[trail.prog] : headP.clone().setY(lerp(headP.y, trail.P[trail.prog].y, 0.6));
     const k = 1 - Math.exp(-dt * 1.8);
     controls.target.lerp(tgt, k);
-    camera.position.lerp(controls.target.clone().add(new THREE.Vector3().setFromSphericalCoords(trail.fdist, 1.0, trail.faz)), k);
+    camera.position.lerp(controls.target.clone().add(new THREE.Vector3().setFromSphericalCoords(trail.fdist, trail.fph, trail.faz)), k);
   }
   /* —— 年谱高亮 —— */
   const done = trail.done ? N : trail.prog;
@@ -3788,6 +3828,19 @@ function placeBar() {
   const r = scrollEl.getBoundingClientRect();
   sbar.style.top = Math.min(innerHeight - 52, r.bottom + 36) + "px";
 }
+/** 按需加载脚本（file:// 与 http 都可用） */
+function lazyScript(src) { return new Promise((res) => { const sc = document.createElement("script"); sc.src = src; sc.async = true; sc.onload = res; sc.onerror = res; document.head.appendChild(sc); }); }
+function loadTourFont() { if (loadTourFont.p) return loadTourFont.p; return (loadTourFont.p = lazyScript("fonts/brush-tour.js")); }
+/** 诗词的译文、赏析、注释、诗话与作者小传：发行版里单独成文件，第一次展卷时才加载 */
+function loadDetail() {
+  if (!DATA.detail) return Promise.resolve();
+  if (loadDetail.p) return loadDetail.p;
+  return (loadDetail.p = lazyScript(DATA.detail).then(() => {
+    const D = window.POEM_DETAIL; if (!D) return;
+    for (const q of POEMS) Object.assign(q, D.p[q.id] || {});
+    Object.assign(AUTHORS, D.authors || {}); DATA.detail = null;
+  }));
+}
 function loadPoemFont() {
   if (loadPoemFont.done) return; loadPoemFont.done = true;
   const sc = document.createElement("script"); sc.src = "fonts/brush-poems.js"; sc.async = true; sc.onerror = () => {}; document.head.appendChild(sc);
@@ -3832,6 +3885,7 @@ $("#sNext").onclick = () => stepPoem(1);
 $("#veil").onclick = () => closeAll();
 
 function renderPoem() {
+  if (DATA.detail) { const p0 = curPlace, n0 = curPoem; loadDetail().then(() => { if (curPlace === p0 && curPoem === n0 && scrollOpen) renderPoem(); }); }
   const p = curPlace, q = p.poems[curPoem], au = AUTHORS[q.a] || {};
   const ya = [...p.name].length > 4 ? 40 : 0;
   let h = `<div class="seg silk"><div class="qian">${esc(q.t)}<em></em></div></div><div class="seg gs"></div>`;
@@ -3981,6 +4035,10 @@ function toggleAmb(open) {
   }
 }
 function buildTrailUI() {
+  $("#tpList").innerHTML = Object.entries(TRAILS).map(([n, T]) => `<button data-p="${n}" style="--c:${T.css}"><i></i><b>${n}</b><span>${T.years} · ${T.stops.length} 站</span></button>`).join("");
+  $("#bTrails").onclick = (e) => { e.stopPropagation(); resEl.classList.remove("on"); $("#trailPick").classList.toggle("on"); };
+  $("#tpList").addEventListener("click", (e) => { const b = e.target.closest("button[data-p]"); if (b) { $("#trailPick").classList.remove("on"); startTrail(b.dataset.p); } });
+  addEventListener("pointerdown", (e) => { if (!e.target.closest("#search")) $("#trailPick").classList.remove("on"); });
   $("#trX").onclick = () => closeTrail();
   $("#trAll").onclick = () => { if (trail) trailFinish(1.8); };
   $("#trReplay").onclick = () => { if (trail) startTrail(trail.poet); };
@@ -4182,7 +4240,7 @@ document.addEventListener("visibilitychange", () => { if (audio) (document.hidde
     setTimeout(hideHint, 14000);
     loop();
     setTimeout(openFromHash, 400);
-    setTimeout(loadPoemFont, 3500);
+    setTimeout(loadTourFont, 600); setTimeout(loadDetail, 2500); setTimeout(loadPoemFont, 5000);
     addEventListener("hashchange", () => { if (!curPlace || !location.hash.includes(curPlace.poems[curPoem].id)) openFromHash(); });
     window.__app = { THREE, scene, camera, controls, renderer, PLACES, VIEWS, flyView, setMood, setSeason, setWeather, GU, FALLS, startTrail, closeTrail, get trail() { return trail; }, get TOUR() { return TOUR; }, TS, tourPlan, groundAt, nearFlora, PATCHES, landAt, wx, wz, y2m, get EXTRA() { return EXTRA_TREES; }, get flora() { return floraMeshes; }, tourAt(i) { startTour(); tourGo(i); }, startTour, stopTour, HOME, get autoFocus() { return autoFocus; }, openPlace, openPoem, closeAll, get listOpen() { return listOpen; }, get scrollOpen() { return scrollOpen; }, applyQuality, get quality() { return QUALITY; }, viewPose,
       setView(v) { const { target, pos } = viewPose(v); controls.target.copy(target); camera.position.copy(pos); fly = null; controls.update(); },
