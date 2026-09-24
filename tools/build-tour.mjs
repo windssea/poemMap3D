@@ -8,6 +8,7 @@ import fs from "node:fs";
 
 globalThis.window = {};
 await import("../data/poems.js");
+await import("../data/fame.js");
 const { poems } = window.POEM_DATA;
 const BAJIA = new Set(["韩愈", "柳宗元", "欧阳修", "苏洵", "苏轼", "苏辙", "王安石", "曾巩"]);
 
@@ -30,8 +31,9 @@ const REGIONS = [
 ];
 const bj = (n) => n.poems.filter((p) => BAJIA.has(p.a)).length;
 const tang = (n) => n.poems.filter((p) => p.d === "唐").length;
-const pick = (list) => list.filter((p) => BAJIA.has(p.a)).concat(list.filter((p) => !BAJIA.has(p.a)));
-const SONG_FIRST = new Set(["yin-hu-shang", "bo-chuan-gua-zhou", "ta-suo-xing-houguan"]);
+/* 名气优先（data/fame.js），同名气时唐宋八大家在前 */
+const fame = (p) => (window.POEM_FAME[p.id] ? window.POEM_FAME[p.id][1] : 2);
+const pick = (list) => [...list].sort((a, b) => fame(b) - fame(a) || BAJIA.has(b.a) - BAJIA.has(a.a));
 const plan = REGIONS.map((R) => {
   const [x0, y0, x1, y1] = R.box;
   const picks = nodes.filter((n) => n.lng >= x0 && n.lng <= x1 && n.lat >= y0 && n.lat <= y1)
@@ -40,8 +42,10 @@ const plan = REGIONS.map((R) => {
     const T = pick(n.poems.filter((p) => p.d === "唐")), S = pick(n.poems.filter((p) => p.d === "宋")), O = pick(n.poems.filter((p) => p.d !== "唐" && p.d !== "宋"));
     /* 唐诗在前；缺哪一朝就用另一朝或前代补足 */
     let two = [T[0] || S[0] || O[0], (T[0] ? S[0] : S[1]) || T[1] || O[0]].filter(Boolean);
-        /* 宋词名篇在此地更有代表性时，宋词先行 */
-    if (T[0] && S[0] && SONG_FIRST.has(S[0].id)) two = [S[0], T[0]];
+    /* 宋诗词在此地名气太低、而另有唐代名篇时，第二首也用唐诗 */
+    if (T[0] && S[0] && fame(S[0]) <= 2 && T[1] && fame(T[1]) >= 4) two = [T[0], T[1]];
+    /* 该地最有名的一首先行（第一轮巡游展示它的名句） */
+    if (two.length === 2 && fame(two[1]) > fame(two[0])) two.reverse();
     const st = { poems: [...new Set(two)].map((p) => p.id), note: n.poems[0].pn };
     if (pi >= R.n) st.extra = 1;
     return st;

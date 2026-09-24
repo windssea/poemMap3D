@@ -15,29 +15,29 @@ window.TOUR_PLAN = [
    },
    {
     "poems": [
-     "bo-chuan-gua-zhou",
-     "jing-ye-si"
+     "jing-ye-si",
+     "bo-chuan-gua-zhou"
     ],
     "note": "扬州旅舍"
    },
    {
     "poems": [
      "fengqiao-ye-bo",
-     "zui-luo-po-suzhou"
+     "yi-jian-mei-wujiang"
     ],
     "note": "枫桥"
    },
    {
     "poems": [
-     "gui-zhi-xiang",
-     "yuan-ri"
+     "yuan-ri",
+     "mei-hua-jueju"
     ],
     "note": "金陵",
     "extra": 1
    },
    {
     "poems": [
-     "deng-jinling-fenghuang-tai",
+     "wuyi-xiang",
      "shui-long-yin"
     ],
     "note": "三山",
@@ -53,15 +53,15 @@ window.TOUR_PLAN = [
   "stops": [
    {
     "poems": [
-     "gu-tong",
-     "die-lian-hua-shen-shen"
+     "yu-lin-ling",
+     "huan-xi-sha-yanshu"
     ],
     "note": "汴京"
    },
    {
     "poems": [
-     "qiu-si-luoyang",
-     "yu-lou-chun-guizhi"
+     "yu-lou-chun-guizhi",
+     "qiu-si-luoyang"
     ],
     "note": "洛阳"
    },
@@ -91,22 +91,22 @@ window.TOUR_PLAN = [
   "stops": [
    {
     "poems": [
-     "zao-chun-zhang-shui-bu",
-     "tuci-changan"
+     "chun-wang",
+     "jin-se"
     ],
     "note": "长安"
    },
    {
     "poems": [
      "song-yuan-er",
-     "wei-chuan-tian-jia"
+     "yi-qin-e"
     ],
     "note": "渭城"
    },
    {
     "poems": [
-     "zhongnan-shan",
-     "zhong-nan-wang-yu-xue"
+     "shan-ming-niao-ti",
+     "zhongnan-shan"
     ],
     "note": "终南山",
     "extra": 1
@@ -202,7 +202,7 @@ window.TOUR_PLAN = [
    {
     "poems": [
      "baixue-ge",
-     "cong-jun-bei-zheng"
+     "guan-shan-yue"
     ],
     "note": "轮台"
    },
@@ -223,8 +223,8 @@ window.TOUR_PLAN = [
    },
    {
     "poems": [
-     "zheng-ren-yuan",
-     "chi-le-ge"
+     "chi-le-ge",
+     "zheng-ren-yuan"
     ],
     "note": "敕勒川",
     "extra": 1

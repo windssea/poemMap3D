@@ -51,7 +51,9 @@ const earlyMin = (await esbuild.transform(early, { loader: "js", minify: true })
 /* —— 数据拆分：启动必需（题目、作者、诗句、地点）与按需细节（译文、赏析、注释、诗话、小传） —— */
 globalThis.window = {};
 new Function(fs.readFileSync(path.join(ROOT, "data/poems.js"), "utf8"))();
-const FULL = window.POEM_DATA, CORE_KEYS = ["id", "t", "d", "a", "f", "pn", "rg", "lat", "lng", "l", "pr", "g"];
+new Function(fs.readFileSync(path.join(ROOT, "data/fame.js"), "utf8"))();   // 名句与名气打标，并入启动数据
+const FULL = window.POEM_DATA, CORE_KEYS = ["id", "t", "d", "a", "f", "pn", "rg", "lat", "lng", "l", "pr", "g", "fm"];
+for (const q of FULL.poems) if (window.POEM_FAME[q.id]) q.fm = window.POEM_FAME[q.id];
 const core = FULL.poems.map((q) => Object.fromEntries(CORE_KEYS.filter((k2) => q[k2] !== undefined).map((k2) => [k2, q[k2]])));
 const det = {}; for (const q of FULL.poems) { const o = {}; for (const k2 of Object.keys(q)) if (!CORE_KEYS.includes(k2)) o[k2] = q[k2]; det[q.id] = o; }
 const strip = (f2) => fs.readFileSync(path.join(ROOT, f2), "utf8").replace(/^\/\*[\s\S]*?\*\/\s*/, "").trim();
