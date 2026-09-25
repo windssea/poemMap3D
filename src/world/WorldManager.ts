@@ -9,6 +9,7 @@ import { ChunkManager } from './chunk/ChunkManager'
 import type { MacroGridData } from './generation/geography/MacroGeography'
 import { WorldContext } from './generation/WorldContext'
 import type { CameraPreset, PlaceAnchor } from './landmark/LandmarkDefinition'
+import { buildFogMap, type FogMap, fogBounds } from './overview/EdgeFog'
 import { type OverviewGrid, overviewGrid } from './overview/OverviewBuilder'
 import { OverviewRenderer } from './overview/OverviewRenderer'
 import { World } from './World'
@@ -36,10 +37,15 @@ export class WorldManager {
   readonly chunks: ChunkManager
   readonly overview: OverviewRenderer
   readonly grid: OverviewGrid
+  /** 边缘雾图：着色器混雾、区块跳过全隐处、镜头可去的范围 */
+  readonly fog: FogMap
+  readonly fogTexture: THREE.DataTexture
   private quality: QualityPreset
   /** 焦点移动速度（方块/秒，平滑）与上一帧焦点：按速度预读前方 */
   private readonly vel = new THREE.Vector2()
   private readonly last = new THREE.Vector3(Number.NaN, 0, 0)
+  /** 当前近景半径（带回差：变化够两圈才换，缩放时不来回重排） */
+  private curR = -1
 
   private constructor(
     ctx: WorldContext,
@@ -54,7 +60,14 @@ export class WorldManager {
     this.quality = quality
     this.sampler = new WorldSampler(ctx, this.world)
     this.grid = overviewGrid(ctx)
-    this.chunks = new ChunkManager(this.world, generators, mesher, scene, materials, this.grid)
+    this.fog = buildFogMap(ctx.macro)
+    this.fogTexture = new THREE.DataTexture(this.fog.data, this.fog.w, this.fog.h, THREE.RedFormat, THREE.UnsignedByteType)
+    this.fogTexture.magFilter = THREE.LinearFilter
+    this.fogTexture.minFilter = THREE.LinearFilter
+    this.fogTexture.needsUpdate = true
+    shared.uFogMap.value = this.fogTexture
+    shared.uFogRect.value.set(this.fog.x0, this.fog.z0, this.fog.w * this.fog.cell, this.fog.h * this.fog.cell)
+    this.chunks = new ChunkManager(this.world, generators, mesher, scene, materials, this.grid, this.fog)
     this.chunks.uploadsPerFrame = quality.uploadsPerFrame
     shared.uChunkMask.value = this.chunks.mask
     shared.uChunkMaskRect.value.copy(this.chunks.maskRect)
@@ -108,15 +121,20 @@ export class WorldManager {
   /** 按镜头距离取近景半径：全国视角不物化区块，越近越小越密 */
   radiusFor(distance: number): number {
     if (distance > 1500) return 0
-    const r = Math.round(distance / 16 / 1.6) + 4
-    return Math.max(4, Math.min(this.quality.chunkRadius, r))
+    // 推近时随视距放大；拉远到五六百格以外，近处也看不清方块细节了，交给远景一级，近景圈反而收小
+    const grow = Math.round(distance / 16 / 1.6) + 4
+    const shrink = distance > 520 ? Math.round((distance - 520) / 90) : 0
+    return Math.max(4, Math.min(this.quality.chunkRadius - shrink, grow))
   }
 
   /**
    * @param dest 飞行目的地（有则提前排队那里的近景区块）
    */
   update(dt: number, camera: THREE.Camera, focus: THREE.Vector3, distance: number, dest?: { target: THREE.Vector3; distance: number } | null): void {
-    const r = this.radiusFor(distance)
+    /* 近景半径按镜头视距定，带回差 */
+    const want = this.radiusFor(distance)
+    if (this.curR < 0 || (want === 0) !== (this.curR === 0) || Math.abs(want - this.curR) >= 2) this.curR = want
+    const r = this.curR
     /* 预读：焦点沿移动方向前移约 0.8 秒的路程（不超过近景半径的六成） */
     if (Number.isFinite(this.last.x) && dt > 0) {
       const k = Math.min(1, dt * 4)
@@ -127,7 +145,12 @@ export class WorldManager {
     const lead = this.vel.clone().multiplyScalar(0.8)
     const maxLead = r * 16 * 0.6
     if (lead.length() > maxLead) lead.setLength(maxLead)
-    this.chunks.setFocus(focus.x + lead.x, focus.z + lead.y, r, Math.round(r * this.quality.farFactor), this.quality.coarseRadius, camera)
+    /* 细节圈的中心从注视点往镜头方向挪三成：画面下方（离镜头最近处）才是最该精细的地方 */
+    const cx = focus.x + (camera.position.x - focus.x) * 0.3
+    const cz = focus.z + (camera.position.z - focus.z) * 0.3
+    const back = Math.hypot(cx - focus.x, cz - focus.z)
+    const k = back > r * 16 * 0.5 ? (r * 16 * 0.5) / back : 1
+    this.chunks.setFocus(focus.x + (cx - focus.x) * k + lead.x, focus.z + (cz - focus.z) * k + lead.y, r, Math.round(r * this.quality.farFactor), this.quality.coarseRadius, camera)
     const dr = dest ? this.radiusFor(dest.distance) : 0
     if (dest && dr > 0 && dest.target.distanceTo(focus) > r * 16) this.chunks.prefetch(dest.target.x, dest.target.z, Math.min(8, Math.ceil(dr * 0.6)))
     else this.chunks.prefetch(null)
@@ -146,7 +169,13 @@ export class WorldManager {
     return this.ctx.landmarks.landmarks.filter((l) => l.waterfall).map((l) => ({ x: l.waterfall!.x, y: l.waterfall!.bottom + 1, z: l.waterfall!.z, width: l.waterfall!.width }))
   }
 
+  /** 镜头目标点可去的范围（不进入全隐的雾里） */
+  cameraBounds(): { minX: number; minZ: number; maxX: number; maxZ: number } {
+    return fogBounds(this.fog)
+  }
+
   dispose(): void {
+    this.fogTexture.dispose()
     this.chunks.dispose()
     this.overview.dispose()
     this.generators.dispose()

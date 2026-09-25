@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { BlockRenderLayer } from '../../world/block/BlockDefinition'
-import { GLSL_AO, GLSL_BAYER, GLSL_DESATURATE, GLSL_ENV_UNIFORMS, GLSL_HASH, GLSL_SEASON, GLSL_SNOW } from './ShaderLibrary'
+import { GLSL_AO, GLSL_BAYER, GLSL_DESATURATE, GLSL_EDGE_FOG, GLSL_ENV_UNIFORMS, GLSL_HASH, GLSL_SEASON, GLSL_SNOW } from './ShaderLibrary'
 import type { SharedUniforms } from './SharedUniforms'
 import { createBlockTextureArray } from './TextureAtlas'
 import { GLSL_CLIMATE } from '../../world/climate/Climate'
@@ -26,10 +26,21 @@ varying vec3 vBWorld;
 varying vec3 vBNormal;
 `
 
-/** 远景片让位：掩膜为 255（近景 / 远景区块已显示）处丢弃 */
-const COARSE_MASK = /* glsl */ `
+/** 雾之后再按边缘雾图混向雾色：地图四边、远海、海南以南渐隐 */
+const EDGE_FOG_FRAGMENT = (v: string) => `#include <fog_fragment>
+#ifdef USE_FOG
+ gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, edgeFog(${v}));
+#endif`
+
+/**
+ * 分级让位：掩膜 255 = 近景已显示，192 = 远景已显示，128 = 只有远景片。
+ * 远景在 255 处丢弃，远景片在 192 以上丢弃，覆盖图在任何一级处丢弃。
+ */
+const maskDiscard = (threshold: number) => /* glsl */ `
  { vec2 mk = (vBWorld.xz - uChunkMaskRect.xy) / uChunkMaskRect.zw;
-   if (mk.x > 0.0 && mk.y > 0.0 && mk.x < 1.0 && mk.y < 1.0 && texture2D(uChunkMask, mk).r > 0.75) discard; }`
+   if (mk.x > 0.0 && mk.y > 0.0 && mk.x < 1.0 && mk.y < 1.0 && texture2D(uChunkMask, mk).r > ${threshold.toFixed(2)}) discard; }`
+const FAR_MASK = maskDiscard(0.9)
+const COARSE_MASK = maskDiscard(0.6)
 
 const BLOCK_FRAGMENT_DECL = /* glsl */ `
 uniform highp sampler2DArray uBlockAtlas;
@@ -53,6 +64,7 @@ ${GLSL_SEASON}
 ${GLSL_AO}
 ${GLSL_SNOW}
 ${GLSL_DESATURATE}
+${GLSL_EDGE_FOG}
 `
 
 /**
@@ -65,6 +77,9 @@ export class MaterialLibrary {
   readonly block: THREE.Material[]
   /** 远景片用：在已显示近景 / 远景区块处让位 */
   readonly blockCoarse: THREE.Material[]
+  /** 远景（2×2×2）用：在近景已显示处让位 */
+  readonly blockFar: THREE.Material[]
+  readonly waterFar: THREE.ShaderMaterial
   readonly water: THREE.ShaderMaterial
   readonly waterCoarse: THREE.ShaderMaterial
   readonly overview: THREE.MeshLambertMaterial
@@ -77,13 +92,19 @@ export class MaterialLibrary {
     this.block[BlockRenderLayer.Cutout] = this.createBlockMaterial('cutout')
     this.block[BlockRenderLayer.Translucent] = this.createBlockMaterial('translucent')
     this.block[BlockRenderLayer.Effect] = this.createGlowMaterial()
+    this.blockFar = []
+    this.blockFar[BlockRenderLayer.Solid] = this.createBlockMaterial('solid', 'far')
+    this.blockFar[BlockRenderLayer.Cutout] = this.createBlockMaterial('cutout', 'far')
+    this.blockFar[BlockRenderLayer.Translucent] = this.createBlockMaterial('translucent', 'far')
+    this.blockFar[BlockRenderLayer.Effect] = this.createGlowMaterial()
     this.blockCoarse = []
-    this.blockCoarse[BlockRenderLayer.Solid] = this.createBlockMaterial('solid', true)
-    this.blockCoarse[BlockRenderLayer.Cutout] = this.createBlockMaterial('cutout', true)
-    this.blockCoarse[BlockRenderLayer.Translucent] = this.createBlockMaterial('translucent', true)
+    this.blockCoarse[BlockRenderLayer.Solid] = this.createBlockMaterial('solid', 'coarse')
+    this.blockCoarse[BlockRenderLayer.Cutout] = this.createBlockMaterial('cutout', 'coarse')
+    this.blockCoarse[BlockRenderLayer.Translucent] = this.createBlockMaterial('translucent', 'coarse')
     this.blockCoarse[BlockRenderLayer.Effect] = this.block[BlockRenderLayer.Effect]
     this.water = this.createWaterMaterial(false)
-    this.waterCoarse = this.createWaterMaterial(false, true)
+    this.waterCoarse = this.createWaterMaterial(false, 'coarse')
+    this.waterFar = this.createWaterMaterial(false, 'far')
     this.overview = this.createOverviewMaterial()
     this.overviewWater = this.createWaterMaterial(true)
   }
@@ -99,7 +120,7 @@ export class MaterialLibrary {
     }
   }
 
-  private createBlockMaterial(kind: 'solid' | 'cutout' | 'translucent', coarse = false): THREE.MeshLambertMaterial {
+  private createBlockMaterial(kind: 'solid' | 'cutout' | 'translucent', tier: 'near' | 'far' | 'coarse' = 'near'): THREE.MeshLambertMaterial {
     const m = new THREE.MeshLambertMaterial({ color: WHITE })
     const fade = { value: 1 }
     m.userData.fade = fade
@@ -124,7 +145,7 @@ export class MaterialLibrary {
         )
       let frag = shader.fragmentShader
         .replace('#include <common>', `#include <common>\n${BLOCK_FRAGMENT_DECL}`)
-        .replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>\n if (uFade < 0.999 && bayer4(gl_FragCoord.xy) > uFade) discard;${coarse ? COARSE_MASK : ''}`)
+        .replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>\n if (uFade < 0.999 && bayer4(gl_FragCoord.xy) > uFade) discard;${tier === 'coarse' ? COARSE_MASK : tier === 'far' ? FAR_MASK : ''}`)
         .replace(
           '#include <map_fragment>',
           /* glsl */ `
@@ -158,10 +179,11 @@ export class MaterialLibrary {
           }`,
         )
         .replace('#include <opaque_fragment>', `outgoingLight = desaturate(outgoingLight, uSaturation);\n#include <opaque_fragment>`)
+        .replace('#include <fog_fragment>', EDGE_FOG_FRAGMENT('vBWorld'))
       if (kind === 'cutout') frag = frag.replace('#include <normal_fragment_begin>', 'float faceDirection = 1.0;\nvec3 normal = normalize( vNormal );\nvec3 nonPerturbedNormal = normal;')
       shader.fragmentShader = frag
     }
-    m.customProgramCacheKey = () => `block-${kind}${coarse ? '-coarse' : ''}`
+    m.customProgramCacheKey = () => `block-${kind}-${tier}`
     return m
   }
 
@@ -198,7 +220,7 @@ export class MaterialLibrary {
   }
 
   /** 水面：按深度三段着色（浅石绿 → 石青 → 黛青），像素化水纹、天光反射、日光闪点；瀑布为下落的条纹 */
-  private createWaterMaterial(overview: boolean, coarse = false): THREE.ShaderMaterial {
+  private createWaterMaterial(overview: boolean, tier: 'near' | 'far' | 'coarse' = 'near'): THREE.ShaderMaterial {
     const fade = { value: 1 }
     const m = new THREE.ShaderMaterial({
       uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uFade: fade }]),
@@ -225,6 +247,7 @@ export class MaterialLibrary {
         ${GLSL_HASH}
         ${GLSL_BAYER}
         ${GLSL_CLIMATE}
+        ${GLSL_EDGE_FOG}
         uniform vec3 uSunDir;
         uniform vec3 uSunColor;
         uniform vec3 uSkyColor;
@@ -237,7 +260,7 @@ export class MaterialLibrary {
         uniform float uIce;
         uniform vec3 uIceColor;
         uniform float uFade;
-        ${overview || coarse ? 'uniform sampler2D uChunkMask; uniform vec4 uChunkMaskRect;' : ''}
+        ${overview || tier !== 'near' ? 'uniform sampler2D uChunkMask; uniform vec4 uChunkMaskRect;' : ''}
         varying vec3 vTint;
         varying float vFlags;
         varying vec3 vWorld;
@@ -249,9 +272,11 @@ export class MaterialLibrary {
             overview
               ? `vec2 mk = (vWorld.xz - uChunkMaskRect.xy) / uChunkMaskRect.zw;
                  if (mk.x > 0.0 && mk.y > 0.0 && mk.x < 1.0 && mk.y < 1.0 && texture2D(uChunkMask, mk).r > 0.02) discard;`
-              : coarse
+              : tier === 'coarse'
                 ? COARSE_MASK.replace('vBWorld', 'vWorld')
-                : ''
+                : tier === 'far'
+                  ? FAR_MASK.replace('vBWorld', 'vWorld')
+                  : ''
           }
           float depth = clamp(vTint.r * 255.0 / 36.0 / 7.0, 0.0, 1.0);
           bool falling = vTint.g > 0.5;
@@ -280,7 +305,7 @@ export class MaterialLibrary {
           gl_FragColor = vec4(col, ${overview ? '1.0' : 'alpha'});
           #include <tonemapping_fragment>
           #include <colorspace_fragment>
-          #include <fog_fragment>
+          ${EDGE_FOG_FRAGMENT('vWorld')}
         }`,
       transparent: !overview,
       depthWrite: overview,
@@ -320,7 +345,8 @@ export class MaterialLibrary {
           ${GLSL_BAYER}
           ${GLSL_SEASON}
           ${GLSL_SNOW}
-          ${GLSL_DESATURATE}`,
+          ${GLSL_DESATURATE}
+          ${GLSL_EDGE_FOG}`,
         )
         .replace(
           '#include <clipping_planes_fragment>',
@@ -335,6 +361,7 @@ export class MaterialLibrary {
            diffuseColor.rgb *= col;`,
         )
         .replace('#include <opaque_fragment>', `outgoingLight = desaturate(outgoingLight, uSaturation);\n#include <opaque_fragment>`)
+        .replace('#include <fog_fragment>', EDGE_FOG_FRAGMENT('vOWorld'))
     }
     m.customProgramCacheKey = () => 'overview'
     return m
@@ -347,6 +374,8 @@ export class MaterialLibrary {
     this.overview.dispose()
     this.overviewWater.dispose()
     this.waterCoarse.dispose()
+    this.waterFar.dispose()
+    for (const m of this.blockFar) m.dispose()
     for (const m of this.blockCoarse.slice(0, 3)) m.dispose()
   }
 }

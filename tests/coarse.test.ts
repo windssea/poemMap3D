@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { B } from '../src/world/block/Blocks'
-import { generateCoarseRegion } from '../src/world/generation/CoarseGenerator'
+import { generateCoarseRegion, REGION_CHUNKS } from '../src/world/generation/CoarseGenerator'
 import { meshVolume } from '../src/world/voxel/VoxelMesher'
 import { testWorld } from './helpers'
 
 describe('远景片（4×4×4）', () => {
   const w = testWorld()
   const lm = w.landmarks.byPlaceId('hangzhou')!
-  const rx = Math.floor(lm.x / 64)
-  const rz = Math.floor(lm.z / 64)
+  const rx = Math.floor(lm.x / (REGION_CHUNKS * 16))
+  const rz = Math.floor(lm.z / (REGION_CHUNKS * 16))
 
   it('杭州一片：有湖水、有瓦顶或树冠，网格三角形远少于原分辨率', () => {
     const t0 = performance.now()
@@ -20,7 +20,7 @@ describe('远景片（4×4×4）', () => {
     expect(ids.has(B.ROOF_GRAY) || ids.has(B.LEAVES_BROAD) || ids.has(B.LEAVES_WILLOW)).toBe(true)
     const mesh = meshVolume(g.volume)
     expect(mesh.quads).toBeGreaterThan(50)
-    expect(mesh.quads).toBeLessThan(20000)
+    expect(mesh.quads).toBeLessThan(80000)
     expect(ms).toBeLessThan(1500)
   })
 

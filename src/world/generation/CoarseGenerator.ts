@@ -9,8 +9,8 @@ import { MAX_TREE_RADIUS } from '../vegetation/TreeRegistry'
 import { fullCubeOf, isLeafBlock } from '../voxel/VoxelDownsampler'
 import { VoxelVolume } from '../voxel/VoxelVolume'
 
-/** 远景第三级：一片 = 4×4 区块（64 方块见方），每格 4×4×4 方块 */
-export const REGION_CHUNKS = 4
+/** 远景第三级：一片 = 8×8 区块（128 方块见方），每格 4×4×4 方块（片大、绘制调用少） */
+export const REGION_CHUNKS = 8
 export const COARSE_CELL = 4
 const N = (REGION_CHUNKS * CHUNK_SIZE) / COARSE_CELL
 const SPAN = REGION_CHUNKS * CHUNK_SIZE

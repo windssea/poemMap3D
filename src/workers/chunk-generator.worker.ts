@@ -7,6 +7,8 @@ import { meshTransferables } from '../world/voxel/MeshBuffer'
 import { downsample2 } from '../world/voxel/VoxelDownsampler'
 import { generateCoarseRegion } from '../world/generation/CoarseGenerator'
 import { meshVolume } from '../world/voxel/VoxelMesher'
+import { VoxelVolume } from '../world/voxel/VoxelVolume'
+import { WORLD_HEIGHT } from '../world/coordinate/constants'
 import type { WorkerRequest, WorkerResponse } from './protocol'
 
 /*
@@ -59,7 +61,8 @@ self.onmessage = (e: MessageEvent<WorkerRequest>) => {
         }
         if (m.lod === 2) {
           const t0 = performance.now()
-          const g = ctx.chunks.generateVolume(m.cx, m.cz, 2, false)
+          // 远景：cx、cz 为 2×2 区块一片的片坐标；外扩 2 格，合并后正好 1 格外边
+          const g = ctx.chunks.generateArea(new VoxelVolume(m.cx * 32 - 2, 0, m.cz * 32 - 2, 36, WORLD_HEIGHT, 36), false)
           const genMs = performance.now() - t0
           const mesh = meshVolume(downsample2(g.volume))
           const transfer: ArrayBuffer[] = []

@@ -97,7 +97,8 @@ export class Engine {
       quality: q,
       onProgress: (label, value) => this.events.emit('progress', { label, value }),
     })
-    const bounds = { minX: this.world.grid.x0, minZ: this.world.grid.z0, maxX: this.world.grid.x0 + this.world.grid.tilesX * 512, maxZ: this.world.grid.z0 + this.world.grid.tilesZ * 512 }
+    // 镜头止于雾边：南到海南，西、北、东不进边雾
+    const bounds = this.world.cameraBounds()
     const home = this.initialPose()
     this.camera = new CameraController(this.world.sampler, bounds, home)
     this.camera.onLevelChange = (l) => this.events.emit('level', l)

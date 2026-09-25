@@ -20,7 +20,7 @@ export interface ChunkRequest {
   id: number
   cx: number
   cz: number
-  /** 1 = 近景原分辨率；2 = 远景（2×2×2 合并）；4 = 远景片（4×4 区块、4×4×4 合并，cx/cz 为片坐标） */
+  /** 1 = 近景原分辨率；2 = 远景（2×2 区块一片、2×2×2 合并，cx/cz 为片坐标）；4 = 远景片（4×4 区块、4×4×4 合并，cx/cz 为片坐标） */
   lod: 1 | 2 | 4
 }
 

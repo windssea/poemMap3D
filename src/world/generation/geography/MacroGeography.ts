@@ -10,6 +10,9 @@ export const MacroKind = { Normal: 0, Desert: 1, Loess: 2, Gobi: 3, Plateau: 4, 
 export type MacroKind = (typeof MacroKind)[keyof typeof MacroKind]
 const KIND_OF: Record<RegionKind, MacroKind> = { desert: 1, loess: 2, gobi: 3, plateau: 4, steppe: 5, plain: 6, karst: 7, redbasin: 8 }
 
+/** 地图南界（纬度）：海南岛以南只是海，且整片隐入雾中 */
+export const SOUTH_LIMIT_LAT = 18.1
+
 /** 可在 Worker 间传递的宏观地理网格 */
 export interface MacroGridData {
   w: number
@@ -60,6 +63,8 @@ export function buildMacroGeography(mask: LandMask, seed: number = WorldConfig.s
   const seaPolys = SEA_POLYGONS.map((poly) => projectLine(P, poly))
   for (let j = 0; j < h; j++)
     for (let i = 0; i < w; i++) {
+      // 图的南界到海南为止：以南一律是海（旧掩膜在那里没有数据，不能当陆地）
+      if (lats[j] < SOUTH_LIMIT_LAT) continue
       const m = mask.sample(lngs[i], lats[j])
       if (m === 1) land[j * w + i] = 1
       else {

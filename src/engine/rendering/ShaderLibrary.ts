@@ -86,6 +86,17 @@ vec3 applySnow(vec3 col, vec3 wnormal, vec3 wpos, vec3 snowColor, float climate)
 }
 `
 
+/** 边缘雾：地图四边与离岸远海渐隐入雾（取样雾图） */
+export const GLSL_EDGE_FOG = /* glsl */ `
+uniform sampler2D uFogMap;
+uniform vec4 uFogRect;
+float edgeFog(vec3 w) {
+  vec2 uv = (w.xz - uFogRect.xy) / uFogRect.zw;
+  if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) return 1.0;
+  return texture2D(uFogMap, uv).r;
+}
+`
+
 export const GLSL_DESATURATE = /* glsl */ `
 vec3 desaturate(vec3 c, float s) {
   float l = dot(c, vec3(0.299, 0.587, 0.114));

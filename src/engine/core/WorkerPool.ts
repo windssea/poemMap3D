@@ -9,6 +9,8 @@ interface Job {
   resolve: (r: WorkerResponse) => void
   reject: (e: Error) => void
   cancelled: boolean
+  /** 上次重排时算得的优先级 */
+  p: number
 }
 
 export interface PoolStats {
@@ -20,6 +22,8 @@ export interface PoolStats {
 
 /**
  * Worker 池：带优先级的任务队列，空闲 Worker 取当前最高优先级的任务。
+ * 队列按优先级有序；优先级每隔一小段时间整体重算重排一次（镜头移动后跟上），
+ * 平时入队二分插入、出队取头，不在每次派发时逐个重算（几千个任务时那是平方级的卡顿）。
  */
 export class WorkerPool {
   private readonly workers: Worker[] = []
@@ -28,6 +32,9 @@ export class WorkerPool {
   private readonly inflight = new Map<number, Job>()
   private readonly byWorker = new Map<Worker, number>()
   private nextId = 1
+  private lastSort = 0
+  /** 整体重排的间隔（毫秒） */
+  resortMs = 150
   done = 0
   onError: ((msg: string) => void) | null = null
 
@@ -86,10 +93,19 @@ export class WorkerPool {
     const id = this.nextId++
     let job!: Job
     const promise = new Promise<T>((resolve, reject) => {
-      job = { id, msg: make(id), transfer, priority, resolve: resolve as (r: WorkerResponse) => void, reject, cancelled: false }
+      job = { id, msg: make(id), transfer, priority, resolve: resolve as (r: WorkerResponse) => void, reject, cancelled: false, p: 0 }
     })
-    this.queue.push(job)
-    this.pump()
+    job.p = priority()
+    /* 二分插入（有序队列） */
+    let lo = 0
+    let hi = this.queue.length
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1
+      if (this.queue[mid].p <= job.p) lo = mid + 1
+      else hi = mid
+    }
+    this.queue.splice(lo, 0, job)
+    if (this.idle.length) this.pump()
     return {
       id,
       promise,
@@ -99,25 +115,31 @@ export class WorkerPool {
     }
   }
 
-  private pump(): void {
-    while (this.idle.length && this.queue.length) {
-      let best = -1
-      let bp = Infinity
-      for (let i = 0; i < this.queue.length; i++) {
-        const j = this.queue[i]
-        if (j.cancelled) {
-          this.queue.splice(i--, 1)
-          j.reject(new Error('cancelled'))
-          continue
-        }
-        const p = j.priority()
-        if (p < bp) {
-          bp = p
-          best = i
-        }
+  /** 丢掉已取消的、重算全部优先级并排序 */
+  resort(): void {
+    this.lastSort = performance.now()
+    let n = 0
+    for (const j of this.queue) {
+      if (j.cancelled) {
+        j.reject(new Error('cancelled'))
+        continue
       }
-      if (best < 0) return
-      const job = this.queue.splice(best, 1)[0]
+      j.p = j.priority()
+      this.queue[n++] = j
+    }
+    this.queue.length = n
+    this.queue.sort((a, b) => a.p - b.p)
+  }
+
+  private pump(): void {
+    if (!this.idle.length || !this.queue.length) return
+    if (performance.now() - this.lastSort > this.resortMs) this.resort()
+    while (this.idle.length && this.queue.length) {
+      const job = this.queue.shift()!
+      if (job.cancelled) {
+        job.reject(new Error('cancelled'))
+        continue
+      }
       const w = this.idle.pop()!
       this.inflight.set(job.id, job)
       this.byWorker.set(w, job.id)

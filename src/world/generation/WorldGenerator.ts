@@ -36,7 +36,11 @@ export class ChunkGenerator {
   ) {}
 
   generateVolume(cx: number, cz: number, pad = 1, decorate = true): { volume: VoxelVolume; trees: number; structures: number } {
-    const vol = VoxelVolume.forChunk(cx, cz, pad)
+    return this.generateArea(VoxelVolume.forChunk(cx, cz, pad), decorate)
+  }
+
+  /** 任意矩形范围（远景 2×2 区块一片时用）：同一条流水线填进给定的体素体 */
+  generateArea(vol: VoxelVolume, decorate = true): { volume: VoxelVolume; trees: number; structures: number } {
     const region = this.terrain.region(vol.ox, vol.oz, vol.sx, vol.sz)
 
     /* 地形方块：岩层 → 土层 → 地表；其上注水 */

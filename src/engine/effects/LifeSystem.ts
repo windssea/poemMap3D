@@ -519,7 +519,7 @@ export class LifeSystem {
     let n = 0
     for (let k = 0; k < 16; k++) {
       const a = (k / 16) * Math.PI * 2
-      for (const r of [30, 70, 120]) {
+      for (const r of [20, 40, 60]) {
         const c = this.ctx.terrain.column(Math.floor(x + Math.cos(a) * r), Math.floor(z + Math.sin(a) * r))
         if (c.waterKind !== WaterKind.Sea) {
           lx += Math.cos(a) / r

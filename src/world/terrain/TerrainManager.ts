@@ -234,9 +234,9 @@ export class TerrainManager {
     return h
   }
 
-  /** 峰林：每 15 格一格抖动的中心，约八成有峰；峰壁近乎直立、峰顶圆，脚下一圈缓坡 */
+  /** 峰林：每 18 格一格抖动的中心，约六成有峰；峰壁陡、峰顶圆，脚下一圈缓坡（峰高 10–26，镜头好走） */
   private karstTower(x: number, z: number): number {
-    const S = 15
+    const S = 18
     const gx = Math.floor(x / S)
     const gz = Math.floor(z / S)
     let best = 0
@@ -244,11 +244,11 @@ export class TerrainManager {
       for (let i = -1; i <= 1; i++) {
         const cx = gx + i
         const cz = gz + j
-        if (hashUnit(hash2i(cx, cz, 7717)) < 0.22) continue
+        if (hashUnit(hash2i(cx, cz, 7717)) < 0.4) continue
         const px = (cx + 0.2 + 0.6 * hashUnit(hash2i(cx, cz, 7723))) * S
         const pz = (cz + 0.2 + 0.6 * hashUnit(hash2i(cx, cz, 7727))) * S
         const r = 3.2 + 3.4 * hashUnit(hash2i(cx, cz, 7729))
-        const H = 14 + 26 * hashUnit(hash2i(cx, cz, 7741))
+        const H = 10 + 16 * hashUnit(hash2i(cx, cz, 7741))
         const d = (Math.hypot(x - px, z - pz) / r) * (1 + 0.18 * this.nBump(x / 6, z / 6))
         if (d >= 1.35) continue
         const f = d < 1 ? Math.pow(1 - d * d * d, 0.45) : (0.12 * (1.35 - d)) / 0.35

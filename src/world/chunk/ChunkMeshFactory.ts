@@ -28,8 +28,14 @@ export function createChunkMeshes(cx: number, cz: number, layers: MeshLayerData[
     const g = createLayerGeometry(d)
     if (!g) return
     // 远景片（lod 4）用会让位的材质：近景 / 远景区块已显示处不画
-    const coarse = lod === 4
-    const mat = layer === BlockRenderLayer.Translucent ? (coarse ? materials.waterCoarse : materials.water) : (coarse ? materials.blockCoarse : materials.block)[layer]
+    const mat =
+      layer === BlockRenderLayer.Translucent
+        ? lod === 4
+          ? materials.waterCoarse
+          : lod === 2
+            ? materials.waterFar
+            : materials.water
+        : (lod === 4 ? materials.blockCoarse : lod === 2 ? materials.blockFar : materials.block)[layer]
     const m = new THREE.Mesh(g, mat)
     m.position.set(cx * CHUNK_SIZE, 0, cz * CHUNK_SIZE)
     m.scale.setScalar(lod / POSITION_SCALE)
