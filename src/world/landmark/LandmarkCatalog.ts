@@ -69,6 +69,8 @@ const LUSHAN: LandmarkDefinition = {
   id: 'lushan',
   name: '庐山',
   coordinate: { lng: 116.0, lat: 29.57 },
+  // 手工山形北缘不能压到长江：整体往西南挪，东麓瀑布不落进鄱阳湖
+  offset: [-16, 16],
   radius: 62,
   major: true,
   poetryPlaceId: 'lushan',
@@ -88,45 +90,62 @@ const LUSHAN: LandmarkDefinition = {
     { b: 'pagoda', x: 44, z: 22, p: { levels: 5, width: 7 } },
     { b: 'hut', x: -12, z: 42, p: { width: 5, depth: 5 } },
   ],
-  waterfall: { x: 14, z: 3, top: 0, width: 3, dir: 's' },
+  waterfall: { x: 14, z: 0, top: 0, width: 3, dir: 's' },
   trees: [{ type: 'bamboo', pts: [[-20, 44], [-18, 36]], n: 2 }],
   vegetationProfile: { weights: { pine: 6, broadleaf: 1.5, bamboo: 0.6 }, density: 1.3 },
   cameraPreset: { yaw: 0.35, pitch: 0.34, distance: 130 },
 }
 
-/** 长安：方城四门、朱雀大街、大明宫殿阶、坊里、城南大雁塔 */
+/** 长安：紧凑的城郭——北有宫城，十字大街交于钟楼，东市西市列肆设摊；东门外大雁塔。城南即终南山，不越界 */
 const CHANGAN: LandmarkDefinition = {
   id: 'changan',
   name: '长安',
   coordinate: { lng: 108.95, lat: 34.27 },
-  radius: 70,
+  radius: 40,
   major: true,
   poetryPlaceId: 'changan',
   terrainModifier: [
-    { t: 'flatten', x: 0, z: 8, r: 58, square: true, blend: 12 },
-    { t: 'pave', x0: -2, z0: -30, x1: 2, z1: 60 },
-    { t: 'pave', x0: -32, z0: -2, x1: 32, z1: 2 },
-    { t: 'flatten', x: 0, z: -17, r: 13, square: true, pave: true, blend: 0 },
+    { t: 'flatten', x: 0, z: 0, r: 32, rz: 22, square: true, blend: 6 },
+    { t: 'flatten', x: 38, z: 8, r: 8, blend: 6 },
+    { t: 'pave', x0: -2, z0: -17, x1: 2, z1: 22 },
+    { t: 'pave', x0: -30, z0: -2, x1: 36, z1: 2 },
+    { t: 'pave', x0: -26, z0: 9, x1: -10, z1: 11 },
+    { t: 'pave', x0: 10, z0: 9, x1: 26, z1: 11 },
+    { t: 'flatten', x: 0, z: -11, r: 7, square: true, pave: true, blend: 0 },
   ],
-  walls: [{ x: 0, z: 0, hw: 36, hd: 30, height: 8, gates: ['n', 's', 'e', 'w'] }],
+  walls: [{ x: 0, z: 0, hw: 28, hd: 18, height: 8, gates: ['n', 's', 'e', 'w'] }],
   structures: [
-    { b: 'hall', x: 0, z: -18, p: { width: 17, depth: 9, height: 6, double: true, tile: 'yellow', lanterns: true, terrace: 3 } },
-    { b: 'hall', x: -20, z: -16, rot: 3, p: { width: 11, depth: 7, tile: 'yellow', terrace: 2 } },
-    { b: 'hall', x: 20, z: -16, rot: 1, p: { width: 11, depth: 7, tile: 'yellow', terrace: 2 } },
-    ...grid(steps(-30, -8, 8), steps(6, 24, 7)),
-    ...grid(steps(8, 30, 8), steps(6, 24, 7)),
-    { b: 'brickPagoda', x: 24, z: 50, p: { levels: 7, width: 11 } },
-    { b: 'hall', x: 8, z: 50, rot: 3, p: { width: 9, depth: 7, terrace: 1 } },
-    ...[-22, -14, -6, 2, 10, 18, 26].flatMap((z) => [{ b: 'lamp' as const, x: -7, z, rot: 2 }, { b: 'lamp' as const, x: 7, z }]),
+    /* 宫城 */
+    { b: 'hall', x: 0, z: -11, p: { width: 13, depth: 7, height: 6, double: true, tile: 'yellow', lanterns: true, terrace: 2 } },
+    { b: 'hall', x: -12, z: -11, rot: 3, p: { width: 7, depth: 5, tile: 'yellow', terrace: 1 } },
+    { b: 'hall', x: 12, z: -11, rot: 1, p: { width: 7, depth: 5, tile: 'yellow', terrace: 1 } },
+    { b: 'courtyard', x: -21, z: -10, p: { width: 11, seed: 3 } },
+    { b: 'courtyard', x: 21, z: -10, p: { width: 11, seed: 5 } },
+    /* 钟楼：十字街心 */
+    { b: 'bellTower', x: 0, z: 0, p: { width: 9 } },
+    /* 西市 */
+    { b: 'shop', x: -22, z: 5, p: { seed: 11 } },
+    { b: 'shop', x: -13, z: 5, p: { seed: 12 } },
+    { b: 'loft', x: -22, z: 15, rot: 2, p: { width: 7, depth: 5, seed: 13 } },
+    { b: 'shop', x: -13, z: 15, rot: 2, p: { seed: 14 } },
+    ...[-24, -20, -16, -12].map((x, i) => ({ b: 'stall' as const, x, z: 10, p: { seed: 20 + i } })),
+    /* 东市 */
+    { b: 'loft', x: 13, z: 5, p: { width: 7, depth: 5, seed: 31 } },
+    { b: 'shop', x: 22, z: 5, p: { seed: 32 } },
+    { b: 'shop', x: 13, z: 15, rot: 2, p: { seed: 33 } },
+    { b: 'shop', x: 22, z: 15, rot: 2, p: { seed: 34 } },
+    ...[12, 16, 20, 24].map((x, i) => ({ b: 'stall' as const, x, z: 10, p: { seed: 40 + i } })),
+    /* 朱雀大街灯、城外坊门 */
+    ...[6, 12].flatMap((z) => [{ b: 'lamp' as const, x: -4, z, rot: 2 }, { b: 'lamp' as const, x: 4, z }]),
+    { b: 'archway', x: 33, z: 0, rot: 1, p: { tile: 'gray' } },
+    /* 东门外：大慈恩寺大雁塔 */
+    { b: 'brickPagoda', x: 39, z: 9, p: { levels: 7, width: 9 } },
   ],
   trees: [
-    { type: 'willow', variant: 0, pts: [[-5, -4], [-5, 26]], n: 5 },
-    { type: 'willow', variant: 0, pts: [[5, -4], [5, 26]], n: 5 },
-    { type: 'broadleaf', variant: 4, pts: [[-30, -24], [-14, -24]], n: 3 },
-    { type: 'broadleaf', variant: 4, pts: [[14, -24], [30, -24]], n: 3 },
+    { type: 'broadleaf', variant: 4, pts: [[33, 14], [44, 16]], n: 3 },
   ],
-  vegetationProfile: { weights: { broadleaf: 3, willow: 2, peach: 0.5 }, density: 0.7 },
-  cameraPreset: { yaw: -0.75, pitch: 0.6, distance: 140 },
+  vegetationProfile: { weights: { broadleaf: 3, willow: 2, peach: 0.5 }, density: 0.6 },
+  cameraPreset: { yaw: -0.75, pitch: 0.6, distance: 100 },
 }
 
 export const LANDMARK_CATALOG: readonly LandmarkDefinition[] = [HANGZHOU, LUSHAN, CHANGAN]

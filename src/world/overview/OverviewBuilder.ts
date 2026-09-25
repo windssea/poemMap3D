@@ -69,11 +69,21 @@ export function buildOverviewTile(ctx: WorldContext, grid: OverviewGrid, tx: num
   const W = n + 2
   const surface = new Int16Array(W * W)
   const water = new Int16Array(W * W).fill(-1)
-  for (let k = 0; k < W * W; k++) {
-    const c = cols[k]
-    surface[k] = Math.floor(c.height)
-    if (c.waterY > c.height) water[k] = c.waterY
-  }
+  /* 每格取四个象限点的平均高度（与近景方块地形的平均面一致），水面取中心点 */
+  const q = cell / 4
+  for (let j = 0; j < W; j++)
+    for (let i = 0; i < W; i++) {
+      const k = j * W + i
+      const c = cols[k]
+      if (c.waterY > c.height) {
+        water[k] = c.waterY
+        surface[k] = Math.floor(c.height)
+        continue
+      }
+      let sum = 0
+      for (const [ox, oz] of [[-q, -q], [q, -q], [-q, q], [q, q]]) sum += ctx.terrain.column(Math.floor(c.x + ox), Math.floor(c.z + oz)).height
+      surface[k] = Math.floor(sum / 4)
+    }
   const color = new Uint8Array(n * n * 3)
   const side = new Uint8Array(n * n * 3)
   const kind = new Uint8Array(n * n)
@@ -103,6 +113,8 @@ export function buildOverviewTile(ctx: WorldContext, grid: OverviewGrid, tx: num
         rgb = [(rgb[0] * 3 + f[0] * 2) / 5, (rgb[1] * 3 + f[1] * 2) / 5, (rgb[2] * 3 + f[2] * 2) / 5]
       }
       rgb = [rgb[0] * 0.9, rgb[1] * 0.9, rgb[2] * 0.9]
+      /* 林冠：密林格抬高一截，远看有树的体量（近景成熟乔木约 10–14 格） */
+      if (forest) surface[(j + 1) * W + (i + 1)] += 9
       const o = (j * n + i) * 3
       color[o] = rgb[0]
       color[o + 1] = rgb[1]

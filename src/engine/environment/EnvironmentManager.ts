@@ -3,7 +3,6 @@ import { WeatherTint, WinterTokens } from '../../config/palette'
 import type { SceneManager } from '../rendering/SceneManager'
 import type { ShadowManager } from '../rendering/ShadowManager'
 import type { SharedUniforms } from '../rendering/SharedUniforms'
-import { CloudSystem } from './CloudSystem'
 import { FogSystem } from './FogSystem'
 import { ParticleSystem } from './ParticleSystem'
 import { PrecipitationSystem } from './PrecipitationSystem'
@@ -23,7 +22,6 @@ export class EnvironmentManager {
   readonly weather: WeatherSystem
   readonly sky: SkySystem
   readonly fog = new FogSystem()
-  readonly clouds = new CloudSystem()
   readonly precipitation = new PrecipitationSystem()
   readonly particles: ParticleSystem
   private readonly hemi: THREE.HemisphereLight
@@ -57,7 +55,6 @@ export class EnvironmentManager {
     scene.attach('environment', this.fill.target)
     for (const o of shadows.objects) scene.attach('environment', o)
     scene.attach('environment', this.sky.mesh)
-    scene.attach('environment', this.clouds.mesh)
     scene.attach('effects', this.precipitation.points)
     scene.attach('effects', this.particles.group)
   }
@@ -115,26 +112,23 @@ export class EnvironmentManager {
     this.renderer.toneMappingExposure = L.exposure
     this.shadows.update(focus, L.sunDir, distance)
 
-    /* 天空、雾、云 */
+    /* 天空、雾 */
     const horizon = this.tmpColor.copy(L.horizon).lerp(L.fog, 0.5).lerp(this.rainSky, wet * 0.5).lerp(this.winterFog, 0.45 * winter * (1 - L.night * 0.7))
     const top = L.top.clone().lerp(horizon, wet * 0.6).lerp(this.winterSky, 0.3 * winter * (1 - L.night))
     this.sky.update(camera, top, horizon)
     this.fog.update(distance, horizon, W.fog)
-    this.clouds.update(dt, focus, L.cloud, wet)
     this.precipitation.update(elapsed, focus, distance, this.weather.rain, this.weather.snow, pixelRatio)
     this.particles.update(elapsed, focus, distance, this.season.key, wet, pixelRatio)
   }
 
   /** 画质：粒子数量、云 */
-  setQuality(particles: number, clouds: boolean): void {
+  setQuality(particles: number): void {
     this.precipitation.scale = particles
     this.particles.scale = particles
-    this.clouds.enabled = clouds
   }
 
   dispose(): void {
     this.sky.dispose()
-    this.clouds.dispose()
     this.precipitation.dispose()
     this.particles.dispose()
   }

@@ -13,12 +13,24 @@ const PATHS = {
   bug: 'M9 7a3 3 0 0 1 6 0M6 11h12M6 15h12M8 7h8v10a4 4 0 0 1-8 0zM4 9l3 2M20 9l-3 2M4 19l3-2M20 19l-3-2',
 } as const
 
-export type IconName = keyof typeof PATHS
+/** 实心图标：诗人足迹用一对脚印 */
+const FILLED = {
+  footprints:
+    'M7.2 14.2c-1.8 0-2.9-2-2.6-4.4.3-2.5 1.5-3.9 2.9-3.7 1.4.2 2 1.9 1.8 4.2-.2 2.2-.7 3.9-2.1 3.9zM6.6 16.4c1 0 1.7.8 1.6 1.8-.1 1.1-1 1.9-1.9 1.9-1 0-1.6-.8-1.5-1.9.1-1 .9-1.8 1.8-1.8zM16.8 10.2c1.8 0 2.9-2 2.6-4.4-.3-2.5-1.5-3.9-2.9-3.7-1.4.2-2 1.9-1.8 4.2.2 2.2.7 3.9 2.1 3.9zM17.4 12.4c-1 0-1.7.8-1.6 1.8.1 1.1 1 1.9 1.9 1.9 1 0 1.6-.8 1.5-1.9-.1-1-.9-1.8-1.8-1.8z',
+} as const
+
+export type IconName = keyof typeof PATHS | keyof typeof FILLED
 
 export function Icon({ name, size = 18 }: { name: IconName; size?: number }) {
+  if (name in FILLED)
+    return (
+      <svg viewBox="0 0 24 24" width={size} height={size} fill="currentColor" aria-hidden>
+        <path d={FILLED[name as keyof typeof FILLED]} />
+      </svg>
+    )
   return (
     <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d={PATHS[name]} />
+      <path d={PATHS[name as keyof typeof PATHS]} />
     </svg>
   )
 }

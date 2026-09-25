@@ -17,7 +17,7 @@ export function TrailPanel() {
 
   if (state.picking)
     return (
-      <div className="trailp mini" style={{ bottom: 'auto' }}>
+      <div className="trailp mini trail-pick">
         <div className="tr-h">
           <div className="tr-seal">足迹</div>
           <div>
@@ -128,7 +128,8 @@ function TrailOverlay() {
       }
       const card = el.querySelector<HTMLDivElement>('.tr-card')
       if (card) {
-        const i = r.phase === 'stay' ? r.prog : r.phase === 'paused' ? r.pauseI : r.phase === 'move' && r.clock < r.segDur * 0.4 ? r.prog : -1
+        // 一动身就换成目的地，随笔头一起飞；到站停在地点旁
+        const i = r.phase === 'stay' ? r.prog : r.phase === 'paused' ? r.pauseI : r.phase === 'move' ? r.prog + 1 : -1
         card.style.opacity = i >= 0 ? '1' : '0'
         if (i >= 0) {
           const a = r.phase === 'move' ? facade.trailHead(r.frac) : tmp.copy(r.stops[i]).setY(r.stops[i].y + 4)
@@ -156,6 +157,8 @@ function TrailOverlay() {
   }, [rt, marks, facade, director])
 
   if (!rt) return null
+  const capIdx = state.phase === 'move' ? state.prog + 1 : state.phase === 'stay' || state.phase === 'intro' ? state.prog : -1
+  const cap = capIdx >= 0 ? rt.trail.stops[capIdx] : null
   const verse = state.verseIdx >= 0 ? rt.verses[state.verseIdx] : null
   const vStop = state.verseIdx >= 0 ? rt.trail.stops[state.verseIdx] : null
   return (
@@ -173,6 +176,14 @@ function TrailOverlay() {
         <div className="tr-head" />
         <div className="tr-card" />
       </div>
+      {cap && (
+        <div className="tr-cap" key={`${capIdx}-${state.phase}`} style={{ ['--c' as string]: rt.trail.color }}>
+          <span className="yr">{cap.year}年</span>
+          {state.phase === 'move' && <span className="dir">行往 →</span>}
+          <span className="pl">{cap.place}</span>
+          <span className="nt">{cap.note}</span>
+        </div>
+      )}
       {verse && vStop && poetry.get(verse.id) && <VerseScroll key={`${verse.id}-${state.verseIdx}`} poem={verse} place={`${vStop.year}年 · ${vStop.place}`} />}
     </>
   )

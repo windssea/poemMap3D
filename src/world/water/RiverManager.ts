@@ -4,6 +4,7 @@ import { SEA_LEVEL } from '../coordinate/constants'
 import { getProjection } from '../coordinate/GeoProjection'
 import { RIVERS, type RiverDef } from '../generation/geography/GeographyData'
 import { type MacroSampler, projectLine } from '../generation/geography/MacroGeography'
+import { metersToY } from '../WorldConfig'
 
 export interface River {
   def: RiverDef
@@ -36,7 +37,7 @@ export class RiverManager {
   readonly rivers: River[] = []
   private readonly buckets = new Map<number, number[]>()
 
-  constructor(macro: MacroSampler, artUnit = 8) {
+  constructor(macro: MacroSampler) {
     const P = getProjection()
     RIVERS.forEach((def) => {
       const raw = projectLine(P, def.line)
@@ -48,14 +49,42 @@ export class RiverManager {
         const t = s / (n - 1)
         const [x, z] = pts[s]
         const g = P.unproject(x, z)
-        const hw = Math.max(0.74, lerp(def.widthStart * 0.75, def.widthEnd, Math.pow(t, 3))) * artUnit * (0.55 + 0.45 * P.scaleAt(g.lng, g.lat))
-        halfWidth[s] = Math.max(3, hw)
+        // 半宽（方块）：自源头向下游渐宽，边远压缩区略收窄
+        const hw = lerp(def.widthStart, def.widthEnd, Math.pow(t, 1.5)) * (0.7 + 0.3 * P.scaleAt(g.lng, g.lat))
+        halfWidth[s] = Math.max(2.2, hw)
         lvl[s] = macro.land(x, z) ? macro.height(x, z) - 2.5 : SEA_LEVEL
       }
-      /* 沿流单调不升 + 平滑 + 从河口向上游限制坡度（山里改为下切成谷） */
-      for (let s = 1; s < n; s++) lvl[s] = Math.min(lvl[s], lvl[s - 1])
-      for (let it = 0; it < 3; it++) for (let s = 1; s < n - 1; s++) lvl[s] = Math.min(lvl[s], (lvl[s - 1] + lvl[s] + lvl[s + 1]) / 3)
-      for (let s = n - 2; s >= 0; s--) lvl[s] = Math.min(lvl[s], lvl[s + 1] + 0.32)
+      if (def.levels) {
+        /* 有实测水位：锚点落到最近的采样点，其间按沿程线性插值（方块 Y） */
+        const ks = def.levels
+          .map(([lng, lat, m]) => {
+            const c = P.project(lng, lat)
+            let bi = 0
+            let bd = Infinity
+            for (let s = 0; s < n; s++) {
+              const d = (pts[s][0] - c.x) ** 2 + (pts[s][1] - c.z) ** 2
+              if (d < bd) {
+                bd = d
+                bi = s
+              }
+            }
+            return [bi, metersToY(m)] as const
+          })
+          .sort((a, b) => a[0] - b[0])
+        for (let s = 0; s < n; s++) {
+          let k = 0
+          while (k < ks.length - 1 && ks[k + 1][0] <= s) k++
+          const [s0, y0] = ks[k]
+          const [s1, y1] = ks[Math.min(k + 1, ks.length - 1)]
+          lvl[s] = s <= s0 || s1 === s0 ? y0 : lerp(y0, y1, (s - s0) / (s1 - s0))
+        }
+        for (let s = 1; s < n; s++) lvl[s] = Math.min(lvl[s], lvl[s - 1])
+      } else {
+        /* 沿流单调不升 + 平滑 + 从河口向上游限制坡度（山里改为下切成谷） */
+        for (let s = 1; s < n; s++) lvl[s] = Math.min(lvl[s], lvl[s - 1])
+        for (let it = 0; it < 3; it++) for (let s = 1; s < n - 1; s++) lvl[s] = Math.min(lvl[s], (lvl[s - 1] + lvl[s] + lvl[s + 1]) / 3)
+        for (let s = n - 2; s >= 0; s--) lvl[s] = Math.min(lvl[s], lvl[s + 1] + 0.6)
+      }
       const level = new Int16Array(n)
       for (let s = 0; s < n; s++) level[s] = Math.max(SEA_LEVEL, Math.floor(lvl[s]))
       const ri = this.rivers.length

@@ -109,6 +109,7 @@ export class TrailDirector {
     this.fdist = 300
     this.smooth = null
     this.publish()
+    this.store.set((s) => ({ trailState: { ...s.trailState, phase: 'intro' } }))
     this.port.setUserCamera(false)
     const p0 = built.stops[0]
     void this.port.flyToPose({ target: p0.clone(), yaw: YAW, pitch: PITCH, distance: this.fdist }, 2.6).then(() => {

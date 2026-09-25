@@ -20,7 +20,7 @@ const hexRgb = (h: string): [number, number, number] => {
  */
 export class OverviewRenderer {
   readonly group = new THREE.Group()
-  private readonly tiles = new Map<number, { fine: THREE.Mesh[]; coarse: THREE.Mesh[]; cx: number; cz: number; lod: number }>()
+  private readonly tiles = new Map<number, { fine: THREE.Mesh[]; coarse: THREE.Mesh[]; cx: number; cz: number; lod: number; covered: boolean }>()
   private readonly ink = new THREE.Group()
   private readonly inkMaterials: THREE.MeshBasicMaterial[] = []
   loaded = 0
@@ -72,7 +72,7 @@ export class OverviewRenderer {
     for (const m of [...fine, ...coarse]) this.group.add(m)
     for (const m of coarse) m.visible = false
     const span = t.n * t.cell
-    this.tiles.set(t.tz * this.grid.tilesX + t.tx, { fine, coarse, cx: t.x0 + span / 2, cz: t.z0 + span / 2, lod: 0 })
+    this.tiles.set(t.tz * this.grid.tilesX + t.tx, { fine, coarse, cx: t.x0 + span / 2, cz: t.z0 + span / 2, lod: 0, covered: false })
   }
 
   /**
@@ -287,7 +287,24 @@ export class OverviewRenderer {
   }
 
   /** 镜头拉远时显出墨线 */
-  update(distance: number, camera?: THREE.Vector3): void {
+  private tick = 0
+
+  /** 被近景 / 远景区块完全盖住的覆盖图块直接不画（顶点也省下） */
+  private cull(mask: Uint8Array, maskW: number): void {
+    const per = (this.grid.n * this.grid.cell) / 16
+    for (const [k, t] of this.tiles) {
+      const tx = k % this.grid.tilesX
+      const tz = Math.floor(k / this.grid.tilesX)
+      let covered = true
+      for (let j = 0; j < per && covered; j++) for (let i = 0; i < per; i++) if (!mask[(tz * per + j) * maskW + tx * per + i]) { covered = false; break }
+      t.covered = covered
+      for (const m of t.fine) m.visible = !covered && !t.lod
+      for (const m of t.coarse) m.visible = !covered && !!t.lod
+    }
+  }
+
+  update(distance: number, camera?: THREE.Vector3, mask?: { data: Uint8Array; width: number }): void {
+    if (mask && this.tick++ % 20 === 0) this.cull(mask.data, mask.width)
     /* 远处的图块换粗网格（带回差） */
     if (camera)
       for (const t of this.tiles.values()) {
@@ -295,8 +312,8 @@ export class OverviewRenderer {
         const lod = d > (t.lod ? 1400 : 1700) ? 1 : 0
         if (lod !== t.lod) {
           t.lod = lod
-          for (const m of t.fine) m.visible = !lod
-          for (const m of t.coarse) m.visible = !!lod
+          for (const m of t.fine) m.visible = !t.covered && !lod
+          for (const m of t.coarse) m.visible = !t.covered && !!lod
         }
       }
     const a = Math.min(1, Math.max(0, (distance - 900) / 900)) * 0.85

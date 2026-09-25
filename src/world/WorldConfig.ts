@@ -35,7 +35,7 @@ export const WorldConfig = {
     /** 方块 Y = 海平面 + 1 + scale × (海拔千米)^exponent */
     scale: 44,
     exponent: 0.78,
-    maxY: 246,
+    maxY: 300,
     /** 近海海床最浅、远海最深（方块） */
     seaDepthMin: 3,
     seaDepthMax: 22,

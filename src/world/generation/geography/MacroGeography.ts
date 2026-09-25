@@ -3,7 +3,7 @@ import { createSimplex2D, fbm, ridged } from '../../../utils/noise'
 import { pointInPolygon, segmentDistance, type Vec2 } from '../../../utils/geometry2d'
 import { type FocusProjection, getProjection } from '../../coordinate/GeoProjection'
 import { WorldConfig, metersToY } from '../../WorldConfig'
-import { type GeoLine, PEAKS, RANGES, REGIONS, type RegionKind, SEA_POLYGONS } from './GeographyData'
+import { ELEVATION_ANCHORS, type GeoLine, PEAKS, RANGES, REGIONS, type RegionKind, SEA_POLYGONS } from './GeographyData'
 import type { LandMask } from './LandMask'
 
 export const MacroKind = { Normal: 0, Desert: 1, Loess: 2, Gobi: 3, Plateau: 4, Steppe: 5, Plain: 6 } as const
@@ -190,6 +190,37 @@ export function buildMacroGeography(mask: LandMask, seed: number = WorldConfig.s
           }
         }
       }
+  }
+
+  /* —— 海拔校准：名山主峰与城市盆地对齐实测海拔（高斯加权，迭代收敛） —— */
+  {
+    const anchors = ELEVATION_ANCHORS.map((a) => {
+      const c = P.project(a.lng, a.lat)
+      return { gi: (c.x - x0) / cell - 0.5, gj: (c.z - z0) / cell - 0.5, y: metersToY(a.meters), r: Math.max(1.5, (a.radius * WorldConfig.projection.blocksPerDegree * P.scaleAt(a.lng, a.lat)) / cell) }
+    })
+    const sampleH = (gi: number, gj: number) => {
+      const i = clamp(Math.floor(gi), 0, w - 2)
+      const j = clamp(Math.floor(gj), 0, h - 2)
+      const fx = clamp(gi - i, 0, 1)
+      const fz = clamp(gj - j, 0, 1)
+      const k = j * w + i
+      return lerp(lerp(height[k], height[k + 1], fx), lerp(height[k + w], height[k + w + 1], fx), fz)
+    }
+    const corr = new Float32Array(N)
+    for (let it = 0; it < 6; it++) {
+      corr.fill(0)
+      for (const a of anchors) {
+        const delta = a.y - sampleH(a.gi, a.gj)
+        if (Math.abs(delta) < 0.05) continue
+        const R = Math.ceil(a.r * 2.6)
+        for (let j = Math.max(0, Math.floor(a.gj) - R); j <= Math.min(h - 1, Math.floor(a.gj) + R); j++)
+          for (let i = Math.max(0, Math.floor(a.gi) - R); i <= Math.min(w - 1, Math.floor(a.gi) + R); i++) {
+            const d = Math.hypot(i - a.gi, j - a.gj) / a.r
+            corr[j * w + i] += delta * Math.exp(-d * d)
+          }
+      }
+      for (let k = 0; k < N; k++) if (land[k]) height[k] = Math.min(el.maxY, Math.max(el.seaLevel + 1, height[k] + corr[k] * 0.85))
+    }
   }
 
   /* —— 局部起伏：3×3 邻域高差 —— */

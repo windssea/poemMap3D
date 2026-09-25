@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { Blocks } from '../../world/block/Blocks'
+import { WORLD_HEIGHT } from '../../world/coordinate/constants'
 import { blockToChunk } from '../../world/coordinate/coords'
 import type { World } from '../../world/World'
 import type { WorldSampler } from '../../world/WorldSampler'
@@ -51,7 +52,7 @@ export class RaycastSystem {
     let inLoaded = false
     const dda = Math.min(maxDist, 900)
     while (t < dda) {
-      if (y >= 0 && y < 256) {
+      if (y >= 0 && y < WORLD_HEIGHT) {
         const loaded = !!this.world.getChunk(blockToChunk(x), blockToChunk(z))
         if (loaded) {
           inLoaded = true

@@ -35,6 +35,8 @@ export interface EngineFacade {
   /** 世界坐标 → 屏幕像素；不可见返回 null */
   project(v: THREE.Vector3, out: { x: number; y: number; depth: number }): boolean
   placeAnchor(placeId: string): THREE.Vector3 | null
+  /** 地标营造范围（方块） */
+  placeRadius(placeId: string): number
   geoAnchor(lng: number, lat: number): THREE.Vector3
   screenshot(): string
   setDebugChunks(on: boolean): void
@@ -141,6 +143,10 @@ export class EngineFacadeImpl implements EngineFacade, TourPort, TrailPort {
     out.y = (-p.y * 0.5 + 0.5) * this.engine.renderer.height
     out.depth = cam.position.distanceTo(v)
     return true
+  }
+
+  placeRadius(placeId: string): number {
+    return this.engine.world.ctx.landmarks.byPlaceId(placeId)?.def.radius ?? 12
   }
 
   placeAnchor(placeId: string): THREE.Vector3 | null {

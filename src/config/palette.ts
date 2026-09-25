@@ -70,6 +70,9 @@ export const MaterialTokens = {
   thatch: ['#b89a64', '#a88a56', '#c7a972', '#94784a'],
   mossStone: ['#6f7a66', '#5f6a57', '#7d8872', '#8a8a7a'],
   pebble: ['#9c9a92', '#8a8880', '#b0aea6', '#7a7870'],
+  clothRed: ['#b8453a', '#a33b31', '#c95446', '#f2e4c4'],
+  clothBlue: ['#3b6f86', '#335f73', '#467e96', '#f2e4c4'],
+  clothBuff: ['#d9c08a', '#cbb07a', '#e4cd9a', '#8a5a3a'],
   lotus: ['#4f8062', '#5f9070', '#e9a3b8', '#3f6f52'],
 } as const
 

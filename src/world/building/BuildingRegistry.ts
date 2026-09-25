@@ -8,6 +8,12 @@ import {
   house,
   hut,
   lamp,
+  loft,
+  courtyard,
+  shop,
+  stall,
+  bellTower,
+  archway,
   pagoda,
   pavilion,
   stupa,
@@ -16,7 +22,7 @@ import {
   wallSegment,
 } from './BuildingFactory'
 
-export type BuildingId = 'lamp' | 'house' | 'hall' | 'pavilion' | 'pagoda' | 'brickPagoda' | 'gate' | 'wall' | 'tower' | 'bridge' | 'stupa' | 'terrace' | 'hut'
+export type BuildingId = 'loft' | 'courtyard' | 'shop' | 'stall' | 'bellTower' | 'archway' | 'lamp' | 'house' | 'hall' | 'pavilion' | 'pagoda' | 'brickPagoda' | 'gate' | 'wall' | 'tower' | 'bridge' | 'stupa' | 'terrace' | 'hut'
 
 export interface BuildingDefinition {
   id: BuildingId
@@ -29,6 +35,12 @@ export interface BuildingDefinition {
 }
 
 const defs: BuildingDefinition[] = [
+  { id: 'loft', name: '楼', entrance: 'front', foundation: 'stone', build: loft },
+  { id: 'courtyard', name: '四合院', entrance: 'front', foundation: 'stone', build: courtyard },
+  { id: 'shop', name: '店铺', entrance: 'front', foundation: 'stone', build: shop },
+  { id: 'stall', name: '摊', entrance: 'none', foundation: 'stone', build: stall },
+  { id: 'bellTower', name: '钟鼓楼', entrance: 'both', foundation: 'stone', build: bellTower },
+  { id: 'archway', name: '牌坊', entrance: 'both', foundation: 'stone', build: archway },
   { id: 'lamp', name: '街灯', entrance: 'none', foundation: 'stone', build: lamp },
   { id: 'house', name: '民居', entrance: 'front', foundation: 'stone', build: house },
   { id: 'hut', name: '茅舍', entrance: 'front', foundation: 'stone', build: hut },

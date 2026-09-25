@@ -207,6 +207,11 @@ function paint(p: TexturePattern, x: number, y: number, c: [number, number, numb
     }
     case 'pebble':
       return pick(c, r < 0.3 ? 1 : r > 0.8 ? 2 : 0)
+    case 'cloth': {
+      // 布：细密经纬，边上一道镶边
+      if (y === 1 || y === 14) return pick(c, 3)
+      return pick(c, (x + y) % 4 === 0 ? 2 : r < 0.2 ? 1 : 0)
+    }
   }
 }
 

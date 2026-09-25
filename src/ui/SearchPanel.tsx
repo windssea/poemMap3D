@@ -40,7 +40,7 @@ export function SearchPanel() {
           aria-label="搜索诗词"
         />
         <button className="ico" title="诗人足迹" onClick={() => store.set((s) => ({ trailState: { ...s.trailState, picking: !s.trailState.picking } }))}>
-          <Icon name="trail" />
+          <Icon name="footprints" size={20} />
         </button>
       </div>
       {results.length > 0 && (

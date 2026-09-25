@@ -103,7 +103,7 @@ export class Engine {
     this.renderer.onResize((w, h) => this.camera.setAspect(w / h))
     this.pipeline = new RenderPipeline(this.renderer.renderer, this.scene.scene, this.camera.camera)
     this.env = new EnvironmentManager(this.shared, this.scene, this.shadows, this.renderer.renderer, { time: this.opts.time, season: this.opts.season, weather: this.opts.weather }, this.world.waterfalls())
-    this.env.setQuality(q.particles, q.clouds)
+    this.env.setQuality(q.particles)
     this.raycast = new RaycastSystem(this.world.world, this.world.sampler)
     this.hover = new HoverSystem(this.renderer.canvas)
     const terrain = this.world.ctx.terrain
@@ -134,7 +134,7 @@ export class Engine {
       this.renderer.setPixelRatio(p.pixelRatio)
       this.shadows.setEnabled(p.shadows, p.shadowSize)
       this.world.setQuality(p)
-      this.env.setQuality(p.particles, p.clouds)
+      this.env.setQuality(p.particles)
     })
     this.events.emit('progress', { label: '展卷', value: 0.9 })
     void this.world.overview.requestAll(this.world.generators, () => this.camera.pose.target)

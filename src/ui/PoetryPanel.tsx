@@ -33,6 +33,10 @@ function PlaceList({ open }: { open: boolean }) {
     const anchor = facade.placeAnchor(placeId) ?? (summary ? facade.geoAnchor(summary.place.lng, summary.place.lat) : null)
     if (!anchor) return
     const p = { x: 0, y: 0, depth: 0 }
+    const q = { x: 0, y: 0, depth: 0 }
+    const radius = Math.max(10, facade.placeRadius(placeId) * 0.7)
+    const edgeA = anchor.clone().setX(anchor.x + radius)
+    const edgeB = anchor.clone().setZ(anchor.z + radius)
     let last: { x: number; y: number } | null = null
     return facade.onFrame(() => {
       const el = ref.current
@@ -46,7 +50,10 @@ function PlaceList({ open }: { open: boolean }) {
       if (!facade.project(anchor, p)) return
       const w = el.offsetWidth
       const h = el.offsetHeight
-      const gap = 44
+      /* 诗目让开整片景：间距按地标在屏幕上的大小取，优先放右侧 */
+      let rpx = 0
+      for (const e of [edgeA, edgeB]) if (facade.project(e, q)) rpx = Math.max(rpx, Math.hypot(q.x - p.x, q.y - p.y))
+      const gap = Math.round(Math.min(Math.max(rpx * 0.8 + 36, 70), innerWidth * 0.32))
       const side = p.x + gap + w < innerWidth - 16 ? 'r' : 'l'
       const x = Math.round(Math.min(Math.max(side === 'r' ? p.x + gap : p.x - gap - w, 16), innerWidth - w - 16))
       const y = Math.round(Math.min(Math.max(p.y - h * 0.35, 76), innerHeight - h - 84))
@@ -54,6 +61,7 @@ function PlaceList({ open }: { open: boolean }) {
       last = { x, y }
       el.classList.toggle('r', side === 'r')
       el.classList.toggle('l', side === 'l')
+      el.style.setProperty('--lw', `${Math.max(26, gap - 10)}px`)
       el.style.setProperty('--ly', `${Math.min(Math.max(p.y - y, 24), h - 24)}px`)
       el.style.transform = `translate(${x}px, ${y}px)`
     })

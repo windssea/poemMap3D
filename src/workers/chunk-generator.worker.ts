@@ -4,6 +4,7 @@ import { buildMacroGeography, type MacroGridData } from '../world/generation/geo
 import { WorldContext } from '../world/generation/WorldContext'
 import { buildOverviewTile, overviewGrid, overviewTransferables } from '../world/overview/OverviewBuilder'
 import { meshTransferables } from '../world/voxel/MeshBuffer'
+import { downsample2 } from '../world/voxel/VoxelDownsampler'
 import { meshVolume } from '../world/voxel/VoxelMesher'
 import type { WorkerRequest, WorkerResponse } from './protocol'
 
@@ -44,6 +45,16 @@ self.onmessage = (e: MessageEvent<WorkerRequest>) => {
       }
       case 'chunk': {
         if (!ctx) throw new Error('Worker 未初始化')
+        if (m.lod === 2) {
+          const t0 = performance.now()
+          const g = ctx.chunks.generateVolume(m.cx, m.cz, 2, false)
+          const genMs = performance.now() - t0
+          const mesh = meshVolume(downsample2(g.volume))
+          const transfer: ArrayBuffer[] = []
+          for (const l of mesh.layers) transfer.push(...meshTransferables(l))
+          post({ type: 'chunk', id: m.id, cx: m.cx, cz: m.cz, lod: 2, data: null, layers: mesh.layers, stats: { genMs, meshMs: mesh.ms, quads: mesh.quads, trees: g.trees, structures: g.structures } }, transfer)
+          break
+        }
         const g = ctx.chunks.generate(m.cx, m.cz)
         const mesh = meshVolume(g.volume)
         const data = g.chunk.toData()
@@ -56,6 +67,7 @@ self.onmessage = (e: MessageEvent<WorkerRequest>) => {
             id: m.id,
             cx: m.cx,
             cz: m.cz,
+            lod: 1,
             data,
             layers: mesh.layers,
             stats: { genMs: g.ms, meshMs: mesh.ms, quads: mesh.quads, trees: g.trees, structures: g.structures },

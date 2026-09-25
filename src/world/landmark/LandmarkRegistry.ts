@@ -54,7 +54,7 @@ export class LandmarkRegistry {
     defs.forEach((def, index) => {
       const c = P.project(def.coordinate.lng, def.coordinate.lat)
       const [x, z] = this.clearOfRivers(def, Math.round(c.x + (def.offset?.[0] ?? 0)), Math.round(c.z + (def.offset?.[1] ?? 0)), baseTerrain)
-      const level = this.baseLevel(baseTerrain, x, z) + (def.levelDy ?? 0)
+      const level = this.baseLevel(baseTerrain, x, z, !def.terrainModifier?.some((o) => o.t === 'hill')) + (def.levelDy ?? 0)
       const lm: ResolvedLandmark = {
         index,
         def,
@@ -78,36 +78,38 @@ export class LandmarkRegistry {
    */
   private clearOfRivers(def: LandmarkDefinition, x: number, z: number, t: TerrainManager): [number, number] {
     const w = def.walls?.[0]
-    if (!w && def.radius < 30) return [x, z]
-    const hw = (w ? w.hw + Math.abs(w.x) : def.radius * 0.6) + 8
-    const hd = (w ? w.hd + Math.abs(w.z) : def.radius * 0.6) + 8
+    if (!w) return [x, z]
+    const hw = w.hw + Math.abs(w.x) + 4
+    const hd = w.hd + Math.abs(w.z) + 4
     const wet = (cx: number, cz: number) => {
       let n = 0
-      for (let dz = -hd; dz <= hd; dz += 4)
-        for (let dx = -hw; dx <= hw; dx += 4) {
+      for (let dz = -hd; dz <= hd; dz += 6)
+        for (let dx = -hw; dx <= hw; dx += 6) {
           const c = t.column(cx + dx, cz + dz)
           if (c.waterY > c.height) n++
         }
       return n
     }
+    const h0 = t.column(x, z).height
+    /* 代价：压水最要紧，其次地势要与原址相近（不往山上搬），再次挪得越近越好 */
+    const cost = (cx: number, cz: number) => wet(cx, cz) * 1000 + Math.abs(t.column(cx, cz).height - h0) * 25 + Math.hypot(cx - x, cz - z) * 4
     let best: [number, number] = [x, z]
-    let bestWet = wet(x, z)
-    if (bestWet === 0) return best
-    for (let r = 6; r <= 90 && bestWet > 0; r += 6)
+    let bestCost = cost(x, z)
+    if (bestCost < 1) return best
+    for (let r = 6; r <= 96; r += 6)
       for (let a = 0; a < 16; a++) {
         const cx = Math.round(x + Math.cos((a / 16) * Math.PI * 2) * r)
         const cz = Math.round(z + Math.sin((a / 16) * Math.PI * 2) * r)
-        const n = wet(cx, cz)
-        if (n < bestWet) {
-          bestWet = n
+        const c = cost(cx, cz)
+        if (c < bestCost) {
+          bestCost = c
           best = [cx, cz]
-          if (!n) break
         }
       }
     return best
   }
 
-  private baseLevel(t: TerrainManager, x: number, z: number): number {
+  private baseLevel(t: TerrainManager, x: number, z: number, nearMacro: boolean): number {
     const hs: number[] = []
     for (let a = 0; a < 12; a++)
       for (const r of [0, 4, 8]) {
@@ -116,7 +118,9 @@ export class LandmarkRegistry {
       }
     if (!hs.length) return Math.floor(t.column(x, z).waterY + 1)
     hs.sort((a, b) => a - b)
-    return Math.floor(hs[hs.length >> 1])
+    // 城址不偏离宏观海拔太多：山脚下的城不被细节噪声拉进沟里（自带山形的样板地标以山脚为准）
+    const m = t.macro.height(x, z)
+    return Math.floor(nearMacro ? clamp(hs[hs.length >> 1], m - 4, m + 4) : hs[hs.length >> 1])
   }
 
   private makeModifier(lm: ResolvedLandmark): TerrainModifier {
@@ -145,7 +149,7 @@ export class LandmarkRegistry {
             case 'flatten': {
               const ox = dx - op.x
               const oz = dz - op.z
-              const dist = op.square ? Math.max(Math.abs(ox), Math.abs(oz)) : Math.hypot(ox, oz)
+              const dist = op.square ? op.r + Math.max(Math.abs(ox) - op.r, Math.abs(oz) - (op.rz ?? op.r)) : Math.hypot(ox, oz)
               const blend = op.blend ?? 8
               if (dist >= op.r + blend) break
               if (wet() && !op.overWater) break
@@ -157,7 +161,8 @@ export class LandmarkRegistry {
                   col.waterDist = Math.max(col.waterDist, 4)
                 }
                 if (op.pave) col.paved = true
-              } else col.height = lerp(target, col.height, smoothstep(op.r, op.r + blend, dist))
+              } else if (col.height - target < 14) col.height = lerp(target, col.height, smoothstep(op.r, op.r + blend, dist))
+              // 过渡带上高出甚多的是山：留着，不削平城外名山
               break
             }
             case 'lake': {
@@ -193,7 +198,9 @@ export class LandmarkRegistry {
               const f = op.sharp ? Math.pow(1 - dd, 1.35) : 0.5 + 0.5 * Math.cos(Math.PI * dd)
               // 临水处山势压低，不在湖岸江边起峭壁
               const shore = col.waterDist < 1e8 ? smoothstep(0, 10, col.waterDist) : 1
-              col.height += op.h * f * shore * (0.78 + 0.35 * (0.5 + 0.5 * fbm(n, col.x / 11 + 40, col.z / 11, 3)))
+              // 山形是“至少这么高”：原地已是校准过的真山时不再叠高
+              const hh = op.h * f * shore * (0.78 + 0.35 * (0.5 + 0.5 * fbm(n, col.x / 11 + 40, col.z / 11, 3)))
+              col.height = Math.max(col.height, level + hh, col.height + hh * 0.25)
               break
             }
             case 'causeway':

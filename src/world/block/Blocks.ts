@@ -88,6 +88,12 @@ export const B = {
   PAVING_SLAB: 72,
   SHRUB: 73,
   WILLOW_STRAND: 74,
+  BANNER_RED: 75,
+  BANNER_BLUE: 76,
+  CLOTH_BUFF_SLAB: 77,
+  CLOTH_RED_SLAB: 78,
+  CLOTH_BLUE_SLAB: 79,
+  BARREL: 80,
 } as const
 export type BlockKey = keyof typeof B
 
@@ -234,6 +240,13 @@ export function createDefaultBlockRegistry(): BlockRegistry {
       replaceable: false,
     }),
   )
+  /* 市井：店招幌子（竖挂的布）、摊棚布顶、酒坛货桶 */
+  r.register(custom(B.BANNER_RED, 'banner_red', 'cloth_red', [[7, 0, 3, 9, 16, 13]], { tags: ['building', 'ornament'] }))
+  r.register(custom(B.BANNER_BLUE, 'banner_blue', 'cloth_blue', [[7, 0, 3, 9, 16, 13]], { tags: ['building', 'ornament'] }))
+  r.register(slab(B.CLOTH_BUFF_SLAB, 'cloth_buff_slab', 'cloth_buff', { tags: ['building'] }))
+  r.register(slab(B.CLOTH_RED_SLAB, 'cloth_red_slab', 'cloth_red', { tags: ['building'] }))
+  r.register(slab(B.CLOTH_BLUE_SLAB, 'cloth_blue_slab', 'cloth_blue', { tags: ['building'] }))
+  r.register(custom(B.BARREL, 'barrel', { top: 'log_top', bottom: 'log_top', side: 'planks' }, [[3, 0, 3, 13, 12, 13]], { tags: ['building'] }))
   return r
 }
 

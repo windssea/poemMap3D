@@ -8,7 +8,7 @@ import { resolveBiome } from '../biome/BiomeResolver'
 import { tintZoneOf } from '../biome/TintZone'
 import { SEA_LEVEL, WORLD_HEIGHT } from '../coordinate/constants'
 import { type FocusProjection, getProjection } from '../coordinate/GeoProjection'
-import { GORGES } from '../generation/geography/GeographyData'
+import { ELEVATION_ANCHORS, GORGES } from '../generation/geography/GeographyData'
 import { MacroKind, type MacroSampler } from '../generation/geography/MacroGeography'
 import type { LakeManager } from '../water/LakeManager'
 import { BANK_MAX, type RiverManager } from '../water/RiverManager'
@@ -40,6 +40,8 @@ export class TerrainManager {
   private readonly nMisc: Noise2D
   private readonly P: FocusProjection
   private readonly modifiers: TerrainModifier[]
+  /** 名山主峰：方块级细节在峰顶附近收敛，峰高落在校准值上 */
+  private readonly peaks: { x: number; z: number; r: number }[]
 
   constructor(
     readonly macro: MacroSampler,
@@ -56,6 +58,10 @@ export class TerrainManager {
     this.nMisc = createSimplex2D(seed + 127)
     this.P = getProjection()
     this.modifiers = modifiers
+    this.peaks = ELEVATION_ANCHORS.filter((a) => a.kind === 'peak').map((a) => {
+      const c = this.P.project(a.lng, a.lat)
+      return { x: c.x, z: c.z, r: Math.max(10, a.radius * WorldConfig.projection.blocksPerDegree * this.P.scaleAt(a.lng, a.lat) * 0.5) }
+    })
   }
 
   /** 地形塑形：到地标修改器为止，得到一列的高度与水 */
@@ -73,7 +79,14 @@ export class TerrainManager {
     }
 
     /* 方块级细节：幅度随当地起伏；平原只留一两格的缓丘 */
-    const amp = Math.min(24, 0.7 + relief * 0.95)
+    let damp = 1
+    for (const p of this.peaks) {
+      const dx = x - p.x
+      const dz = z - p.z
+      if (Math.abs(dx) > p.r * 2.5 || Math.abs(dz) > p.r * 2.5) continue
+      damp = Math.min(damp, 1 - 0.75 * Math.exp(-(dx * dx + dz * dz) / (p.r * p.r)))
+    }
+    const amp = Math.min(24, 0.7 + relief * 0.95) * damp
     const d = fbm(this.nDetail, x / 52, z / 52, 3)
     const r = ridged(this.nRidge, x / 96, z / 96, 3) - 0.45
     const bump = this.nBump(x / 14, z / 14)
@@ -125,8 +138,13 @@ export class TerrainManager {
       } else if (col.waterKind !== WaterKind.Sea || col.waterY < 0) {
         const bank = 5 + Math.min(BANK_MAX - 5, relief * 0.6)
         if (edge < bank) {
-          const target = L + 1 + (col.height - L - 1) * smoothstep(0, bank, edge)
-          col.height = Math.max(L + 0.5, Math.min(col.height, target))
+          if (col.height >= L + 1) {
+            const target = L + 1 + (col.height - L - 1) * smoothstep(0, bank, edge)
+            col.height = Math.max(L + 0.5, Math.min(col.height, target))
+          } else {
+            // 地面低于水位（悬河、宽谷）：筑一道缓坡堤岸，堤外渐落回原地
+            col.height = lerp(L + 0.5, col.height, smoothstep(bank * 0.35, bank, edge))
+          }
         }
         if (edge < col.waterDist) {
           col.waterDist = edge
@@ -150,8 +168,9 @@ export class TerrainManager {
         col.waterY = L
         col.waterKind = WaterKind.Lake
         col.waterDist = 0
-      } else if (rr < 2.2 && col.waterY < 0) {
-        const target = L + 1 + (col.height - L - 1) * smoothstep(1, 2.2, rr)
+      } else if (rr < 1.45 && col.waterY < 0) {
+        // 湖岸只收一圈窄边：庐山这样临湖拔起的山不被压平
+        const target = L + 1 + (col.height - L - 1) * smoothstep(1, 1.45, rr)
         col.height = Math.max(L + 0.5, Math.min(col.height, target))
         const dist = (rr - 1) * Math.min(lk.lake.rx, lk.lake.rz)
         if (dist < col.waterDist) {

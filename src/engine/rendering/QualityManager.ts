@@ -5,11 +5,12 @@ export interface QualityPreset {
   pixelRatio: number
   /** 近景区块物化半径（区块） */
   chunkRadius: number
+  /** 远景（2×2×2 合并）区块半径 = 近景半径 × 此倍数；0 为不用远景 */
+  farFactor: number
   shadows: boolean
   shadowSize: number
   /** 粒子数量倍数 */
   particles: number
-  clouds: boolean
   workers: number
   anisotropy: number
   /** 每帧最多上传到 GPU 的区块数 */
@@ -20,9 +21,9 @@ const dpr = typeof devicePixelRatio === 'number' ? devicePixelRatio : 1
 const cores = typeof navigator !== 'undefined' ? navigator.hardwareConcurrency || 4 : 4
 
 export const QUALITY_PRESETS: Record<Quality, QualityPreset> = {
-  low: { label: '轻', pixelRatio: 1, chunkRadius: 7, shadows: false, shadowSize: 1024, particles: 0.35, clouds: true, workers: Math.max(1, Math.min(2, cores - 1)), anisotropy: 1, uploadsPerFrame: 2 },
-  mid: { label: '衡', pixelRatio: Math.min(dpr, 1.5), chunkRadius: 13, shadows: true, shadowSize: 2048, particles: 0.7, clouds: true, workers: Math.max(1, Math.min(3, cores - 1)), anisotropy: 4, uploadsPerFrame: 4 },
-  high: { label: '高', pixelRatio: Math.min(dpr, 2), chunkRadius: 17, shadows: true, shadowSize: 4096, particles: 1, clouds: true, workers: Math.max(1, Math.min(5, cores - 1)), anisotropy: 8, uploadsPerFrame: 6 },
+  low: { label: '轻', pixelRatio: 1, chunkRadius: 7, farFactor: 1.8, shadows: false, shadowSize: 1024, particles: 0.35, workers: Math.max(1, Math.min(2, cores - 1)), anisotropy: 1, uploadsPerFrame: 2 },
+  mid: { label: '衡', pixelRatio: Math.min(dpr, 1.5), chunkRadius: 13, farFactor: 2.2, shadows: true, shadowSize: 2048, particles: 0.7, workers: Math.max(1, Math.min(3, cores - 1)), anisotropy: 4, uploadsPerFrame: 4 },
+  high: { label: '高', pixelRatio: Math.min(dpr, 2), chunkRadius: 17, farFactor: 2.4, shadows: true, shadowSize: 4096, particles: 1, workers: Math.max(1, Math.min(5, cores - 1)), anisotropy: 8, uploadsPerFrame: 6 },
 }
 
 /** 画质：按设备给默认值，可切换；变化时通知订阅者 */

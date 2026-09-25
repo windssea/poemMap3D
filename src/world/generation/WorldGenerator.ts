@@ -35,7 +35,7 @@ export class ChunkGenerator {
     private readonly seed: number = WorldConfig.seed,
   ) {}
 
-  generateVolume(cx: number, cz: number, pad = 1): { volume: VoxelVolume; trees: number; structures: number } {
+  generateVolume(cx: number, cz: number, pad = 1, decorate = true): { volume: VoxelVolume; trees: number; structures: number } {
     const vol = VoxelVolume.forChunk(cx, cz, pad)
     const region = this.terrain.region(vol.ox, vol.oz, vol.sx, vol.sz)
 
@@ -79,7 +79,7 @@ export class ChunkGenerator {
     }
 
     /* 地被 */
-    decorateGround(vol, region, this.landmarks.occupancy, this.seed)
+    if (decorate) decorateGround(vol, region, this.landmarks.occupancy, this.seed)
     return { volume: vol, trees: treeCount, structures: placements.length }
   }
 

@@ -38,6 +38,7 @@ export type TexturePattern =
   | 'water'
   | 'ice'
   | 'pebble'
+  | 'cloth'
 
 export interface TextureDef {
   key: string
@@ -95,6 +96,9 @@ export const TEXTURES = [
   { key: 'thatch', tokens: 'thatch', pattern: 'thatch' },
   { key: 'moss_stone', tokens: 'mossStone', pattern: 'cobble' },
   { key: 'pebble', tokens: 'pebble', pattern: 'pebble' },
+  { key: 'cloth_red', tokens: 'clothRed', pattern: 'cloth' },
+  { key: 'cloth_blue', tokens: 'clothBlue', pattern: 'cloth' },
+  { key: 'cloth_buff', tokens: 'clothBuff', pattern: 'cloth' },
 ] as const satisfies readonly TextureDef[]
 
 export type TextureKey = (typeof TEXTURES)[number]['key']

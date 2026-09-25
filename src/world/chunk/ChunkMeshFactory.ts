@@ -22,7 +22,7 @@ export function createLayerGeometry(d: MeshLayerData): THREE.BufferGeometry | nu
 }
 
 /** 一个区块的四层网格 */
-export function createChunkMeshes(cx: number, cz: number, layers: MeshLayerData[], materials: MaterialLibrary): THREE.Mesh[] {
+export function createChunkMeshes(cx: number, cz: number, layers: MeshLayerData[], materials: MaterialLibrary, lod = 1): THREE.Mesh[] {
   const out: THREE.Mesh[] = []
   layers.forEach((d, layer) => {
     const g = createLayerGeometry(d)
@@ -30,10 +30,10 @@ export function createChunkMeshes(cx: number, cz: number, layers: MeshLayerData[
     const mat = layer === BlockRenderLayer.Translucent ? materials.water : materials.block[layer]
     const m = new THREE.Mesh(g, mat)
     m.position.set(cx * CHUNK_SIZE, 0, cz * CHUNK_SIZE)
-    m.scale.setScalar(1 / POSITION_SCALE)
+    m.scale.setScalar(lod / POSITION_SCALE)
     m.matrixAutoUpdate = false
     m.updateMatrix()
-    m.castShadow = layer === BlockRenderLayer.Solid || layer === BlockRenderLayer.Cutout
+    m.castShadow = lod === 1 && (layer === BlockRenderLayer.Solid || layer === BlockRenderLayer.Cutout)
     m.receiveShadow = layer !== BlockRenderLayer.Effect
     m.userData.layer = layer
     m.name = `chunk ${cx},${cz} L${layer}`

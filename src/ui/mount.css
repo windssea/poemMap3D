@@ -42,7 +42,7 @@
 .plist .lead {
   position: absolute;
   top: var(--ly, 50%);
-  width: 26px;
+  width: var(--lw, 26px);
   height: 2px;
   margin-top: -1px;
   background: linear-gradient(90deg, rgb(var(--rgb-zhusha) / 0.85), rgb(var(--rgb-zhusha) / 0.25));
@@ -58,14 +58,14 @@
   box-shadow: 0 0 0 2px rgb(var(--rgb-xuanzhi) / 0.9);
 }
 .plist.r .lead {
-  left: -26px;
+  left: calc(-1 * var(--lw, 26px));
   transform: scaleX(-1);
 }
 .plist.r .lead::after {
   left: -4px;
 }
 .plist.l .lead {
-  right: -26px;
+  right: calc(-1 * var(--lw, 26px));
 }
 .plist.l .lead::after {
   right: -4px;
@@ -1336,4 +1336,73 @@ body.trail-on .hint {
 .amb-row + .amb-row {
   border-top: 1px dashed rgb(var(--rgb-zhe) / 0.18);
   padding-top: 4px;
+}
+/* 诗人挑选：挂在搜索框下，贴近足迹按钮 */
+.trailp.trail-pick {
+  left: auto;
+  right: 18px;
+  top: 64px;
+  bottom: auto;
+  width: min(320px, calc(100vw - 36px));
+}
+/* 足迹行进时的醒目题注：年份、目的地与缘由 */
+.tr-cap {
+  position: fixed;
+  z-index: 8;
+  left: 50%;
+  bottom: calc(26px + var(--safe-b));
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  max-width: min(760px, calc(100vw - 40px));
+  padding: 10px 22px 10px 12px;
+  border-radius: 4px;
+  background: var(--xuan), linear-gradient(90deg, rgb(var(--rgb-paper-light) / 0.95), rgb(var(--rgb-paper) / 0.92));
+  box-shadow:
+    0 12px 30px rgb(var(--rgb-ink-deep) / 0.25),
+    inset 0 0 0 1px rgb(var(--rgb-zhe) / 0.3);
+  animation: tcIn 0.6s ease both;
+  pointer-events: none;
+}
+.tr-cap .yr {
+  flex: none;
+  writing-mode: vertical-rl;
+  padding: 6px 4px;
+  background: var(--c);
+  color: var(--c-paper-light);
+  font-family: var(--brush);
+  font-size: 17px;
+  letter-spacing: 3px;
+  border-radius: 2px;
+}
+.tr-cap .dir {
+  flex: none;
+  font-size: 13px;
+  color: var(--ink3);
+  letter-spacing: 2px;
+  writing-mode: horizontal-tb;
+}
+.tr-cap .pl {
+  flex: none;
+  font-family: var(--brush);
+  font-size: 34px;
+  letter-spacing: 6px;
+  color: var(--c-ink-deep);
+  line-height: 1.1;
+}
+.tr-cap .nt {
+  font-size: 16px;
+  line-height: 1.6;
+  letter-spacing: 1px;
+  color: var(--c-ink-text);
+}
+.tr-card .tc {
+  max-width: min(380px, 60vw);
+}
+.tr-card span {
+  font-size: 30px;
+}
+.tr-card b {
+  font-size: 17px;
 }

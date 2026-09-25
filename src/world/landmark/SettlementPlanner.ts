@@ -106,7 +106,9 @@ export function planSettlements(anchors: readonly PlaceAnchor[], handmade: reado
     const p = project(a.lng, a.lat)
     const r = new Random(hashString(a.id))
     const famousKey = Object.keys(FAMOUS).find((k) => a.name.includes(k))
-    const body = famousKey ? FAMOUS[famousKey](r) : generic(a.weight, r)
+    // 以山为名的地点（华山、终南山、嵩山……）：不平整山体，只在山头设一亭
+    const mountain = !famousKey && /[山峰岭顶]$/.test(a.name) && !/[州城县镇]/.test(a.name)
+    const body = famousKey ? FAMOUS[famousKey](r) : mountain ? { radius: 14, terrainModifier: [], structures: [{ b: 'pavilion' as const, x: 0, z: 0 }] } : generic(a.weight, r)
     if (taken.some((t) => Math.hypot(t.x - p.x, t.z - p.z) < Math.max(14, (t.r + body.radius) * 0.55))) continue
     taken.push({ x: p.x, z: p.z, r: body.radius })
     out.push({

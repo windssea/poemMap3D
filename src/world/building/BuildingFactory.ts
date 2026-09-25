@@ -425,3 +425,147 @@ export function terrace(p: BuildingParams = {}): VoxelStructure {
     for (const z of range(z0, z1)) if ((x === x0 || x === x1 || z === z0 || z === z1) && !(z === z1 && Math.abs(x) <= 1)) b.set(x, h, z, S(B.MARBLE_FENCE))
   return b.build()
 }
+
+/* ================= 楼（两层：底层店面、上层回廊） ================= */
+export function loft(p: BuildingParams = {}): VoxelStructure {
+  const r = new Random(p.seed ?? 3)
+  const w = p.width ?? 9
+  const d = p.depth ?? 7
+  const b = new StructureBuilder('loft')
+  const { x0, x1, z0, z1 } = bounds(w, d)
+  b.box(x0, 0, z0, x1, 0, z1, S(B.STONE_BRICK))
+  /* 底层：开间木门板 */
+  b.walls(x0, 1, z0, x1, 3, z1, (x, y, z) => {
+    const corner = (x === x0 || x === x1) && (z === z0 || z === z1)
+    if (corner || (z === z1 && (x - x0) % 2 === 0)) return post(B.PILLAR)
+    if (z === z1) return y === 3 ? packState({ id: B.LATTICE_WINDOW, facing: Direction.South }) : S(B.DARK_PLANKS)
+    return S(B.PLASTER)
+  })
+  b.set(0, 1, z1, 0).set(0, 2, z1, 0)
+  b.box(x0, 4, z0, x1, 4, z1, S(B.DARK_PLANKS))
+  /* 平座回廊 */
+  for (const x of range(x0 - 1, x1 + 1)) b.set(x, 4, z1 + 1, S(B.DARK_PLANKS_SLAB)).set(x, 5, z1 + 1, S(B.WOOD_FENCE))
+  /* 二层：隔扇窗 */
+  b.walls(x0, 5, z0, x1, 7, z1, (x, y, z) => {
+    const corner = (x === x0 || x === x1) && (z === z0 || z === z1)
+    if (corner) return post(B.PILLAR)
+    if ((z === z1 || z === z0) && y === 6) return packState({ id: B.LATTICE_WINDOW, facing: Direction.South })
+    return S(B.LACQUER)
+  })
+  eaveBrackets(b, x0, x1, z0, z1, 7)
+  b.s.merge(buildRoof({ width: w + 2, depth: d + 2, type: r.chance(0.5) ? 'xieshan' : 'xuanshan', tile: p.tile ?? 'gray', eaveDepth: 1 }), 0, 8, 0)
+  fillGables(b, [x0, x1], z0 + 1, z1 - 1, 8, S(B.PLASTER))
+  b.set(x0 + 1, 6, z1 + 1, S(B.LANTERN)).set(x1 - 1, 6, z1 + 1, S(B.LANTERN))
+  if (p.lanterns ?? r.chance(0.6)) b.set(x1, 3, z1 + 1, S(r.chance(0.5) ? B.BANNER_RED : B.BANNER_BLUE))
+  return b.build()
+}
+
+/* ================= 四合院：正房、两厢、院墙与门楼 ================= */
+export function courtyard(p: BuildingParams = {}): VoxelStructure {
+  const s = p.width ?? 17
+  const b = new StructureBuilder('courtyard')
+  const { x0, x1, z0, z1 } = bounds(s, s)
+  b.box(x0, 0, z0, x1, 0, z1, S(B.PAVING))
+  /* 院墙：白墙青瓦压顶 */
+  for (const x of range(x0, x1))
+    for (const z of range(z0, z1)) {
+      if (x !== x0 && x !== x1 && z !== z0 && z !== z1) continue
+      b.set(x, 1, z, S(B.PLASTER)).set(x, 2, z, S(B.PLASTER)).set(x, 3, z, S(B.ROOF_GRAY_SLAB))
+    }
+  /* 门楼（南墙正中） */
+  for (let y = 1; y <= 3; y++) b.set(0, y, z1, 0)
+  b.set(-1, 1, z1, post(B.PILLAR)).set(1, 1, z1, post(B.PILLAR)).set(-1, 2, z1, post(B.PILLAR)).set(1, 2, z1, post(B.PILLAR))
+  b.s.merge(buildRoof({ width: 5, depth: 3, type: 'xuanshan', tile: p.tile ?? 'gray', upturn: false }), 0, 3, z1)
+  /* 正房与两厢 */
+  const main = house({ width: s - 6, depth: 5, height: 4, seed: (p.seed ?? 1) + 1, tile: p.tile ?? 'gray', lanterns: true })
+  b.s.merge(main, 0, 0, z0 + 3)
+  const wing = house({ width: 7, depth: 5, height: 3, seed: (p.seed ?? 1) + 2, tile: p.tile ?? 'gray', lanterns: false })
+  b.s.merge(wing.rotate(3), x0 + 3, 0, 2)
+  b.s.merge(wing.rotate(1), x1 - 3, 0, 2)
+  return b.build()
+}
+
+/* ================= 店铺：敞开的铺面、柜台、布幌、货桶 ================= */
+export function shop(p: BuildingParams = {}): VoxelStructure {
+  const r = new Random(p.seed ?? 5)
+  const w = p.width ?? 7
+  const d = p.depth ?? 5
+  const b = new StructureBuilder('shop')
+  const { x0, x1, z0, z1 } = bounds(w, d)
+  b.box(x0, 0, z0, x1, 0, z1, S(B.PLANKS))
+  b.walls(x0, 1, z0, x1, 3, z1, (x, _y, z) => ((x === x0 || x === x1) && (z === z0 || z === z1) ? post(B.DARK_POST) : z === z1 ? 0 : S(B.PLASTER)))
+  for (const x of range(x0, x1)) b.set(x, 3, z1, post(B.DARK_PLANKS, Axis.X))
+  for (const x of range(x0 + 1, x1 - 1)) b.set(x, 1, z1 - 1, S(B.PLANKS_SLAB))
+  b.set(x0 + 1, 1, z0 + 1, S(B.BARREL)).set(x1 - 1, 1, z0 + 1, S(B.BARREL))
+  /* 布篷 */
+  const awn = r.pick([B.CLOTH_BUFF_SLAB, B.CLOTH_RED_SLAB, B.CLOTH_BLUE_SLAB])
+  for (const x of range(x0, x1)) b.set(x, 3, z1 + 1, packState({ id: awn, half: 'top' }))
+  b.s.merge(buildRoof({ width: w + 2, depth: d + 2, type: 'xuanshan', tile: p.tile ?? 'gray', upturn: false }), 0, 4, 0)
+  fillGables(b, [x0, x1], z0 + 1, z1 - 1, 4, S(B.PLASTER))
+  b.set(x1 + 1, 3, z1 + 1, post(B.DARK_POST)).set(x1 + 1, 2, z1 + 1, S(r.chance(0.5) ? B.BANNER_RED : B.BANNER_BLUE))
+  b.set(x0, 2, z1 + 1, S(B.LANTERN))
+  return b.build()
+}
+
+/* ================= 摊：四柱布棚、案板与货 ================= */
+export function stall(p: BuildingParams = {}): VoxelStructure {
+  const r = new Random(p.seed ?? 7)
+  const b = new StructureBuilder('stall')
+  const top = r.pick([B.CLOTH_BUFF_SLAB, B.CLOTH_RED_SLAB, B.CLOTH_BLUE_SLAB])
+  for (const [x, z] of [
+    [-1, -1],
+    [1, -1],
+    [-1, 1],
+    [1, 1],
+  ])
+    for (let y = 0; y < 3; y++) b.set(x, y, z, post(B.DARK_POST))
+  b.box(-1, 3, -1, 1, 3, 1, S(top))
+  b.set(-1, 0, 0, S(B.PLANKS_SLAB)).set(0, 0, 0, S(B.PLANKS_SLAB)).set(1, 0, 0, S(B.PLANKS_SLAB))
+  const goods = r.pick([B.BARREL, B.FLOWER_RED, B.FLOWER_YELLOW, B.PEBBLE])
+  b.set(0, 1, 0, S(goods))
+  if (r.chance(0.5)) b.set(0, 2, -1, S(B.LANTERN))
+  return b.build()
+}
+
+/* ================= 钟鼓楼：砖台券洞 + 楼阁 ================= */
+export function bellTower(p: BuildingParams = {}): VoxelStructure {
+  const w = p.width ?? 11
+  const b = new StructureBuilder('bell-tower')
+  const { x0, x1, z0, z1 } = bounds(w, w)
+  b.box(x0, 0, z0, x1, 5, z1, S(B.CITY_BRICK))
+  /* 十字券洞 */
+  b.box(-1, 0, z0, 1, 3, z1, 0)
+  b.box(x0, 0, -1, x1, 3, 1, 0)
+  for (const x of range(x0, x1)) for (const z of [z0, z1]) if ((x - x0) % 2 === 0) b.set(x, 6, z, S(B.CITY_BRICK_SLAB))
+  const top = hall({ width: w - 4, depth: w - 4, height: 4, terrace: 1, tile: p.tile ?? 'green', lanterns: true, double: true })
+  b.s.merge(top, 0, 5, 0)
+  return b.build()
+}
+
+/* ================= 牌坊：四柱三间 ================= */
+export function archway(p: BuildingParams = {}): VoxelStructure {
+  const b = new StructureBuilder('archway')
+  const tile = p.tile ?? 'gray'
+  for (const x of [-4, -2, 2, 4]) {
+    for (let y = 0; y <= (Math.abs(x) === 2 ? 7 : 5); y++) b.set(x, y, 0, post(B.PILLAR))
+    b.set(x, 0, 0, S(B.STONE_BRICK))
+  }
+  for (let x = -4; x <= 4; x++) b.set(x, 5, 0, post(B.DARK_PLANKS, Axis.X))
+  for (let x = -2; x <= 2; x++) b.set(x, 7, 0, post(B.DARK_PLANKS, Axis.X))
+  b.set(0, 6, 0, S(B.GOLD))
+  const st = tile === 'yellow' ? B.ROOF_YELLOW_STAIRS : tile === 'green' ? B.ROOF_GREEN_STAIRS : B.ROOF_GRAY_STAIRS
+  const full = tile === 'yellow' ? B.ROOF_YELLOW : tile === 'green' ? B.ROOF_GREEN : B.ROOF_GRAY
+  const cap = (xa: number, xb: number, y: number) => {
+    for (let x = xa; x <= xb; x++) {
+      b.set(x, y, -1, stairs(st, Direction.South))
+      b.set(x, y, 1, stairs(st, Direction.North))
+      b.set(x, y, 0, S(full))
+    }
+    b.set(xa - 1, y, 0, packState({ id: B.RIDGE_END, facing: Direction.West }))
+    b.set(xb + 1, y, 0, packState({ id: B.RIDGE_END, facing: Direction.East }))
+  }
+  cap(-3, 3, 8)
+  cap(-5, -3, 6)
+  cap(3, 5, 6)
+  return b.build()
+}
