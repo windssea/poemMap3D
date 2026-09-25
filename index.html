@@ -1080,6 +1080,14 @@ function finalizeHeights() {
     if (shore) TY[k] = Math.max(TY[k], Math.floor((WY[k] - 0.14) / Q) * Q);
   }
 }
+/** 岸不低于水：紧挨水格的陆地至少高出相邻最高水位，水面边缘下不留空洞（在所有地形改动之后、出网格之前调用） */
+function sealShores() {
+  for (let j = 1; j < H - 1; j++) for (let i = 1; i < W - 1; i++) {
+    const k = j * W + i; if (!isNaN(WY[k])) continue;
+    let m = -Infinity; for (const o of [1, -1, W, -W]) if (!isNaN(WY[k + o])) m = Math.max(m, WY[k + o]);
+    if (m > -Infinity && TY[k] < m + 0.02) TY[k] = Math.ceil((m + 0.02) / Q) * Q;
+  }
+}
 const idx = (x, z) => clamp(gj(z), 0, H - 1) * W + clamp(gi(x), 0, W - 1);
 /* 名胜微缩景：粗格 → 所属微缩景序号+1；微缩景内部用细网格 */
 const PATCH_OF = new Int16Array(N), PATCHES = [];
@@ -2103,7 +2111,7 @@ function buildFalls() {
       if (q) g.add(ledge);
     }
     /* 潭：一圈白浪 */
-    const pool = new THREE.Mesh(new THREE.CircleGeometry(f.w * 0.9, 20), new THREE.MeshBasicMaterial({ color: 0xeef6f7, transparent: true, opacity: 0.55, depthWrite: false }));
+    const pool = new THREE.Mesh(new THREE.PlaneGeometry(f.w * 1.6, f.w * 1.6), new THREE.MeshBasicMaterial({ color: 0xeef6f7, transparent: true, opacity: 0.55, depthWrite: false }));
     pool.rotation.x = -Math.PI / 2; pool.position.set(f.x - dir.x * 0.18, f.y0 + 0.03, f.z - dir.z * 0.18); g.add(pool);
     /* 水雾 */
     const n = 26, seeds = new Float32Array(n * 4), R = mulberry32(77);
@@ -3317,7 +3325,7 @@ function buildFlora() {
   const put = (t, it) => { const tk = t.includes(":") || !VoxelTree.SPEC[t] ? t : treeKey(t, R), key = tk + "|" + Math.floor(it.x / TILE) + "," + Math.floor(it.z / TILE); if (!map.has(key)) map.set(key, { geo: treeGeoKey(tk, 1), list: [] }); map.get(key).list.push(it); };
   /* 名胜与地标的点景树放在最前：画质削减草木数量时从末尾截掉，不会截到它们 */
   for (const t of EXTRA_TREES) {
-    if (t.y != null) { if (landAt(t.x, t.z).water) continue; const tk = treeKey(t.t, R, "garden");   /* 名胜点景树紧挨建筑：按庭院树尺度 */ const s0 = plantScale(tk, R); if (!plantOK(tk, s0, t.x, t.z, R)) continue; put(tk, { x: t.x, y: t.y, z: t.z, rot: R() * 6.28, s: s0, tint: [1, 1, 1] }); continue; }
+    if (t.y != null) { const Lt = landAt(t.x, t.z); if (Lt.water) continue; t.y = Lt.y; const tk = treeKey(t.t, R, "garden");   /* 名胜点景树紧挨建筑：按庭院树尺度 */ const s0 = plantScale(tk, R); if (!plantOK(tk, s0, t.x, t.z, R)) continue; put(tk, { x: t.x, y: t.y, z: t.z, rot: R() * 6.28, s: s0, tint: [1, 1, 1] }); continue; }
     const k = idx(t.x, t.z); if (isWater(k)) continue;
     /* 收进所在格内 */
     const ci = k % W, cj = (k / W) | 0, hx = CS / 2 - 0.13;
@@ -3336,7 +3344,7 @@ function buildFlora() {
     if (wn && !SNOW[k] && R() < (y < 3 ? 0.45 : 0.25)) {
       const t = R() < 0.5 || kd === 1 || y > 5 ? "rock" : "reed";
       const rx = x + (R() - 0.5) * (CS - 0.3), rz = z + (R() - 0.5) * (CS - 0.3), it = { x: rx, y, z: rz, rot: R() * 6.28, s: 0.7 + R() * 0.9, tint: [0.9 + R() * 0.2, 0.9 + R() * 0.2, 0.9 + R() * 0.2] };
-      if (!bldBlocked(rx, rz, 0.08)) put(t, it);   // 岸石、芦苇也不压建筑
+      const Lr = landAt(rx, rz); it.y = Lr.y; if (!Lr.water && !bldBlocked(rx, rz, 0.08)) put(t, it);   // 按最终地面取高   // 岸石、芦苇也不压建筑
     }
     if (slope > 2.5 && !SNOW[k] && R() < 0.05) put("rock", { x, y, z, rot: R() * 6.28, s: 1 + R(), tint: [1, 1, 1] });
     const f = floraInfo(i, j); if (!f || f.dens <= 0) continue;
@@ -3902,9 +3910,15 @@ function tickTour(dt) {
 /* 太阳/阴影随镜头走 */
 function tickSun() {
   const t = controls.target, d = camera.position.distanceTo(t);
-  const S = trailPlaying() ? 80 : 10 * Math.pow(1.25, Math.round(Math.log(clamp(d * 1.05, 10, 220) / 10) / Math.log(1.25)));
-  const cam = sun.shadow.camera;
-  if (cam.right !== S) { cam.left = -S; cam.right = S; cam.top = S; cam.bottom = -S; cam.near = 1; cam.far = 700; cam.updateProjectionMatrix(); shadowDirty = true; }
+  /* 阴影范围分档（×1.6 一档）并带回差：推拉镜头时不频繁换档，阴影不闪 */
+  const cam = sun.shadow.camera, want = clamp(d * 1.05, 10, 220), cur = cam.right;
+  let S = cur;
+  if (trailPlaying()) S = 80; else if (!(cur >= want && cur <= want * 2.2)) S = 10 * Math.pow(1.6, Math.ceil(Math.log(want / 10) / Math.log(1.6)));
+  if (cam.right !== S) {
+    cam.left = -S; cam.right = S; cam.top = S; cam.bottom = -S; cam.near = 1; cam.far = 700; cam.updateProjectionMatrix(); shadowDirty = true;
+    /* 偏移随阴影贴图单格大小：远景单格大，固定偏移会在陡峭山壁上起条纹（阴影痤疮）并随镜头闪动 */
+    const tx = (2 * S) / sun.shadow.mapSize.x; sun.shadow.normalBias = Math.max(0.022, tx * 1.4); sun.shadow.bias = -0.0003 - tx * 0.0004;
+  }
   const texel = (2 * S) / sun.shadow.mapSize.x, step = texel * Math.max(1, Math.round(S * 0.08 / texel));
   const fx = Math.round(t.x / step) * step, fz = Math.round(t.z / step) * step;
   if (fx !== sun.target.position.x || fz !== sun.target.position.z) shadowDirty = true;
@@ -4786,7 +4800,7 @@ function tickNightFx(dt) {
 
 /* 选中标记：地上一圈淡朱光环 */
 const ringMat = new THREE.MeshBasicMaterial({ color: 0xd4553a, transparent: true, opacity: 0, depthWrite: false, fog: false });
-const ring = new THREE.Mesh(new THREE.RingGeometry(0.62, 0.72, 48), ringMat);
+const ring = new THREE.Mesh(new THREE.RingGeometry(0.62, 0.72, 4, 1, Math.PI / 4), ringMat);   // 方框选中标记（四边形环）
 ring.rotation.x = -Math.PI / 2; ring.renderOrder = 5; scene.add(ring);
 
 /* ================================================================
@@ -5204,7 +5218,7 @@ function renderFrame(dt) {
     BOATS.forEach((b, n) => { e.set(Math.sin(t * 1.3 + b.ph) * 0.05, b.rot + Math.sin(t * 0.1 + b.ph) * 0.2, Math.cos(t * 1.1 + b.ph) * 0.04); q.setFromEuler(e); v.set(b.x, b.y + Math.sin(t * 1.5 + b.ph) * 0.01, b.z); m4.compose(v, q, s); boatMesh.setMatrixAt(n, m4); });
     boatMesh.instanceMatrix.needsUpdate = true;
   }
-  if (selPlace) { ringMat.opacity = 0.55 + 0.25 * Math.sin(GU.uTime.value * 2.4); ring.rotation.z += dt * 0.3; } else if (!(touring && tour && tour.place)) ringMat.opacity = Math.max(0, ringMat.opacity - dt * 2);
+  if (selPlace) { ringMat.opacity = 0.55 + 0.25 * Math.sin(GU.uTime.value * 2.4); }   // 方框与网格对齐，不旋转 else if (!(touring && tour && tour.place)) ringMat.opacity = Math.max(0, ringMat.opacity - dt * 2);
   ring.visible = ringMat.opacity > 0.01;
   composer.render(dt);
   if (!document.body.classList.contains("ui-hidden")) updateLabels();
@@ -5682,7 +5696,7 @@ document.addEventListener("visibilitychange", () => { if (audio) (document.hidde
     colorCells();
     buildPatches();
     await stage("累土 · 堆叠体素", 62);
-    buildTerrainMesh(); buildPatchMeshes();
+    sealShores(); buildTerrainMesh(); buildPatchMeshes();
     await stage("引水入画", 74);
     buildWater();
     await stage("营造 · 楼阁城关", 80);
@@ -5711,7 +5725,7 @@ document.addEventListener("visibilitychange", () => { if (audio) (document.hidde
     setTimeout(openFromHash, 400);
     setTimeout(loadTourFont, 600); setTimeout(loadDetail, 2500); setTimeout(loadPoemFont, 5000);
     addEventListener("hashchange", () => { if (!curPlace || !location.hash.includes(curPlace.poems[curPoem].id)) openFromHash(); });
-    window.__app = { THEMES, THEME, applyTheme, TLAB_WINS, dbgH: (lng, lat) => { const k = gj(wz(lat)) * W + gi(wx(lng)); return { TY: +TY[k].toFixed(2), mE: +m2y(E[k]).toFixed(2), E: E[k] | 0, patch: PATCH_OF[k], wy: WY[k] }; }, buildLandscape, get TLAB_VIEWS() { return (TLAB_WINS[QS.get("w")] || TLAB_WINS.sanxia).views; }, get grid() { return { W, H, X0, Z0, CS }; }, floraInfoAt: (x, z) => floraInfo(gi(x), gj(z)), get lab() { return LAB; }, startLab, THREE, scene, camera, get water() { return [reflector, waterFlat]; }, controls, renderer, PLACES, VIEWS, flyView, setMood, setSeason, setWeather, GU, FALLS, startTrail, closeTrail, get trail() { return trail; }, get TOUR() { return TOUR; }, TS, tourPlan, groundAt, nearFlora, PATCHES, bldGroup, VoxelTree, treeGeoKey, floraMat, landAt, wx, wz, y2m, get EXTRA() { return EXTRA_TREES; }, get flora() { return floraMeshes; }, tourAt(i) { startTour(); tourGo(i); }, startTour, stopTour, HOME, get autoFocus() { return autoFocus; }, openPlace, openPoem, closeAll, get listOpen() { return listOpen; }, get scrollOpen() { return scrollOpen; }, applyQuality, get quality() { return QUALITY; }, viewPose,
+    window.__app = { waterAudit: () => { let poke = 0, gap = 0, gapMax = 0, n = 0; const ex = []; for (let j = 1; j < H - 1; j++) for (let i = 1; i < W - 1; i++) { const k = j * W + i; if (PATCH_OF[k]) continue; if (isWater(k)) { n++; if (TY[k] > WY[k] - 0.02) poke++; continue; } for (const o of [1, -1, W, -W]) { const q = k + o; if (!isWater(q) || PATCH_OF[q]) continue; const d = WY[q] - TY[k]; if (d > 0.005) { gap++; gapMax = Math.max(gapMax, d); if (ex.length < 6) ex.push([+lngOf(cx(i)).toFixed(2), +latOf(cz(j)).toFixed(2), +d.toFixed(2)]); } } } return { waterCells: n, bedAboveWater: poke, landBelowAdjWater: gap, gapMax: +gapMax.toFixed(2), ex }; }, renderFrame, THEMES, THEME, applyTheme, TLAB_WINS, dbgH: (lng, lat) => { const k = gj(wz(lat)) * W + gi(wx(lng)); return { TY: +TY[k].toFixed(2), mE: +m2y(E[k]).toFixed(2), E: E[k] | 0, patch: PATCH_OF[k], wy: WY[k] }; }, buildLandscape, get TLAB_VIEWS() { return (TLAB_WINS[QS.get("w")] || TLAB_WINS.sanxia).views; }, get grid() { return { W, H, X0, Z0, CS }; }, floraInfoAt: (x, z) => floraInfo(gi(x), gj(z)), get lab() { return LAB; }, startLab, THREE, scene, camera, get water() { return [reflector, waterFlat]; }, controls, renderer, PLACES, VIEWS, flyView, setMood, setSeason, setWeather, GU, FALLS, startTrail, closeTrail, get trail() { return trail; }, get TOUR() { return TOUR; }, TS, tourPlan, groundAt, nearFlora, PATCHES, bldGroup, VoxelTree, treeGeoKey, floraMat, landAt, wx, wz, y2m, get EXTRA() { return EXTRA_TREES; }, get flora() { return floraMeshes; }, tourAt(i) { startTour(); tourGo(i); }, startTour, stopTour, HOME, get autoFocus() { return autoFocus; }, openPlace, openPoem, closeAll, get listOpen() { return listOpen; }, get scrollOpen() { return scrollOpen; }, applyQuality, get quality() { return QUALITY; }, viewPose,
       setView(v) { const { target, pos } = viewPose(v); controls.target.copy(target); camera.position.copy(pos); fly = null; controls.update(); },
       cell(lng, lat) { const k = idx(wx(lng), wz(lat)); return { y: TY[k], m: Math.round(y2m(TY[k])), kind: KIND[k], snow: SNOW[k], col: [...TOPC.slice(k * 3, k * 3 + 3)].map((v) => +v.toFixed(2)) }; },
       bench(n = 60) { const gl = renderer.getContext(); composer.render(); gl.finish(); const t = performance.now(); for (let i = 0; i < n; i++) { if (window.__benchShadow) renderer.shadowMap.needsUpdate = true; composer.render(); } gl.finish(); return +((performance.now() - t) / n).toFixed(2); },
