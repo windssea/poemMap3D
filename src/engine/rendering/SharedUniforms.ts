@@ -52,6 +52,10 @@ export function createSharedUniforms() {
     /** 边缘雾图（地图四边、远海、海南以南）与其覆盖范围 x0, z0, 宽, 高 */
     uFogMap: { value: null as THREE.DataTexture | null },
     uFogRect: { value: new THREE.Vector4(0, 0, 1, 1) },
+    /** 谷地山岚浓度与所在高度（注视点附近地面） */
+    uMist: { value: 0.1 },
+    uMistY: { value: 60 },
+    uMistNear: { value: 100 },
     /** 覆盖图整体淡出（近看时） */
     uOverviewFade: { value: 1 },
   }

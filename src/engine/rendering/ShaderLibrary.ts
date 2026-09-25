@@ -86,6 +86,34 @@ vec3 applySnow(vec3 col, vec3 wnormal, vec3 wpos, vec3 snowColor, float climate)
 }
 `
 
+/**
+ * 面向明暗（方块世界的体积感）：顶面最亮，东西侧面、南北侧面依次暗一档，底面最暗。
+ * 阴天、背光、阴影里 Lambert 各面几乎一样亮，块面糊成一片；乘上这一档，楼阁山体的形体就立住了。
+ */
+export const GLSL_FACE_SHADE = /* glsl */ `
+float faceShade(vec3 n) {
+  vec3 a = abs(n);
+  if (a.y >= a.x && a.y >= a.z) return n.y > 0.0 ? 1.0 : 0.6;
+  return a.x > a.z ? 0.87 : 0.79;
+}
+`
+
+/**
+ * 谷地山岚：低处（注视点附近地面以上二三十格内）随距离起一层薄雾，晨起、雨中浓，白天淡。
+ * 远近都是千里江山图里那种一层层退远的烟岚。
+ */
+export const GLSL_MIST = /* glsl */ `
+uniform float uMist;
+uniform float uMistY;
+uniform float uMistNear;
+float valleyMist(vec3 w) {
+  // 注视处清楚，越过注视点往远处才一层层起岚
+  float d = length(w - cameraPosition);
+  float low = 1.0 - smoothstep(uMistY - 4.0, uMistY + 22.0, w.y);
+  return uMist * low * smoothstep(uMistNear * 1.1, uMistNear * 3.2 + 120.0, d);
+}
+`
+
 /** 边缘雾：地图四边与离岸远海渐隐入雾（取样雾图） */
 export const GLSL_EDGE_FOG = /* glsl */ `
 uniform sampler2D uFogMap;

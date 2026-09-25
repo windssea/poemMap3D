@@ -50,8 +50,8 @@ export class NightLanterns {
     const lotus = new THREE.MeshBasicMaterial({ color: new THREE.Color(NightTokens.riverLantern), fog: false, toneMapped: false })
     const rg = new THREE.BoxGeometry(1.2, 0.35, 1.2)
     this.river = new THREE.InstancedMesh(rg, lotus, RIVER_N)
-    const halo = new THREE.MeshBasicMaterial({ color: new THREE.Color(NightTokens.lanternGlow), transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })
-    this.glow = new THREE.InstancedMesh(new THREE.BoxGeometry(3.2, 3.2, 3.2), halo, SKY_N + RIVER_N)
+    const halo = new THREE.MeshBasicMaterial({ color: new THREE.Color(NightTokens.lanternGlow), transparent: true, opacity: 0.14, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })
+    this.glow = new THREE.InstancedMesh(new THREE.BoxGeometry(2.3, 2.3, 2.3), halo, SKY_N + RIVER_N)
     for (const m of [this.sky, this.river, this.glow]) {
       m.frustumCulled = false
       m.count = 0

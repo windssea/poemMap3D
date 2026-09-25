@@ -92,6 +92,12 @@ export class EnvironmentManager {
     u.uAutumn.value = S.autumn
     u.uBlossom.value = S.blossom
     u.uSnow.value = this.weather.cover
+    /* 山岚：晨起最浓，暮色次之，白天淡；雨雪加浓 */
+    const mistBase = this.time.key === 'dawn' ? 0.34 : this.time.key === 'dusk' ? 0.2 : this.time.key === 'night' ? 0.16 : 0.08
+    const mistWant = Math.min(0.75, mistBase + wet * 0.3)
+    u.uMist.value += (mistWant - u.uMist.value) * Math.min(1, dt * 1.5)
+    u.uMistY.value += (focus.y + 3 - u.uMistY.value) * Math.min(1, dt * 2)
+    u.uMistNear.value = distance
     u.uWet.value = this.weather.rain
     /* 冬：画面偏冷、略褪色；阔叶落尽，水面结冰 */
     const winter = S.snow

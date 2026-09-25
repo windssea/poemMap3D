@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { BlockRenderLayer } from '../../world/block/BlockDefinition'
-import { GLSL_AO, GLSL_BAYER, GLSL_DESATURATE, GLSL_EDGE_FOG, GLSL_ENV_UNIFORMS, GLSL_HASH, GLSL_SEASON, GLSL_SNOW } from './ShaderLibrary'
+import { GLSL_AO, GLSL_BAYER, GLSL_DESATURATE, GLSL_EDGE_FOG, GLSL_ENV_UNIFORMS, GLSL_FACE_SHADE, GLSL_HASH, GLSL_MIST, GLSL_SEASON, GLSL_SNOW } from './ShaderLibrary'
 import type { SharedUniforms } from './SharedUniforms'
 import { createBlockTextureArray } from './TextureAtlas'
 import { GLSL_CLIMATE } from '../../world/climate/Climate'
@@ -29,7 +29,7 @@ varying vec3 vBNormal;
 /** 雾之后再按边缘雾图混向雾色：地图四边、远海、海南以南渐隐 */
 const EDGE_FOG_FRAGMENT = (v: string) => `#include <fog_fragment>
 #ifdef USE_FOG
- gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, edgeFog(${v}));
+ gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, max(edgeFog(${v}), valleyMist(${v})));
 #endif`
 
 /**
@@ -65,6 +65,8 @@ ${GLSL_AO}
 ${GLSL_SNOW}
 ${GLSL_DESATURATE}
 ${GLSL_EDGE_FOG}
+${GLSL_MIST}
+${GLSL_FACE_SHADE}
 `
 
 /**
@@ -162,7 +164,7 @@ export class MaterialLibrary {
             leaf = mix(leaf, mix(uAutumnA, uAutumnB, hash13(floor(vBWorld))), uAutumn * 0.8);
             col = mix(leaf, texel.rgb, uBlossom);
           }
-          col *= aoCurve(vAo);
+          col *= aoCurve(vAo) * faceShade(vBNormal);
           col = applySnow(col, vBNormal, vBWorld, uSnowColor, snowClimate(vBWorld));
           col *= mix(1.0, 0.78, uWet * step(0.5, vBNormal.y));
           diffuseColor.rgb *= col;
@@ -248,6 +250,7 @@ export class MaterialLibrary {
         ${GLSL_BAYER}
         ${GLSL_CLIMATE}
         ${GLSL_EDGE_FOG}
+        ${GLSL_MIST}
         uniform vec3 uSunDir;
         uniform vec3 uSunColor;
         uniform vec3 uSkyColor;
@@ -346,7 +349,9 @@ export class MaterialLibrary {
           ${GLSL_SEASON}
           ${GLSL_SNOW}
           ${GLSL_DESATURATE}
-          ${GLSL_EDGE_FOG}`,
+          ${GLSL_EDGE_FOG}
+          ${GLSL_MIST}
+          ${GLSL_FACE_SHADE}`,
         )
         .replace(
           '#include <clipping_planes_fragment>',
@@ -358,7 +363,7 @@ export class MaterialLibrary {
           '#include <map_fragment>',
           `vec3 col = seasonTint(vOColor, vKind, vOWorld);
            col = applySnow(col, vONormal, vOWorld * 0.125, uSnowColor, snowClimate(vOWorld));
-           diffuseColor.rgb *= col;`,
+           diffuseColor.rgb *= col * faceShade(vONormal);`,
         )
         .replace('#include <opaque_fragment>', `outgoingLight = desaturate(outgoingLight, uSaturation);\n#include <opaque_fragment>`)
         .replace('#include <fog_fragment>', EDGE_FOG_FRAGMENT('vOWorld'))
