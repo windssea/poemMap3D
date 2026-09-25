@@ -69,10 +69,15 @@ export class CameraController {
     this.goal.distance = p.distance
   }
 
+  /** 飞行目的地（飞行中才有）：世界据此预读 */
+  destination: CameraPose | null = null
+
   flyTo(to: CameraPose, opts?: FlightOptions): Promise<void> {
     this.focus.stopOrbit()
     const p = this.flight.flyTo(this.pose, to, opts)
+    this.destination = to
     return p.then(() => {
+      if (this.destination === to) this.destination = null
       this.goal.target.copy(to.target)
       Object.assign(this.goal, { yaw: to.yaw, pitch: to.pitch, distance: to.distance })
     })

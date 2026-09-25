@@ -160,7 +160,7 @@ export class Engine {
     this.camera.update(dt)
     const cam = this.camera.camera
     const pose = this.camera.effective
-    this.world.update(dt, cam, pose.target, pose.distance)
+    this.world.update(dt, cam, pose.target, pose.distance, this.camera.destination)
     this.env.update(dt, time, cam, pose.target, pose.distance, this.renderer.renderer.getPixelRatio())
     this.trail.update(time)
     this.lanterns.update(dt, time, pose.target, pose.distance, this.shared.uNight.value)

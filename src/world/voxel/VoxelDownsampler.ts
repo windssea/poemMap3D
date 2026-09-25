@@ -43,6 +43,16 @@ const FULL_OF: Record<number, number> = {
  *  - 其余为空气（草、花、栏杆等细碎物远看不画）。
  * 输入体素需带 2 格外边，输出带 1 格（远景单位）外边。
  */
+/** 远看时的整块替身：整块原样，非整块查表，细碎物为 0 */
+export function fullCubeOf(id: number, reg: BlockRegistry = Blocks): number {
+  if (!id) return 0
+  if (reg.shape[id] === BlockShape.FULL_CUBE && reg.layer[id] !== BlockRenderLayer.Cutout) return id
+  return FULL_OF[id] ?? 0
+}
+
+/** 是否树叶类（整块、镂空层） */
+export const isLeafBlock = (id: number, reg: BlockRegistry = Blocks): boolean => reg.shape[id] === BlockShape.FULL_CUBE && reg.layer[id] === BlockRenderLayer.Cutout
+
 export function downsample2(vol: VoxelVolume, reg: BlockRegistry = Blocks): VoxelVolume {
   const ox = vol.ox / 2
   const oz = vol.oz / 2

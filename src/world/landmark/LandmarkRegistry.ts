@@ -53,7 +53,7 @@ export class LandmarkRegistry {
     const defs = [...LANDMARK_CATALOG, ...planSettlements(anchors, LANDMARK_CATALOG, (lng, lat) => P.project(lng, lat))]
     defs.forEach((def, index) => {
       const c = P.project(def.coordinate.lng, def.coordinate.lat)
-      const [x, z] = this.clearOfRivers(def, Math.round(c.x + (def.offset?.[0] ?? 0)), Math.round(c.z + (def.offset?.[1] ?? 0)), baseTerrain)
+      const [x, z] = this.clearOfCities(def, ...this.clearOfRivers(def, Math.round(c.x + (def.offset?.[0] ?? 0)), Math.round(c.z + (def.offset?.[1] ?? 0)), baseTerrain))
       const level = this.baseLevel(baseTerrain, x, z, !def.terrainModifier?.some((o) => o.t === 'hill')) + (def.levelDy ?? 0)
       const lm: ResolvedLandmark = {
         index,
@@ -70,6 +70,27 @@ export class LandmarkRegistry {
       this.byPlace.set(def.poetryPlaceId, lm)
       this.modifiers.push(this.makeModifier(lm))
     })
+  }
+
+  /**
+   * 小地标不落进大城：城池让河挪了位后，附近的别业、驿馆可能正好压在城里，
+   * 那就沿最短方向推到城外（城墙外留一圈 + 自身半径）。
+   */
+  private clearOfCities(def: LandmarkDefinition, x: number, z: number): [number, number] {
+    if (def.walls?.length) return [x, z]
+    const r = Math.min(def.radius, 18)
+    for (const o of this.landmarks) {
+      const w = o.def.walls?.[0]
+      if (!w) continue
+      const hw = w.hw + Math.abs(w.x) + 6 + r
+      const hd = w.hd + Math.abs(w.z) + 6 + r
+      const dx = x - o.x
+      const dz = z - o.z
+      if (Math.abs(dx) >= hw || Math.abs(dz) >= hd) continue
+      if (hw - Math.abs(dx) < hd - Math.abs(dz)) x = o.x + (dx < 0 ? -hw : hw)
+      else z = o.z + (dz < 0 ? -hd : hd)
+    }
+    return [x, z]
   }
 
   /**
@@ -96,10 +117,11 @@ export class LandmarkRegistry {
     let best: [number, number] = [x, z]
     let bestCost = cost(x, z)
     if (bestCost < 1) return best
-    for (let r = 6; r <= 96; r += 6)
-      for (let a = 0; a < 16; a++) {
-        const cx = Math.round(x + Math.cos((a / 16) * Math.PI * 2) * r)
-        const cz = Math.round(z + Math.sin((a / 16) * Math.PI * 2) * r)
+    // 细步螺旋（3 格一圈、24 个方向）：只挪到刚好不压水；挪动代价已超过当前最优就不必再往外找
+    for (let r = 3; r <= 96 && r * 4 < bestCost; r += 3)
+      for (let a = 0; a < 24; a++) {
+        const cx = Math.round(x + Math.cos((a / 24) * Math.PI * 2) * r)
+        const cz = Math.round(z + Math.sin((a / 24) * Math.PI * 2) * r)
         const c = cost(cx, cz)
         if (c < bestCost) {
           bestCost = c

@@ -37,6 +37,9 @@ export class WorldManager {
   readonly overview: OverviewRenderer
   readonly grid: OverviewGrid
   private quality: QualityPreset
+  /** 焦点移动速度（方块/秒，平滑）与上一帧焦点：按速度预读前方 */
+  private readonly vel = new THREE.Vector2()
+  private readonly last = new THREE.Vector3(Number.NaN, 0, 0)
 
   private constructor(
     ctx: WorldContext,
@@ -109,9 +112,25 @@ export class WorldManager {
     return Math.max(4, Math.min(this.quality.chunkRadius, r))
   }
 
-  update(dt: number, camera: THREE.Camera, focus: THREE.Vector3, distance: number): void {
+  /**
+   * @param dest 飞行目的地（有则提前排队那里的近景区块）
+   */
+  update(dt: number, camera: THREE.Camera, focus: THREE.Vector3, distance: number, dest?: { target: THREE.Vector3; distance: number } | null): void {
     const r = this.radiusFor(distance)
-    this.chunks.setFocus(focus.x, focus.z, r, Math.round(r * this.quality.farFactor), camera)
+    /* 预读：焦点沿移动方向前移约 0.8 秒的路程（不超过近景半径的六成） */
+    if (Number.isFinite(this.last.x) && dt > 0) {
+      const k = Math.min(1, dt * 4)
+      this.vel.x += ((focus.x - this.last.x) / dt - this.vel.x) * k
+      this.vel.y += ((focus.z - this.last.z) / dt - this.vel.y) * k
+    }
+    this.last.copy(focus)
+    const lead = this.vel.clone().multiplyScalar(0.8)
+    const maxLead = r * 16 * 0.6
+    if (lead.length() > maxLead) lead.setLength(maxLead)
+    this.chunks.setFocus(focus.x + lead.x, focus.z + lead.y, r, Math.round(r * this.quality.farFactor), this.quality.coarseRadius, camera)
+    const dr = dest ? this.radiusFor(dest.distance) : 0
+    if (dest && dr > 0 && dest.target.distanceTo(focus) > r * 16) this.chunks.prefetch(dest.target.x, dest.target.z, Math.min(8, Math.ceil(dr * 0.6)))
+    else this.chunks.prefetch(null)
     this.chunks.update(dt)
     this.overview.update(distance, camera.position, { data: this.chunks.maskData, width: this.chunks.mask.image.width })
   }

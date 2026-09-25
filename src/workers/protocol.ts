@@ -20,8 +20,8 @@ export interface ChunkRequest {
   id: number
   cx: number
   cz: number
-  /** 1 = 近景原分辨率；2 = 远景（2×2×2 合并） */
-  lod: 1 | 2
+  /** 1 = 近景原分辨率；2 = 远景（2×2×2 合并）；4 = 远景片（4×4 区块、4×4×4 合并，cx/cz 为片坐标） */
+  lod: 1 | 2 | 4
 }
 
 export interface OverviewRequest {
@@ -50,7 +50,7 @@ export interface ChunkResult {
   cz: number
   /** 远景区块不回传方块数据 */
   data: ChunkData | null
-  lod: 1 | 2
+  lod: 1 | 2 | 4
   layers: MeshLayerData[]
   stats: { genMs: number; meshMs: number; quads: number; trees: number; structures: number }
 }

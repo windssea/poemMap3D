@@ -841,3 +841,62 @@ button {
     display: none;
   }
 }
+
+/* ———— 一键收起：底部按钮组、移动端标题与搜索 ———— */
+.dock-tog {
+  border: 0;
+  cursor: pointer;
+  padding: 4px;
+  color: var(--ink2);
+}
+.dock-tog .ico {
+  pointer-events: none;
+}
+.dock-tog svg {
+  transform: rotate(-90deg);
+  transition: transform 0.3s ease;
+}
+.dock.folded .dock-tog svg {
+  transform: rotate(90deg);
+}
+.dock > :not(.dock-tog) {
+  transition:
+    opacity 0.3s ease,
+    transform 0.3s ease;
+}
+.dock.folded > :not(.dock-tog) {
+  display: none;
+}
+.head-tog {
+  display: none;
+  top: calc(12px + var(--safe-t, 0px));
+  right: 12px;
+  width: 34px;
+  height: 34px;
+  border-radius: 17px;
+  border: 1px solid rgb(var(--rgb-mo) / 0.15);
+  background: rgb(var(--rgb-xuanzhi) / 0.86);
+  color: var(--ink2);
+  place-items: center;
+  cursor: pointer;
+  z-index: 8;
+}
+.head-tog svg {
+  width: 18px;
+  height: 18px;
+  transition: transform 0.3s ease;
+}
+body.head-folded .head-tog svg {
+  transform: rotate(180deg);
+}
+@media (max-width: 760px) {
+  .head-tog {
+    display: grid;
+  }
+  body.head-folded .brand,
+  body.head-folded .search {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-16px);
+  }
+}

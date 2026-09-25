@@ -5,6 +5,7 @@ import { WorldContext } from '../world/generation/WorldContext'
 import { buildOverviewTile, overviewGrid, overviewTransferables } from '../world/overview/OverviewBuilder'
 import { meshTransferables } from '../world/voxel/MeshBuffer'
 import { downsample2 } from '../world/voxel/VoxelDownsampler'
+import { generateCoarseRegion } from '../world/generation/CoarseGenerator'
 import { meshVolume } from '../world/voxel/VoxelMesher'
 import type { WorkerRequest, WorkerResponse } from './protocol'
 
@@ -45,6 +46,17 @@ self.onmessage = (e: MessageEvent<WorkerRequest>) => {
       }
       case 'chunk': {
         if (!ctx) throw new Error('Worker 未初始化')
+        if (m.lod === 4) {
+          // 远景片：cx、cz 为片坐标（4×4 区块）
+          const t0 = performance.now()
+          const g = generateCoarseRegion(ctx.terrain, ctx.landmarks, ctx.trees, m.cx, m.cz)
+          const genMs = performance.now() - t0
+          const mesh = meshVolume(g.volume)
+          const transfer: ArrayBuffer[] = []
+          for (const l of mesh.layers) transfer.push(...meshTransferables(l))
+          post({ type: 'chunk', id: m.id, cx: m.cx, cz: m.cz, lod: 4, data: null, layers: mesh.layers, stats: { genMs, meshMs: mesh.ms, quads: mesh.quads, trees: g.trees, structures: g.structures } }, transfer)
+          break
+        }
         if (m.lod === 2) {
           const t0 = performance.now()
           const g = ctx.chunks.generateVolume(m.cx, m.cz, 2, false)

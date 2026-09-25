@@ -25,8 +25,15 @@ varying vec3 vBWorld;
 varying vec3 vBNormal;
 `
 
+/** 远景片让位：掩膜为 255（近景 / 远景区块已显示）处丢弃 */
+const COARSE_MASK = /* glsl */ `
+ { vec2 mk = (vBWorld.xz - uChunkMaskRect.xy) / uChunkMaskRect.zw;
+   if (mk.x > 0.0 && mk.y > 0.0 && mk.x < 1.0 && mk.y < 1.0 && texture2D(uChunkMask, mk).r > 0.75) discard; }`
+
 const BLOCK_FRAGMENT_DECL = /* glsl */ `
 uniform highp sampler2DArray uBlockAtlas;
+uniform sampler2D uChunkMask;
+uniform vec4 uChunkMaskRect;
 uniform float uFade;
 uniform vec3 uLeafGreen;
 uniform vec3 uSnowColor;
@@ -55,7 +62,10 @@ ${GLSL_DESATURATE}
 export class MaterialLibrary {
   readonly atlas: THREE.DataArrayTexture
   readonly block: THREE.Material[]
+  /** 远景片用：在已显示近景 / 远景区块处让位 */
+  readonly blockCoarse: THREE.Material[]
   readonly water: THREE.ShaderMaterial
+  readonly waterCoarse: THREE.ShaderMaterial
   readonly overview: THREE.MeshLambertMaterial
   readonly overviewWater: THREE.ShaderMaterial
 
@@ -66,7 +76,13 @@ export class MaterialLibrary {
     this.block[BlockRenderLayer.Cutout] = this.createBlockMaterial('cutout')
     this.block[BlockRenderLayer.Translucent] = this.createBlockMaterial('translucent')
     this.block[BlockRenderLayer.Effect] = this.createGlowMaterial()
+    this.blockCoarse = []
+    this.blockCoarse[BlockRenderLayer.Solid] = this.createBlockMaterial('solid', true)
+    this.blockCoarse[BlockRenderLayer.Cutout] = this.createBlockMaterial('cutout', true)
+    this.blockCoarse[BlockRenderLayer.Translucent] = this.createBlockMaterial('translucent', true)
+    this.blockCoarse[BlockRenderLayer.Effect] = this.block[BlockRenderLayer.Effect]
     this.water = this.createWaterMaterial(false)
+    this.waterCoarse = this.createWaterMaterial(false, true)
     this.overview = this.createOverviewMaterial()
     this.overviewWater = this.createWaterMaterial(true)
   }
@@ -82,7 +98,7 @@ export class MaterialLibrary {
     }
   }
 
-  private createBlockMaterial(kind: 'solid' | 'cutout' | 'translucent'): THREE.MeshLambertMaterial {
+  private createBlockMaterial(kind: 'solid' | 'cutout' | 'translucent', coarse = false): THREE.MeshLambertMaterial {
     const m = new THREE.MeshLambertMaterial({ color: WHITE })
     const fade = { value: 1 }
     m.userData.fade = fade
@@ -107,7 +123,7 @@ export class MaterialLibrary {
         )
       let frag = shader.fragmentShader
         .replace('#include <common>', `#include <common>\n${BLOCK_FRAGMENT_DECL}`)
-        .replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>\n if (uFade < 0.999 && bayer4(gl_FragCoord.xy) > uFade) discard;`)
+        .replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>\n if (uFade < 0.999 && bayer4(gl_FragCoord.xy) > uFade) discard;${coarse ? COARSE_MASK : ''}`)
         .replace(
           '#include <map_fragment>',
           /* glsl */ `
@@ -144,7 +160,7 @@ export class MaterialLibrary {
       if (kind === 'cutout') frag = frag.replace('#include <normal_fragment_begin>', 'float faceDirection = 1.0;\nvec3 normal = normalize( vNormal );\nvec3 nonPerturbedNormal = normal;')
       shader.fragmentShader = frag
     }
-    m.customProgramCacheKey = () => `block-${kind}`
+    m.customProgramCacheKey = () => `block-${kind}${coarse ? '-coarse' : ''}`
     return m
   }
 
@@ -181,7 +197,7 @@ export class MaterialLibrary {
   }
 
   /** 水面：按深度三段着色（浅石绿 → 石青 → 黛青），像素化水纹、天光反射、日光闪点；瀑布为下落的条纹 */
-  private createWaterMaterial(overview: boolean): THREE.ShaderMaterial {
+  private createWaterMaterial(overview: boolean, coarse = false): THREE.ShaderMaterial {
     const fade = { value: 1 }
     const m = new THREE.ShaderMaterial({
       uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, { uFade: fade }]),
@@ -219,7 +235,7 @@ export class MaterialLibrary {
         uniform float uIce;
         uniform vec3 uIceColor;
         uniform float uFade;
-        ${overview ? 'uniform sampler2D uChunkMask; uniform vec4 uChunkMaskRect;' : ''}
+        ${overview || coarse ? 'uniform sampler2D uChunkMask; uniform vec4 uChunkMaskRect;' : ''}
         varying vec3 vTint;
         varying float vFlags;
         varying vec3 vWorld;
@@ -230,8 +246,10 @@ export class MaterialLibrary {
           ${
             overview
               ? `vec2 mk = (vWorld.xz - uChunkMaskRect.xy) / uChunkMaskRect.zw;
-                 if (mk.x > 0.0 && mk.y > 0.0 && mk.x < 1.0 && mk.y < 1.0 && texture2D(uChunkMask, mk).r > bayer4(gl_FragCoord.xy) * 0.98 + 0.01) discard;`
-              : ''
+                 if (mk.x > 0.0 && mk.y > 0.0 && mk.x < 1.0 && mk.y < 1.0 && texture2D(uChunkMask, mk).r > 0.02) discard;`
+              : coarse
+                ? COARSE_MASK.replace('vBWorld', 'vWorld')
+                : ''
           }
           float depth = clamp(vTint.r * 255.0 / 36.0 / 7.0, 0.0, 1.0);
           bool falling = vTint.g > 0.5;
@@ -305,7 +323,7 @@ export class MaterialLibrary {
           '#include <clipping_planes_fragment>',
           `#include <clipping_planes_fragment>
           vec2 mk = (vOWorld.xz - uChunkMaskRect.xy) / uChunkMaskRect.zw;
-          if (mk.x > 0.0 && mk.y > 0.0 && mk.x < 1.0 && mk.y < 1.0 && texture2D(uChunkMask, mk).r > bayer4(gl_FragCoord.xy) * 0.98 + 0.01) discard;`,
+          if (mk.x > 0.0 && mk.y > 0.0 && mk.x < 1.0 && mk.y < 1.0 && texture2D(uChunkMask, mk).r > 0.02) discard;`,
         )
         .replace(
           '#include <map_fragment>',
@@ -325,5 +343,7 @@ export class MaterialLibrary {
     this.water.dispose()
     this.overview.dispose()
     this.overviewWater.dispose()
+    this.waterCoarse.dispose()
+    for (const m of this.blockCoarse.slice(0, 3)) m.dispose()
   }
 }
