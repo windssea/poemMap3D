@@ -42,7 +42,8 @@ export function LabelLayer() {
     const out: LabelItem[] = aggregator.all().map((s) => ({
       key: `p-${s.place.id}`,
       kind: 'place',
-      name: s.place.name,
+      // 名楼名胜以楼名为签（江楼 → 岳阳楼，石头驿 → 滕王阁）
+      name: facade.landmarkName(s.place.id) ?? s.place.name,
       cls: majorPlaces.has(s.place.id) ? 'major' : '',
       placeId: s.place.id,
       count: s.poems.length,

@@ -10,11 +10,12 @@ import {
   birdBodyGeometry,
   birdWingGeometry,
   fishingBoatGeometry,
-  headGeometry,
+  FIGURE_KINDS,
+  figureBody,
+  figureHead,
   legGeometry,
   mingShipGeometry,
   passengerBoatGeometry,
-  robeGeometry,
   smokeGeometry,
 } from './LifeModels'
 
@@ -75,6 +76,8 @@ interface Boat {
   speed: number
   phase: number
   mesh: THREE.Mesh
+  /** 城中河渠：沿折线（世界坐标）来回，s 为沿线距离 */
+  path?: [number, number][]
 }
 
 interface Bird {
@@ -98,7 +101,8 @@ interface Bird {
 export class LifeSystem {
   readonly group = new THREE.Group()
   private readonly mat: THREE.MeshLambertMaterial
-  private readonly robes: THREE.InstancedMesh
+  /** 三类人物（士人、劳作者、女子）的身子（按实例着色）与头饰 */
+  private readonly bodies: THREE.InstancedMesh[]
   private readonly heads: THREE.InstancedMesh[]
   private readonly legs: THREE.InstancedMesh
   private readonly smoke: THREE.InstancedMesh
@@ -126,21 +130,21 @@ export class LifeSystem {
 
   constructor(private readonly ctx: WorldContext) {
     this.mat = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide })
-    this.robes = new THREE.InstancedMesh(robeGeometry(), this.mat, MAX_PEOPLE)
-    this.heads = (['bun', 'straw', 'cap'] as const).map((h) => new THREE.InstancedMesh(headGeometry(h), this.mat, MAX_PEOPLE))
+    this.bodies = FIGURE_KINDS.map((k) => new THREE.InstancedMesh(figureBody(k), this.mat, MAX_PEOPLE))
+    this.heads = FIGURE_KINDS.map((k) => new THREE.InstancedMesh(figureHead(k), this.mat, MAX_PEOPLE))
     this.legs = new THREE.InstancedMesh(legGeometry(), this.mat, MAX_PEOPLE * 2)
     this.smokeMat = new THREE.MeshLambertMaterial({ color: new THREE.Color(T.smoke), transparent: true, opacity: 0.55, depthWrite: false })
     this.smoke = new THREE.InstancedMesh(smokeGeometry(), this.smokeMat, MAX_SMOKE)
     this.birdBody = new THREE.InstancedMesh(birdBodyGeometry(), this.mat, MAX_BIRDS)
     this.birdWing = new THREE.InstancedMesh(birdWingGeometry(), this.mat, MAX_BIRDS * 2)
     this.boatGeo = { fishing: fishingBoatGeometry(), passenger: passengerBoatGeometry(), ship: mingShipGeometry() }
-    for (const im of [this.robes, ...this.heads, this.legs, this.smoke, this.birdBody, this.birdWing]) {
+    for (const im of [...this.bodies, ...this.heads, this.legs, this.smoke, this.birdBody, this.birdWing]) {
       im.count = 0
       im.frustumCulled = false
       im.castShadow = im !== this.smoke
       this.group.add(im)
     }
-    this.robes.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(MAX_PEOPLE * 3), 3)
+    for (const bm of this.bodies) bm.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(MAX_PEOPLE * 3), 3)
   }
 
   /** 选中 / 飞往一处地方：市井围着它布置（null 则按镜头焦点自动找最近的地标） */
@@ -256,7 +260,10 @@ export class LifeSystem {
 
   private walker(x: number, z: number, still: boolean): Walker {
     const t = this.ctx.terrain.column(Math.floor(x), Math.floor(z))
-    const robes = T.robes
+    // 类别：约四成士人、三成五女子、二成五劳作者（摊贩另设为劳作者）
+    const u = this.rnd.next()
+    const hat = u < 0.4 ? 0 : u < 0.75 ? 2 : 1
+    const robes = hat === 0 ? T.scholarRobes : hat === 2 ? T.womanRobes : T.laborRobes
     return {
       x,
       z,
@@ -268,7 +275,7 @@ export class LifeSystem {
       speed: this.rnd.range(0.9, 1.6),
       phase: this.rnd.range(0, 6.28),
       robe: new THREE.Color(this.rnd.pick(robes as unknown as string[])),
-      hat: this.rnd.chance(0.25) ? 1 : this.rnd.chance(0.3) ? 2 : 0,
+      hat,
       still,
     }
   }
@@ -290,10 +297,10 @@ export class LifeSystem {
         const bob = moving ? Math.abs(Math.sin(time * 7 * w.speed + w.phase)) * 0.06 : 0
         this.q.setFromEuler(this.e.set(0, -w.a, 0))
         this.m.compose(this.v.set(w.x, w.y + bob, w.z), this.q, this.s.set(1, 1, 1))
-        this.robes.setMatrixAt(n, this.m)
-        this.robes.setColorAt(n, w.robe)
-        const hm = this.heads[w.hat]
-        hm.setMatrixAt(counts[w.hat]++, this.m)
+        const ci = counts[w.hat]++
+        this.bodies[w.hat].setMatrixAt(ci, this.m)
+        this.bodies[w.hat].setColorAt(ci, w.robe)
+        this.heads[w.hat].setMatrixAt(ci, this.m)
         for (const side of [-1, 1]) {
           // 髋部在身体左右各 0.12 格：先按朝向转过去，再绕横轴前后摆
           this.q.setFromEuler(this.e.set(0, -w.a, 0))
@@ -308,14 +315,14 @@ export class LifeSystem {
         n++
       }
     }
-    this.robes.count = n
     this.legs.count = n * 2
-    this.heads.forEach((h, i) => {
-      h.count = counts[i]
-      h.instanceMatrix.needsUpdate = true
+    FIGURE_KINDS.forEach((_k, i) => {
+      for (const im of [this.bodies[i], this.heads[i]]) {
+        im.count = counts[i]
+        im.instanceMatrix.needsUpdate = true
+      }
+      if (this.bodies[i].instanceColor) this.bodies[i].instanceColor!.needsUpdate = true
     })
-    this.robes.instanceMatrix.needsUpdate = true
-    if (this.robes.instanceColor) this.robes.instanceColor.needsUpdate = true
     this.legs.instanceMatrix.needsUpdate = true
   }
 
@@ -463,6 +470,22 @@ export class LifeSystem {
           passenger++
         }
     }
+    /* 城中河渠（秦淮、苏州水巷）：乌篷客船沿河来回 */
+    for (const lm of this.ctx.landmarks.landmarks) {
+      if (Math.hypot(lm.x - focus.x, lm.z - focus.z) > RANGE) continue
+      for (const op of lm.def.terrainModifier ?? []) {
+        if (op.t !== 'canal' || passenger >= MAX_PASSENGER + 4) continue
+        const path = op.pts.map(([px, pz]) => [lm.x + px, lm.z + pz] as [number, number])
+        let len = 0
+        for (let i = 1; i < path.length; i++) len += Math.hypot(path[i][0] - path[i - 1][0], path[i][1] - path[i - 1][1])
+        const n = Math.max(1, Math.round(len / 40))
+        for (let i = 0; i < n; i++) {
+          this.addBoat(i % 2 ? 'fishing' : 'passenger', { river: -1, s: rnd.range(0, len), dir: rnd.chance(0.5) ? 1 : -1, lane: 0, x: path[0][0], z: path[0][1], y: lm.level + 1, a: 0, speed: rnd.range(0.8, 1.4) })
+          this.boats[this.boats.length - 1].path = path
+          passenger++
+        }
+      }
+    }
     /* 名胜里的湖（西湖这样手工营造的）：湖心几条渔舟，大湖再加一条画舫 */
     for (const lm of this.ctx.landmarks.landmarks) {
       if (Math.hypot(lm.x - focus.x, lm.z - focus.z) > RANGE) continue
@@ -535,7 +558,35 @@ export class LifeSystem {
   private stepBoats(dt: number, time: number): void {
     const rivers = this.ctx.rivers.rivers
     for (const b of this.boats) {
-      if (b.river >= 0) {
+      if (b.path) {
+        /* 沿河渠折线：到头掉头 */
+        const P = b.path
+        let total = 0
+        for (let i = 1; i < P.length; i++) total += Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1])
+        b.s += b.dir * b.speed * dt
+        if (b.s < 0 || b.s > total) {
+          b.dir = -b.dir
+          b.s = Math.max(0, Math.min(total, b.s))
+        }
+        let rest = b.s
+        for (let i = 1; i < P.length; i++) {
+          const dx = P[i][0] - P[i - 1][0]
+          const dz = P[i][1] - P[i - 1][1]
+          const l = Math.hypot(dx, dz)
+          if (rest <= l || i === P.length - 1) {
+            const f = Math.min(1, rest / (l || 1))
+            b.x = P[i - 1][0] + dx * f
+            b.z = P[i - 1][1] + dz * f
+            const heading = Math.atan2(dz, dx) + (b.dir < 0 ? Math.PI : 0)
+            let da = heading - b.a
+            while (da > Math.PI) da -= Math.PI * 2
+            while (da < -Math.PI) da += Math.PI * 2
+            b.a += da * Math.min(1, dt * 3)
+            break
+          }
+          rest -= l
+        }
+      } else if (b.river >= 0) {
         const r = rivers[b.river]
         const n = r.pts.length
         b.s += (b.dir * b.speed * dt) / 4
@@ -590,7 +641,7 @@ export class LifeSystem {
   dispose(): void {
     this.clearBoats()
     for (const g of Object.values(this.boatGeo)) g.dispose()
-    for (const im of [this.robes, ...this.heads, this.legs, this.smoke, this.birdBody, this.birdWing]) im.geometry.dispose()
+    for (const im of [...this.bodies, ...this.heads, this.legs, this.smoke, this.birdBody, this.birdWing]) im.geometry.dispose()
     this.mat.dispose()
     this.smokeMat.dispose()
   }

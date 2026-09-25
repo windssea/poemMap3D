@@ -16,6 +16,8 @@ export type TerrainOp =
   | { t: 'canal'; pts: readonly XZ[]; w: number }
   | { t: 'island'; x: number; z: number; r: number; dy?: number }
   | { t: 'pave'; x0: number; z0: number; x1: number; z1: number }
+  /** 山顶小台：把半径内垫高到基准面（只垫不削），外圈缓坡——山巅亭子不再立在石柱上 */
+  | { t: 'raise'; r: number; blend?: number }
 
 export interface StructureSpec {
   b: BuildingId
@@ -28,6 +30,10 @@ export interface StructureSpec {
   dy?: number
   /** 以地标基准地面为准（桥、台）而不是当地地表 */
   atLevel?: boolean
+  /** 可以立在水上（水榭、桥） */
+  overWater?: boolean
+  /** 桥：沿自身轴线在 ±20 格内找水面，居中跨过去（河道位置由地形决定） */
+  span?: boolean
 }
 
 export interface CityWallSpec {
@@ -66,6 +72,8 @@ export interface LandmarkDefinition {
   radius: number
   /** 基准地面相对当地地势的抬升 */
   levelDy?: number
+  /** 基准面取法：默认周围中位；summit 取中心一小圈的最高处（山巅亭台） */
+  levelMode?: 'summit'
   terrainModifier?: readonly TerrainOp[]
   structures: readonly StructureSpec[]
   walls?: readonly CityWallSpec[]
@@ -76,6 +84,8 @@ export interface LandmarkDefinition {
   poetryPlaceId: string
   /** 水面上的小舟、瀑布等特写元素 */
   waterfall?: { x: number; z: number; top: number; width: number; dir: 'n' | 's' | 'e' | 'w' }
+  /** 允许穿城而过的江河（如洛水贯都）：避让时不算它，城墙在水上留水门 */
+  allowRivers?: readonly string[]
   /** 是否为手工营造的名胜（全国视图显示体量代理） */
   major?: boolean
 }

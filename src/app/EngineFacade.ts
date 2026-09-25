@@ -37,6 +37,8 @@ export interface EngineFacade {
   placeAnchor(placeId: string): THREE.Vector3 | null
   /** 地标营造范围（方块） */
   placeRadius(placeId: string): number
+  /** 名楼名胜的名字（岳阳楼、滕王阁……），自动聚落为 null */
+  landmarkName(placeId: string): string | null
   geoAnchor(lng: number, lat: number): THREE.Vector3
   screenshot(): string
   setDebugChunks(on: boolean): void
@@ -143,6 +145,11 @@ export class EngineFacadeImpl implements EngineFacade, TourPort, TrailPort {
     out.y = (-p.y * 0.5 + 0.5) * this.engine.renderer.height
     out.depth = cam.position.distanceTo(v)
     return true
+  }
+
+  landmarkName(placeId: string): string | null {
+    const lm = this.engine.world.ctx.landmarks.byPlaceId(placeId)
+    return lm && !lm.def.id.startsWith('place-') && lm.def.poetryPlaceId === placeId ? lm.def.name : null
   }
 
   placeRadius(placeId: string): number {

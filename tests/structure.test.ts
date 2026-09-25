@@ -56,6 +56,15 @@ describe('Structure', () => {
       const r = analyzeConnectivity(buildBuilding(id, {}))
       expect(r.floating, id).toBe(0)
     }
+    /* 名楼的各种形制、重檐亭 */
+    const variants = [
+      { plan: 'cross' as const, top: 'cross' as const, levels: 3, width: 11 },
+      { top: 'wudian' as const, levels: 3, width: 9, base: 'wall' as const, terrace: 4 },
+      { top: 'cuanjian' as const, levels: 3, width: 13 },
+      { levels: 2, width: 9 },
+    ]
+    for (const p of variants) expect(analyzeConnectivity(buildBuilding('grandTower', p)).floating, JSON.stringify(p)).toBe(0)
+    expect(analyzeConnectivity(buildBuilding('pavilion', { double: true, width: 7, lanterns: true })).floating).toBe(0)
   })
 
   it('树（Soft 放置）不覆盖建筑', () => {

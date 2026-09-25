@@ -1,5 +1,6 @@
 import { BiomeId } from '../biome/BiomeId'
 import type { LandmarkDefinition, StructureSpec } from './LandmarkDefinition'
+import { CITY_CATALOG } from './LandmarkCatalogCities'
 
 /*
  * 手工营造的样板地标。每一处都有不同的地形、建筑、植被、水面与取景。
@@ -147,4 +148,4 @@ const CHANGAN: LandmarkDefinition = {
   vegetationProfile: { weights: { broadleaf: 3, willow: 2, peach: 0.5 }, density: 0.6 },
 }
 
-export const LANDMARK_CATALOG: readonly LandmarkDefinition[] = [HANGZHOU, LUSHAN, CHANGAN]
+export const LANDMARK_CATALOG: readonly LandmarkDefinition[] = [HANGZHOU, LUSHAN, CHANGAN, ...CITY_CATALOG]

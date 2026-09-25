@@ -51,7 +51,11 @@ describe('Landmark', () => {
       for (let dz = -wall.hd; dz <= wall.hd; dz += 3)
         for (let dx = -wall.hw; dx <= wall.hw; dx += 3) {
           const c = w.terrain.column(lm.x + wall.x + dx, lm.z + wall.z + dz)
-          if (c.waterY > c.height && c.waterKind !== 4) wet++
+          if (c.waterY > c.height && c.waterKind !== 4) {
+            const rv = w.terrain.rivers.query(lm.x + wall.x + dx, lm.z + wall.z + dz)
+            if (rv && lm.def.allowRivers?.includes(w.terrain.rivers.rivers[rv.river].def.id)) continue
+            wet++
+          }
         }
       expect(wet, lm.def.name).toBe(0)
     }

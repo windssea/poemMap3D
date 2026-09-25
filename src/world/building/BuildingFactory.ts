@@ -22,6 +22,10 @@ export interface BuildingParams {
   terrace?: number
   length?: number
   seed?: number
+  /** 名楼：平面（方 / 十字抱厦）、顶式、台基（石台 / 城台） */
+  plan?: 'square' | 'cross'
+  top?: 'xieshan' | 'cross' | 'cuanjian' | 'wudian'
+  base?: 'stone' | 'wall'
 }
 
 const stairs = (id: number, f: Direction, top = false): PackedState => packState({ id, facing: f, half: top ? 'top' : 'bottom' })
@@ -206,26 +210,42 @@ export function hall(p: BuildingParams = {}): VoxelStructure {
 /* ================= 亭 ================= */
 export function pavilion(p: BuildingParams = {}): VoxelStructure {
   const s = p.width ?? 5
+  const tile = p.tile ?? 'gray'
   const b = new StructureBuilder('pavilion')
   const { x0, x1, z0, z1 } = bounds(s, s)
+  /* 台明：石砌一圈，正面踏步 */
   b.box(x0 - 1, 0, z0 - 1, x1 + 1, 0, z1 + 1, S(B.STONE_BRICK))
   b.box(x0, 0, z0, x1, 0, z1, S(B.PAVING))
-  for (const x of [x0, x1]) for (const z of [z0, z1]) for (let y = 1; y <= 4; y++) b.set(x, y, z, post(B.PILLAR))
-  for (const x of range(x0 + 1, x1 - 1)) {
-    b.set(x, 1, z0, S(B.MARBLE_FENCE))
-    if (Math.abs(x) > 0) b.set(x, 1, z1, S(B.MARBLE_FENCE))
-    b.set(x, 4, z0, post(B.DARK_PLANKS, Axis.X))
-    b.set(x, 4, z1, post(B.DARK_PLANKS, Axis.X))
-  }
-  for (const z of range(z0 + 1, z1 - 1)) {
-    b.set(x0, 1, z, S(B.MARBLE_FENCE))
-    b.set(x1, 1, z, S(B.MARBLE_FENCE))
-    b.set(x0, 4, z, post(B.DARK_PLANKS, Axis.Z))
-    b.set(x1, 4, z, post(B.DARK_PLANKS, Axis.Z))
-  }
+  for (const x of [-1, 0, 1]) b.set(x, 0, z1 + 2, stairs(B.STONE_BRICK_STAIRS, Direction.North))
+  /* 柱：四角，大亭每两格一根 */
+  const col = (x: number, z: number) => ((x === x0 || x === x1) && (z - z0) % 2 === 0) || ((z === z0 || z === z1) && (x - x0) % 2 === 0)
+  for (const x of range(x0, x1))
+    for (const z of range(z0, z1)) {
+      if (x !== x0 && x !== x1 && z !== z0 && z !== z1) continue
+      if (col(x, z)) for (let y = 1; y <= 4; y++) b.set(x, y, z, post(B.PILLAR))
+      else {
+        // 美人靠（坐凳栏杆），正面当中留口；檐下挂落花格
+        if (!(z === z1 && Math.abs(x) <= 0)) b.set(x, 1, z, S(B.WOOD_FENCE))
+        b.set(x, 3, z, packState({ id: B.LATTICE_WINDOW, facing: z === z0 || z === z1 ? Direction.South : Direction.East }))
+      }
+      b.set(x, 4, z, x === x0 || x === x1 ? post(B.DARK_PLANKS, Axis.Z) : post(B.DARK_PLANKS, Axis.X))
+    }
   dougong(b, x0, x1, z0, z1, 4, 1)
-  b.s.merge(buildRoof({ width: s + 2, depth: s + 2, type: 'cuanjian', tile: p.tile ?? 'gray' }), 0, 5, 0)
-  if (p.lanterns) b.set(0, 3, 0, S(B.LANTERN))
+  if (p.double) {
+    /* 重檐：下檐一圈，上立短柱，再起攒尖 */
+    b.s.merge(buildRoof({ width: s + 2, depth: s + 2, type: 'taiyan', tile }), 0, 5, 0)
+    const ib = bounds(s - 2, s - 2)
+    for (const x of [ib.x0, ib.x1]) for (const z of [ib.z0, ib.z1]) for (let y = 5; y <= 7; y++) b.set(x, y, z, post(B.PILLAR))
+    b.walls(ib.x0, 6, ib.z0, ib.x1, 7, ib.z1, (x, _y, z) => ((x === ib.x0 || x === ib.x1) && (z === ib.z0 || z === ib.z1) ? post(B.PILLAR) : S(B.LACQUER)))
+    b.box(ib.x0, 8, ib.z0, ib.x1, 8, ib.z1, S(B.DARK_PLANKS))
+    dougong(b, ib.x0, ib.x1, ib.z0, ib.z1, 8, 1)
+    b.s.merge(buildRoof({ width: s, depth: s, type: 'cuanjian', tile }), 0, 9, 0)
+  } else b.s.merge(buildRoof({ width: s + 2, depth: s + 2, type: 'cuanjian', tile }), 0, 5, 0)
+  /* 宝顶 */
+  let top = 5
+  while (b.s.has(0, top, 0)) top++
+  b.set(0, top, 0, S(B.GOLD))
+  if (p.lanterns) for (const [x, z] of [[x0 - 1, z1 + 1], [x1 + 1, z1 + 1]] as const) b.set(x, 3, z, S(B.LANTERN))
   return b.build()
 }
 
@@ -567,5 +587,169 @@ export function archway(p: BuildingParams = {}): VoxelStructure {
   cap(-3, 3, 8)
   cap(-5, -3, 6)
   cap(3, 5, 6)
+  return b.build()
+}
+
+/* ================= 名楼（黄鹤楼、岳阳楼、滕王阁、鹳雀楼、多景楼式） ================= */
+
+/**
+ * 高台之上层层楼阁：
+ *  - 台基：石台或城台，四面石栏，前后踏道；
+ *  - 每层：内槽隔扇门窗（下裙板、上额），外圈回廊檐柱，二层以上有平座栏杆，檐下挂落花格；
+ *  - 额枋上一圈斗拱挑出腰檐，层层收分；
+ *  - 十字平面（黄鹤楼）：一、二层四面正中出抱厦，各自一个小歇山，檐角层层叠叠；
+ *  - 顶：十字脊歇山 / 歇山 / 庑殿 / 攒尖，宝顶鎏金；回廊四角挂灯。
+ */
+export function grandTower(p: BuildingParams = {}): VoxelStructure {
+  const floors = p.levels ?? 3
+  const W = (p.width ?? 11) | 1
+  const tile = p.tile ?? 'yellow'
+  const T = p.terrace ?? 3
+  const cross = p.plan === 'cross'
+  const b = new StructureBuilder('grand-tower')
+  const tb = bounds(W + (cross ? 14 : 10), W + (cross ? 14 : 10))
+  platform(b, tb.x0, tb.x1, tb.z0, tb.z1, T, p.base === 'wall' ? B.CITY_BRICK : B.STONE_BRICK, B.STONE_BRICK_STAIRS, true)
+  for (const x of range(tb.x0, tb.x1))
+    for (const z of range(tb.z0, tb.z1)) {
+      if (x !== tb.x0 && x !== tb.x1 && z !== tb.z0 && z !== tb.z1) continue
+      if ((z === tb.z0 || z === tb.z1) && Math.abs(x) <= 1) continue
+      b.set(x, T, z, S(p.base === 'wall' ? B.CITY_BRICK_SLAB : B.MARBLE_FENCE))
+    }
+  let y = T
+  for (let f = 0; f < floors; f++) {
+    const w = W - 2 * Math.floor(f * 0.7)
+    const bb = bounds(w, w)
+    const gb = bounds(w + 2, w + 2)
+    const fh = f === 0 ? 5 : 4
+    const last = f === floors - 1
+    /* 楼面 */
+    b.box(gb.x0, y - 1, gb.z0, gb.x1, y - 1, gb.z1, S(f === 0 ? B.PAVING : B.DARK_PLANKS))
+    /* 回廊：檐柱、平座栏杆、挂落 */
+    for (const x of range(gb.x0, gb.x1))
+      for (const z of range(gb.z0, gb.z1)) {
+        if (x !== gb.x0 && x !== gb.x1 && z !== gb.z0 && z !== gb.z1) continue
+        const colAt = ((x === gb.x0 || x === gb.x1) && (z - gb.z0) % 2 === 0) || ((z === gb.z0 || z === gb.z1) && (x - gb.x0) % 2 === 0)
+        if (colAt) for (let yy = y; yy < y + fh; yy++) b.set(x, yy, z, post(B.PILLAR))
+        else {
+          if (f > 0) b.set(x, y, z, S(B.WOOD_FENCE))
+          b.set(x, y + fh - 1, z, packState({ id: B.LATTICE_WINDOW, facing: z === gb.z0 || z === gb.z1 ? Direction.South : Direction.East }))
+        }
+        b.set(x, y + fh, z, x === gb.x0 || x === gb.x1 ? post(B.DARK_PLANKS, Axis.Z) : post(B.DARK_PLANKS, Axis.X))
+      }
+    /* 内槽：隔扇门窗，一层四面正中开门 */
+    b.walls(bb.x0, y, bb.z0, bb.x1, y + fh - 1, bb.z1, (x, yy, z) => {
+      const corner = (x === bb.x0 || x === bb.x1) && (z === bb.z0 || z === bb.z1)
+      if (corner) return post(B.PILLAR)
+      if (yy === y) return S(B.DARK_PLANKS)
+      if (yy === y + fh - 1) return S(B.LACQUER)
+      return packState({ id: B.LATTICE_WINDOW, facing: x === bb.x0 || x === bb.x1 ? Direction.East : Direction.South })
+    })
+    if (f === 0)
+      for (let k = 0; k < 3; k++) {
+        b.set(0, y + k, bb.z1, 0).set(0, y + k, bb.z0, 0)
+        b.set(bb.x0, y + k, 0, 0).set(bb.x1, y + k, 0, 0)
+      }
+    b.box(bb.x0, y + fh, bb.z0, bb.x1, y + fh, bb.z1, S(B.DARK_PLANKS))
+    dougong(b, gb.x0, gb.x1, gb.z0, gb.z1, y + fh, 2)
+    /* 抱厦 */
+    if (cross && f < 2) {
+      const wing = new StructureBuilder('wing')
+      const z0w = gb.z1 + 1
+      const z1w = gb.z1 + 3
+      wing.box(-2, y - 1, z0w, 2, y - 1, z1w, S(f === 0 ? B.PAVING : B.DARK_PLANKS))
+      for (const [x, z] of [[-2, z1w], [2, z1w], [-2, z0w], [2, z0w]] as const) for (let yy = y; yy < y + fh; yy++) wing.set(x, yy, z, post(B.PILLAR))
+      for (const x of [-1, 0, 1]) {
+        if (f > 0) wing.set(x, y, z1w, S(B.WOOD_FENCE))
+        wing.set(x, y + fh - 1, z1w, packState({ id: B.LATTICE_WINDOW, facing: Direction.South }))
+      }
+      for (const x of [-2, -1, 0, 1, 2]) wing.set(x, y + fh, z1w, post(B.DARK_PLANKS, Axis.X))
+      for (const z of range(z0w, z1w)) wing.set(-2, y + fh, z, post(B.DARK_PLANKS, Axis.Z)).set(2, y + fh, z, post(B.DARK_PLANKS, Axis.Z))
+      wing.s.merge(buildRoof({ width: 7, depth: 6, type: 'xieshan', tile, eaveDepth: 1, orientation: 1 }), 0, y + fh + 1, z0w + 1)
+      const ws = wing.build()
+      for (let r = 0; r < 4; r++) b.s.merge(r ? ws.rotate(r) : ws, 0, 0, 0)
+    }
+    /* 腰檐 / 顶 */
+    const ry = y + fh + 1
+    if (!last) b.s.merge(buildRoof({ width: w + 8, depth: w + 8, type: 'taiyan', tile }), 0, ry, 0)
+    else {
+      const top = p.top ?? 'xieshan'
+      if (top === 'cross') {
+        b.s.merge(buildRoof({ width: w + 6, depth: w + 2, type: 'xieshan', tile, eaveDepth: 2 }), 0, ry, 0)
+        b.s.merge(buildRoof({ width: w + 6, depth: w + 2, type: 'xieshan', tile, eaveDepth: 2 }).rotate(1), 0, ry, 0)
+      } else b.s.merge(buildRoof({ width: w + 6, depth: w + 6, type: top, tile, eaveDepth: 2 }), 0, ry, 0)
+      let t = ry
+      while (b.s.has(0, t, 0)) t++
+      b.set(0, t, 0, S(B.GOLD)).set(0, t + 1, 0, S(B.FINIAL))
+    }
+    /* 回廊四角挂灯（悬在斗拱下） */
+    if (p.lanterns ?? true) for (const [x, z] of [[gb.x0 - 1, gb.z0 - 1], [gb.x1 + 1, gb.z0 - 1], [gb.x0 - 1, gb.z1 + 1], [gb.x1 + 1, gb.z1 + 1]] as const) b.set(x, y + fh - 1, z, S(B.LANTERN))
+    y += fh + 3
+  }
+  return b.build()
+}
+
+/* ================= 水榭：立在水上的敞轩 ================= */
+
+/** 木桩入水，木平台，四周美人靠，檐下挂落，歇山卷棚顶；背面（北）接岸 */
+export function waterPavilion(p: BuildingParams = {}): VoxelStructure {
+  const w = p.width ?? 7
+  const d = p.depth ?? 5
+  const b = new StructureBuilder('water-pavilion')
+  const { x0, x1, z0, z1 } = bounds(w, d)
+  for (let x = x0; x <= x1; x += 2) for (let z = z0; z <= z1; z += 2) for (let y = -4; y < 0; y++) b.set(x, y, z, S(B.STONE_BRICK))
+  b.box(x0 - 1, 0, z0 - 1, x1 + 1, 0, z1 + 1, S(B.DARK_PLANKS))
+  for (const x of range(x0, x1))
+    for (const z of range(z0, z1)) {
+      if (x !== x0 && x !== x1 && z !== z0 && z !== z1) continue
+      const colAt = ((x === x0 || x === x1) && (z - z0) % 2 === 0) || ((z === z0 || z === z1) && (x - x0) % 2 === 0)
+      if (colAt) for (let y = 1; y <= 3; y++) b.set(x, y, z, post(B.PILLAR))
+      else {
+        if (!(z === z0 && Math.abs(x) <= 0)) b.set(x, 1, z, S(B.WOOD_FENCE))
+        b.set(x, 3, z, packState({ id: B.LATTICE_WINDOW, facing: z === z0 || z === z1 ? Direction.South : Direction.East }))
+      }
+      b.set(x, 4, z, x === x0 || x === x1 ? post(B.DARK_PLANKS, Axis.Z) : post(B.DARK_PLANKS, Axis.X))
+    }
+  b.s.merge(buildRoof({ width: w + 3, depth: d + 3, type: 'xieshan', tile: p.tile ?? 'gray', eaveDepth: 1 }), 0, 5, 0)
+  fillGables(b, [x0 - 1, x1 + 1], z0, z1, 5, S(B.PLASTER))
+  if (p.lanterns ?? true) b.set(x0, 3, z1 + 1, S(B.LANTERN)).set(x1, 3, z1 + 1, S(B.LANTERN))
+  return b.build()
+}
+
+/* ================= 廊：有顶的游廊 ================= */
+
+/** 沿 X 通长：铺地、两侧柱列与坐凳栏杆、挂落，悬山灰瓦 */
+export function corridor(p: BuildingParams = {}): VoxelStructure {
+  const L = p.length ?? 9
+  const b = new StructureBuilder('corridor')
+  const hl = Math.floor(L / 2)
+  b.box(-hl, 0, -1, hl, 0, 1, S(B.PAVING))
+  for (let x = -hl; x <= hl; x++)
+    for (const z of [-1, 1]) {
+      if ((x + hl) % 3 === 0 || x === hl) for (let y = 1; y <= 3; y++) b.set(x, y, z, post(B.PILLAR))
+      else {
+        b.set(x, 1, z, S(B.WOOD_FENCE))
+        b.set(x, 3, z, packState({ id: B.LATTICE_WINDOW, facing: Direction.South }))
+      }
+      b.set(x, 4, z, post(B.DARK_PLANKS, Axis.X))
+    }
+  for (let x = -hl; x <= hl; x++) b.set(x, 4, 0, S(B.DARK_PLANKS))
+  b.s.merge(buildRoof({ width: L + 2, depth: 5, type: 'xuanshan', tile: p.tile ?? 'gray', upturn: false }), 0, 5, 0)
+  return b.build()
+}
+
+/* ================= 假山：太湖石叠山 ================= */
+
+/** 几团石灰岩 / 苔石，按哈希缺块成洞，顶上略有苔 */
+export function rockery(p: BuildingParams = {}): VoxelStructure {
+  const r = new Random(p.seed ?? 9)
+  const b = new StructureBuilder('rockery')
+  const n = 3 + r.int(0, 2)
+  for (let i = 0; i < n; i++) {
+    const cx = r.int(-3, 3)
+    const cz = r.int(-2, 2)
+    const h = r.range(2.5, 5)
+    const rad = r.range(1.4, 2.4)
+    b.blob(cx, h / 2, cz, rad, h / 2 + 0.6, rad, S(r.chance(0.7) ? B.LIMESTONE : B.MOSS_STONE), (x, y, z, dd) => y >= 0 && (dd < 0.55 || ((x * 7 + y * 13 + z * 5 + i) & 3) !== 0), false)
+  }
   return b.build()
 }

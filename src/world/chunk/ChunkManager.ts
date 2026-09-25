@@ -4,7 +4,7 @@ import type { MaterialLibrary } from '../../engine/rendering/MaterialLibrary'
 import type { SceneManager } from '../../engine/rendering/SceneManager'
 import type { ChunkResult, MeshResult } from '../../workers/protocol'
 import { CHUNK_SIZE, WORLD_HEIGHT } from '../coordinate/constants'
-import { chunkKey } from '../coordinate/coords'
+import { chunkKey, chunkKeyX, chunkKeyZ } from '../coordinate/coords'
 import { REGION_CHUNKS } from '../generation/CoarseGenerator'
 import { type FogMap, fogAt } from '../overview/EdgeFog'
 import type { OverviewGrid } from '../overview/OverviewBuilder'
@@ -234,7 +234,7 @@ export class ChunkManager {
       }
     }
     if (this.touched.length) {
-      for (const k of this.touched) this.refreshMask((k >> 16) - 32768, (k & 0xffff) - 32768)
+      for (const k of this.touched) this.refreshMask(chunkKeyX(k), chunkKeyZ(k))
       this.touched.length = 0
     }
     if (this.maskDirty) {

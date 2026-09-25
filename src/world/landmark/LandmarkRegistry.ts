@@ -53,8 +53,8 @@ export class LandmarkRegistry {
     const defs = [...LANDMARK_CATALOG, ...planSettlements(anchors, LANDMARK_CATALOG, (lng, lat) => P.project(lng, lat))]
     defs.forEach((def, index) => {
       const c = P.project(def.coordinate.lng, def.coordinate.lat)
-      const [x, z] = this.clearOfCities(def, ...this.clearOfRivers(def, Math.round(c.x + (def.offset?.[0] ?? 0)), Math.round(c.z + (def.offset?.[1] ?? 0)), baseTerrain))
-      const level = this.baseLevel(baseTerrain, x, z, !def.terrainModifier?.some((o) => o.t === 'hill')) + (def.levelDy ?? 0)
+      const [x, z] = this.clearOfCities(def, ...this.clearOfWater(def, ...this.clearOfRivers(def, Math.round(c.x + (def.offset?.[0] ?? 0)), Math.round(c.z + (def.offset?.[1] ?? 0)), baseTerrain), baseTerrain))
+      const level = (def.levelMode === 'summit' ? this.summitLevel(baseTerrain, x, z) : this.baseLevel(baseTerrain, x, z, !def.terrainModifier?.some((o) => o.t === 'hill'))) + (def.levelDy ?? 0)
       const lm: ResolvedLandmark = {
         index,
         def,
@@ -88,6 +88,45 @@ export class LandmarkRegistry {
   }
 
   /**
+   * 不带城墙的地标（名楼、亭台、村落）：建筑若落在江河湖水里（坐标正好在江心，如黄鹤楼），
+   * 就在附近找一处建筑都在岸上的地方——挪得越少越好，地势别差太多。
+   */
+  private clearOfWater(def: LandmarkDefinition, x: number, z: number, t: TerrainManager): [number, number] {
+    // 只挪手工营造的名胜（坐标落在江心的名楼）；自动聚落照旧
+    if (def.walls?.length || !def.structures.length || def.id.startsWith('place-')) return [x, z]
+    const pts = def.structures.filter((s) => s.b !== 'bridge' && !s.overWater).map((s) => [s.x, s.z] as const)
+    if (!pts.length) return [x, z]
+    const wetAt = (cx: number, cz: number) => {
+      let n = 0
+      for (const [sx, sz] of pts)
+        for (const [ox, oz] of [[0, 0], [3, 0], [-3, 0], [0, 3], [0, -3]] as const) {
+          const c = t.column(Math.round(cx + sx + ox), Math.round(cz + sz + oz))
+          if (c.waterY >= 0 && c.height < c.waterY) n++
+        }
+      return n
+    }
+    // 只挪真正落在水里的（中心在水里，或一半建筑在水里）；零星一两座临水的，照旧只省去那几座
+    const c0 = t.column(x, z)
+    const centerWet = c0.waterY >= 0 && c0.height < c0.waterY
+    if (!centerWet && wetAt(x, z) < pts.length * 2.5) return [x, z]
+    const h0 = c0.height
+    const cost = (cx: number, cz: number) => wetAt(cx, cz) * 1000 + Math.hypot(cx - x, cz - z) * 4 + Math.abs(t.column(cx, cz).height - h0) * 20
+    let best: [number, number] = [x, z]
+    let bestCost = cost(x, z)
+    for (let r = 3; r <= Math.min(72, def.radius + 18) && r * 4 < bestCost; r += 3)
+      for (let a = 0; a < 24; a++) {
+        const cx = Math.round(x + Math.cos((a / 24) * Math.PI * 2) * r)
+        const cz = Math.round(z + Math.sin((a / 24) * Math.PI * 2) * r)
+        const c = cost(cx, cz)
+        if (c < bestCost) {
+          bestCost = c
+          best = [cx, cz]
+        }
+      }
+    return best
+  }
+
+  /**
    * 小地标不落进大城：城池让河挪了位后，附近的别业、驿馆可能正好压在城里，
    * 那就沿最短方向推到城外（城墙外留一圈 + 自身半径）。
    */
@@ -117,12 +156,19 @@ export class LandmarkRegistry {
     if (!w) return [x, z]
     const hw = w.hw + Math.abs(w.x) + 4
     const hd = w.hd + Math.abs(w.z) + 4
+    const allow = new Set(def.allowRivers ?? [])
     const wet = (cx: number, cz: number) => {
       let n = 0
       for (let dz = -hd; dz <= hd; dz += 6)
         for (let dx = -hw; dx <= hw; dx += 6) {
           const c = t.column(cx + dx, cz + dz)
-          if (c.waterY > c.height) n++
+          if (c.waterY > c.height) {
+            if (allow.size) {
+              const rv = t.rivers.query(cx + dx, cz + dz)
+              if (rv && allow.has(t.rivers.rivers[rv.river].def.id)) continue
+            }
+            n++
+          }
         }
       return n
     }
@@ -144,6 +190,13 @@ export class LandmarkRegistry {
         }
       }
     return best
+  }
+
+  /** 山巅：中心 3 格内的最高地表 */
+  private summitLevel(t: TerrainManager, x: number, z: number): number {
+    let h = -Infinity
+    for (let dz = -3; dz <= 3; dz++) for (let dx = -3; dx <= 3; dx++) h = Math.max(h, t.column(x + dx, z + dz).height)
+    return Math.floor(h)
   }
 
   private baseLevel(t: TerrainManager, x: number, z: number, nearMacro: boolean): number {
@@ -254,13 +307,20 @@ export class LandmarkRegistry {
               } else if (best < op.w) {
                 col.waterY = level
                 col.height = Math.min(col.height, level - 2)
-                col.waterKind = WaterKind.River
+                col.waterKind = WaterKind.Pond // 城中河渠：与天然江河区分（城墙可以圈住它）
                 col.waterDist = 0
                 col.paved = false
               } else if (best < op.w + 3 && best - op.w < col.waterDist) {
                 col.waterDist = best - op.w
-                col.waterKind = WaterKind.River
+                col.waterKind = WaterKind.Pond
               }
+              break
+            }
+            case 'raise': {
+              const blend = op.blend ?? 4
+              if (d >= op.r + blend || wet()) break
+              const target = level
+              col.height = Math.max(col.height, d < op.r ? target : lerp(target, col.height, smoothstep(op.r, op.r + blend, d)))
               break
             }
             case 'island': {
@@ -314,14 +374,16 @@ export class LandmarkRegistry {
         const y = level + 1
         const gateHalf = 7
         const run = (ax: number, az: number, len: number, alongZ: boolean, gateAt: number | null) => {
+          // 城门处与跨水处（水门）断开
+          const gap = (k: number) => (gateAt !== null && k >= gateAt - gateHalf && k < gateAt + gateHalf) || isWet(alongZ ? ax : ax + k, alongZ ? az + k : az)
           let s = 0
           while (s < len) {
-            if (gateAt !== null && s >= gateAt - gateHalf && s < gateAt + gateHalf) {
+            if (gap(s)) {
               s++
               continue
             }
             let e = s
-            while (e < len && !(gateAt !== null && e >= gateAt - gateHalf && e < gateAt + gateHalf)) e++
+            while (e < len && !gap(e)) e++
             const seg = buildBuilding('wall', { length: e - s, height: h })
             add(`wall-${index}`, alongZ ? seg.rotate(1) : seg, alongZ ? ax : ax + s, y, alongZ ? az + s : az, { clear: h + 2 })
             s = e
@@ -351,10 +413,29 @@ export class LandmarkRegistry {
 
       /* 建筑 */
       def.structures.forEach((spec, i) => {
-        const x = Math.round(cx + spec.x)
-        const z = Math.round(cz + spec.z)
+        let x = Math.round(cx + spec.x)
+        let z = Math.round(cz + spec.z)
+        if (spec.span) {
+          /* 桥沿自身轴线（rot 1 为南北向）找最近的一段水面，居中跨过 */
+          const alongZ = (spec.rot ?? 0) % 2 === 1
+          let best: [number, number] | null = null
+          for (let k = 0; k <= 20 && !best; k++)
+            for (const sgn of [1, -1]) {
+              const px = alongZ ? x : x + sgn * k
+              const pz = alongZ ? z + sgn * k : z
+              if (!isWet(px, pz)) continue
+              let a = 0
+              let b2 = 0
+              while (a < 30 && isWet(alongZ ? px : px - a - 1, alongZ ? pz - a - 1 : pz)) a++
+              while (b2 < 30 && isWet(alongZ ? px : px + b2 + 1, alongZ ? pz + b2 + 1 : pz)) b2++
+              const mid = Math.round((b2 - a) / 2)
+              best = alongZ ? [px, pz + mid] : [px + mid, pz]
+              break
+            }
+          if (best) [x, z] = best
+        }
         const isBridge = spec.b === 'bridge'
-        if (!isBridge && isWet(x, z)) return
+        if (!isBridge && !spec.overWater && isWet(x, z)) return
         const s = buildBuilding(spec.b, spec.p ?? {}).rotate(spec.rot ?? 0)
         const y = (spec.atLevel ? level + 1 : terrain.surfaceHeightAt(x, z) + 1) + (spec.dy ?? 0)
         const bd = BuildingRegistry.get(spec.b)!

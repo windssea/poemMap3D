@@ -148,6 +148,16 @@ export const NightTokens = { window: '#ffb865', lanternGlow: '#ffc070', skyLante
 /** 市井生机：行人衣色（取千里江山图的石青、石绿、赭、月白）、船木、帆、炊烟 */
 export const LifeTokens = {
   robes: ['#3f6f86', '#4f8a6a', '#a8663e', '#d9d2bd', '#6b5a8a', '#8c3a2e', '#2f4a5c', '#b99a5a'],
+  /** 士人袍：月白、石青、黛蓝、赭、青绿 */
+  scholarRobes: ['#e4ddcb', '#3f6f86', '#2f4a5c', '#8a5a3a', '#4f7a6a', '#6a5a7a'],
+  /** 女子襦裙：朱、粉、石绿、藕荷、鹅黄、月白 */
+  womanRobes: ['#b8453a', '#e0a0a8', '#5f9a7a', '#b89ab8', '#e2c870', '#e8e2d2'],
+  /** 劳作短褐：褐、灰蓝、土黄、青灰 */
+  laborRobes: ['#7a5a3e', '#5a6a78', '#a8905a', '#606860'],
+  scarf: '#efe4d0',
+  hairpin: '#d8a93c',
+  flower: '#c8443a',
+  shoe: '#1f1c1a',
   skin: '#e2b98f',
   hair: '#1d1a17',
   hat: '#3a352c',

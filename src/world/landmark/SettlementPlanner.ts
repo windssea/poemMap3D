@@ -51,6 +51,72 @@ const FAMOUS: Record<string, (r: Random) => Pick<LandmarkDefinition, 'structures
   彭城: () => capital(20, 'gray'),
 }
 
+type Body = Pick<LandmarkDefinition, 'structures' | 'terrainModifier' | 'walls' | 'radius' | 'trees' | 'levelMode'>
+
+/**
+ * 按地名的类别营造（没有手工样板的楼、阁、台、亭、寺）：
+ *  - 楼：高台上二层楼阁，旁有小亭；
+ *  - 阁：高台上攒尖二层阁，连一段游廊；
+ *  - 台：砖石高台，台上重檐亭（郁孤台、凤凰台一类）；
+ *  - 亭：重檐亭，竹松环绕；
+ *  - 寺：山门牌坊、大殿、塔。
+ */
+function byName(name: string, r: Random): Body | null {
+  if (/楼$/.test(name))
+    return {
+      radius: 24,
+      terrainModifier: [{ t: 'flatten', x: 0, z: 0, r: 14, blend: 6 }],
+      structures: [
+        { b: 'grandTower', x: 0, z: 0, p: { levels: 2, width: 9, tile: r.pick(['gray', 'green'] as const), terrace: 3 } },
+        { b: 'pavilion', x: 14, z: 8, p: { width: 5 } },
+      ],
+      trees: [{ type: 'willow', variant: 0, pts: [[-14, 10], [-14, -10]], n: 2 }],
+    }
+  if (/阁$/.test(name))
+    return {
+      radius: 24,
+      terrainModifier: [{ t: 'flatten', x: 0, z: 0, r: 14, blend: 6 }],
+      structures: [
+        { b: 'grandTower', x: 0, z: -2, p: { levels: 2, width: 7, tile: 'green', top: 'cuanjian', terrace: 3 } },
+        { b: 'corridor', x: 0, z: 12, p: { length: 11 } },
+      ],
+      trees: [{ type: 'pine', variant: 2, pts: [[-14, -8], [14, -8]], n: 2 }],
+    }
+  if (/台$/.test(name))
+    return {
+      radius: 20,
+      terrainModifier: [{ t: 'flatten', x: 0, z: 0, r: 11, blend: 6 }],
+      structures: [
+        { b: 'terrace', x: 0, z: 0, p: { width: 11, depth: 11, height: 4 } },
+        { b: 'pavilion', x: 0, z: -1, dy: 4, p: { width: 5, double: true } },
+      ],
+      trees: [{ type: 'pine', variant: 2, pts: [[-10, 9], [10, 9]], n: 2 }],
+    }
+  if (/亭$/.test(name))
+    return {
+      radius: 16,
+      terrainModifier: [{ t: 'flatten', x: 0, z: 0, r: 7, blend: 6 }],
+      structures: [{ b: 'pavilion', x: 0, z: 0, p: { width: 5, double: true, lanterns: true } }],
+      trees: [
+        { type: 'bamboo', pts: [[-8, -6], [-8, 6]], n: 2 },
+        { type: 'pine', variant: 2, pts: [[8, -6], [8, 6]], n: 2 },
+      ],
+    }
+  if (/寺$/.test(name))
+    return {
+      radius: 26,
+      terrainModifier: [{ t: 'flatten', x: 0, z: 0, r: 16, blend: 6 }, { t: 'pave', x0: -1, z0: -2, x1: 1, z1: 16 }],
+      structures: [
+        { b: 'archway', x: 0, z: 14, p: { tile: 'gray' } },
+        { b: 'hall', x: 0, z: -4, p: { width: 11, depth: 7, tile: 'gray', terrace: 2, lanterns: true } },
+        { b: 'pagoda', x: 12, z: 6, p: { levels: 5, width: 5 } },
+        { b: 'bellTower', x: -12, z: 6, p: { width: 7 } },
+      ],
+      trees: [{ type: 'pine', variant: 0, pts: [[-16, -10], [16, -10]], n: 3 }],
+    }
+  return null
+}
+
 /** 大街两侧的街灯 */
 const lamps = (z0: number, z1: number): StructureSpec[] => {
   const out: StructureSpec[] = []
@@ -108,7 +174,8 @@ export function planSettlements(anchors: readonly PlaceAnchor[], handmade: reado
     const famousKey = Object.keys(FAMOUS).find((k) => a.name.includes(k))
     // 以山为名的地点（华山、终南山、嵩山……）：不平整山体，只在山头设一亭
     const mountain = !famousKey && /[山峰岭顶]$/.test(a.name) && !/[州城县镇]/.test(a.name)
-    const body = famousKey ? FAMOUS[famousKey](r) : mountain ? { radius: 14, terrainModifier: [], structures: [{ b: 'pavilion' as const, x: 0, z: 0 }] } : generic(a.weight, r)
+    const named = famousKey ? null : byName(a.name, r)
+    const body = famousKey ? FAMOUS[famousKey](r) : named ? named : mountain ? { radius: 14, levelMode: 'summit' as const, terrainModifier: [{ t: 'raise' as const, r: 4, blend: 4 }], structures: [{ b: 'pavilion' as const, x: 0, z: 0, atLevel: true, p: { double: true } }] } : generic(a.weight, r)
     if (taken.some((t) => Math.hypot(t.x - p.x, t.z - p.z) < Math.max(14, (t.r + body.radius) * 0.55))) continue
     taken.push({ x: p.x, z: p.z, r: body.radius })
     out.push({
