@@ -1,4 +1,5 @@
 import { Engine } from '../engine/core/Engine'
+import { AmbientSound } from './AmbientSound'
 import { ResourceManager } from '../engine/core/ResourceManager'
 import { TrailDirector } from '../features/poetTrail/TrailDirector'
 import { type TrailData, TrailRepository } from '../features/poetTrail/TrailService'
@@ -28,6 +29,7 @@ export interface AppServices {
   resources: ResourceManager
   /** 有手工 / 名楼营造的地点（标签加框） */
   majorPlaces: ReadonlySet<string>
+  sound: AmbientSound
 }
 
 /**
@@ -71,14 +73,37 @@ export async function bootstrap(container: HTMLElement): Promise<AppServices> {
   engine.events.on('level', (l) => store.set({ cameraLevel: l }))
   engine.events.on('select', ({ placeId }) => {
     if (store.get().tourState.active) return
-    if (placeId) navigation.selectPlace(placeId, true)
+    if (placeId) navigation.selectPlace(placeId, store.get().autoCamera)
   })
   engine.events.on('interact', () => {
     if (store.get().tourState.active) tour.stop()
   })
+  /* 背景音：随季节、时辰、天气调配；上次开着的，等用户第一次点按后再出声（浏览器要求） */
+  const sound = new AmbientSound()
+  const syncSound = () => {
+    const st = store.get()
+    sound.setEnvironment(st.season, st.time, st.weather)
+  }
+  syncSound()
+  let lastEnv = ''
+  store.subscribe(() => {
+    const st = store.get()
+    const k = st.season + st.time + st.weather
+    if (k !== lastEnv) {
+      lastEnv = k
+      syncSound()
+    }
+  })
+  if (store.get().sound !== 'off') {
+    const wake = () => {
+      sound.setMode(store.get().sound)
+      window.removeEventListener('pointerdown', wake)
+    }
+    window.addEventListener('pointerdown', wake)
+  }
   store.set({ quality: engine.quality.quality, loading: { ready: true, label: '', progress: 1, error: null } })
   if (store.get().debug.chunks) engine.setChunkDebug(true)
   res.lazy('font-poems')
   ;(window as unknown as { __shanhe?: unknown }).__shanhe = { engine, facade, store }
-  return { store, facade, poetry, places, aggregator, search, navigation, tour, trails, director, resources: res, majorPlaces: major }
+  return { store, facade, poetry, places, aggregator, search, navigation, tour, trails, director, resources: res, majorPlaces: major, sound }
 }

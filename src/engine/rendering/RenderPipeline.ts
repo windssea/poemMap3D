@@ -127,8 +127,8 @@ export class RenderPipeline {
     this.night = night
     this.warm = warm
     if (this.bloom) {
-      this.bloom.strength = 0.1 + 0.32 * night
-      this.bloom.threshold = 1.3 - 0.5 * night
+      this.bloom.strength = 0.1 + 0.24 * night
+      this.bloom.threshold = 1.3 - 0.33 * night
       this.bloom.radius = 0.5 + 0.2 * night
     }
     if (this.grade) {

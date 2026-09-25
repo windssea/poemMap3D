@@ -22,6 +22,12 @@ export interface MesherOptions {
   tintTable?: Uint32Array
   /** 外边宽度（体素里只为 mesher 提供邻居信息的那一圈） */
   pad?: number
+  /**
+   * 裙边深度：区块四周的侧面，即使邻居是实心也画出地表以下这么多格。
+   * 相邻区块由不同精度（或还没载入）表示时，高低不一的接缝处不再露出一道天色的白缝；
+   * 相邻同级都在时，这些面夹在两块实心之间，看不见。
+   */
+  skirt?: number
 }
 
 /** 水面比整格低 2/16，像 Minecraft 那样与岸边留一道小台阶 */
@@ -98,6 +104,9 @@ export function meshVolume(vol: VoxelVolume, opts: MesherOptions = {}): MeshResu
   /* 只扫描有内容的高度区间 */
   let yLo = sy
   let yHi = -1
+  const skirt = opts.skirt ?? 0
+  /** 每列最高的不透明整块（裙边从这里往下画） */
+  const colTop = new Int16Array(sx * sz).fill(-1)
   for (let z = 0; z < sz; z++)
     for (let x = 0; x < sx; x++) {
       let y = 0
@@ -106,7 +115,11 @@ export function meshVolume(vol: VoxelVolume, opts: MesherOptions = {}): MeshResu
       let top = sy - 1
       while (top >= 0 && data[(top * sz + z) * sx + x] === 0) top--
       if (top > yHi) yHi = top
+      let ot = top
+      while (ot >= 0 && !reg.occludes[data[(ot * sz + z) * sx + x] & 255]) ot--
+      colTop[z * sx + x] = ot
     }
+  if (skirt > 0) yLo = Math.max(0, Math.min(yLo, ...Array.from(colTop).filter((t) => t >= 0).map((t) => t - skirt)))
   if (yHi < 0) return { layers: buffers.map((b) => b.toData()), quads: 0, ms: performance.now() - t0 }
   yHi = Math.min(sy - 1, yHi + 1)
 
@@ -218,7 +231,13 @@ export function meshVolume(vol: VoxelVolume, opts: MesherOptions = {}): MeshResu
               continue
             }
             if (shape !== BlockShape.FULL_CUBE) continue
-            if (!faceVisible(id, nb & 255)) continue
+            if (!faceVisible(id, nb & 255)) {
+              // 裙边：区块边上的侧面、邻居在外边里、离本列地表不深——照画
+              const nx = pos[0] + nrm[0]
+              const nz = pos[2] + nrm[2]
+              const outside = axis !== 1 && (nx < lo[0] || nx >= hi[0] || nz < lo[2] || nz >= hi[2])
+              if (!(skirt > 0 && outside && reg.layer[id] === BlockRenderLayer.Solid && pos[1] > colTop[pos[2] * sx + pos[0]] - skirt)) continue
+            }
             const tile = tileFor(id, st, axis, sign)
             let aoKey = 255
             if (reg.receivesAO[id]) {

@@ -51,6 +51,7 @@ uniform vec3 uLeafGreen;
 uniform vec3 uSnowColor;
 uniform vec3 uWindow;
 uniform float uBare;
+uniform float uLitFar;
 varying vec3 vBlockUv;
 varying float vAo;
 varying vec3 vTint;
@@ -177,7 +178,10 @@ export class MaterialLibrary {
           `#include <emissivemap_fragment>
           if (mod(floor(vFlags / 8.0), 2.0) > 0.5) {
             bool warm = mod(floor(vFlags / 32.0), 2.0) > 0.5;
-            totalEmissiveRadiance += (warm ? uWindow * (0.35 + dot(texel.rgb, vec3(0.6))) : col * 2.4) * uNight;
+            // 窗光按整格均匀发光（不随窗棂像素明暗起伏，远看不闪烁），灯笼压一压亮度；
+            // 离镜头远到快要换成远景那一圈之前平滑淡出，近远切换时灯不会一下亮一下灭
+            float lit = 1.0 - smoothstep(uLitFar * 0.72, uLitFar, distance(vBWorld, cameraPosition));
+            totalEmissiveRadiance += (warm ? uWindow * (0.55 + 0.15 * dot(texel.rgb, vec3(0.333))) : col * 1.6) * uNight * lit;
           }`,
         )
         .replace('#include <opaque_fragment>', `outgoingLight = desaturate(outgoingLight, uSaturation);\n#include <opaque_fragment>`)

@@ -451,13 +451,40 @@ export class LandmarkRegistry {
         const half = Math.floor(wf.width / 2)
         for (let k = -half; k <= half; k++) top = Math.min(top, terrain.surfaceHeightAt(fx + k, fz - 1))
         const bottom = level
+        /* 指定了落差（top）：自砌一面陡崖，瀑布从崖顶飞落；崖面按哈希凹凸、两侧收窄，
+           中途两道石坎把水流打出三叠（庐山三叠泉） */
+        if (wf.top > 0) top = Math.max(top, bottom + wf.top)
         if (top > bottom + 3) {
           const s = new VoxelStructure('waterfall')
-          for (let k = -half; k <= half; k++) {
-            for (let y = 0; y <= top - bottom; y++) s.set(k, y, 0, packState({ id: B.WATERFALL, variant: 1 }))
-            s.set(k, top - bottom, -1, S(B.WATER))
+          const H = top - bottom
+          const hw = half + 4
+          for (let k = -hw; k <= hw; k++) {
+            const edge = Math.max(0, Math.abs(k) - half - 1)
+            const colH = H - edge * edge - ((k * 7 + 3) & 1)
+            for (let y = 0; y <= colH; y++)
+              for (let dz = 1; dz <= 4 + Math.floor(y / 10); dz++) {
+                const bump = hash2i(k * 5 + dz, y, 91) & 7
+                if (dz === 1 && Math.abs(k) <= half) continue
+                if (dz === 1 && bump < 3) continue
+                s.set(k, y, -dz, S(bump === 0 ? B.MOSS_STONE : y % 6 === 0 ? B.STONE : B.ROCK))
+              }
           }
-          lm.waterfall = { x: fx, z: fz, bottom, top, width: wf.width }
+          const ledges = [Math.round(H * 0.36), Math.round(H * 0.68)]
+          for (let k = -half; k <= half; k++) {
+            let z = 0
+            for (let y = H; y >= 0; y--) {
+              // 石坎：落到这一层时往外跨出一格，下一段瀑布离崖更远
+              if (ledges.includes(y)) {
+                // 石坎从崖面伸到这一段水帘下，接住它、把下一段推出去一格
+                for (let dz = -2; dz <= z; dz++) s.set(k, y, dz, S(B.MOSS_STONE))
+                z += 1
+              }
+              s.set(k, y, z, packState({ id: B.WATERFALL, variant: 1 }))
+            }
+            s.set(k, H, -1, S(B.WATER))
+            s.set(k, H, -2, S(B.WATER))
+          }
+          lm.waterfall = { x: fx, z: fz + 2, bottom, top, width: wf.width + 2 }
           add(`waterfall-${index}`, s, fx, bottom, fz, { foundation: false })
         }
       }

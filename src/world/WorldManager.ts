@@ -42,6 +42,7 @@ export class WorldManager {
   readonly fog: FogMap
   readonly fogTexture: THREE.DataTexture
   private quality: QualityPreset
+  private readonly shared: SharedUniforms
   /** 焦点移动速度（方块/秒，平滑）与上一帧焦点：按速度预读前方 */
   private readonly vel = new THREE.Vector2()
   private readonly last = new THREE.Vector3(Number.NaN, 0, 0)
@@ -61,6 +62,7 @@ export class WorldManager {
   ) {
     this.ctx = ctx
     this.quality = quality
+    this.shared = shared
     this.sampler = new WorldSampler(ctx, this.world)
     this.grid = overviewGrid(ctx)
     this.fog = buildFogMap(ctx.macro)
@@ -134,6 +136,7 @@ export class WorldManager {
    * @param dest 飞行目的地（有则提前排队那里的近景区块）
    */
   update(dt: number, camera: THREE.Camera, focus: THREE.Vector3, distance: number, dest?: { target: THREE.Vector3; distance: number } | null): void {
+    this.shared.uLitFar.value = Math.max(80, distance + Math.max(1, this.curR) * 16 * 0.85)
     /* 近景半径按镜头视距定，带回差 */
     const want = this.radiusFor(distance)
     if (this.curR < 0 || (want === 0) !== (this.curR === 0) || Math.abs(want - this.curR) >= 2) this.curR = want

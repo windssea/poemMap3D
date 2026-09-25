@@ -53,7 +53,7 @@ self.onmessage = (e: MessageEvent<WorkerRequest>) => {
           const t0 = performance.now()
           const g = generateCoarseRegion(ctx.terrain, ctx.landmarks, ctx.trees, m.cx, m.cz)
           const genMs = performance.now() - t0
-          const mesh = meshVolume(g.volume)
+          const mesh = meshVolume(g.volume, { skirt: 3 })
           const transfer: ArrayBuffer[] = []
           for (const l of mesh.layers) transfer.push(...meshTransferables(l))
           post({ type: 'chunk', id: m.id, cx: m.cx, cz: m.cz, lod: 4, data: null, layers: mesh.layers, stats: { genMs, meshMs: mesh.ms, quads: mesh.quads, trees: g.trees, structures: g.structures } }, transfer)
@@ -64,14 +64,14 @@ self.onmessage = (e: MessageEvent<WorkerRequest>) => {
           // 远景：cx、cz 为 2×2 区块一片的片坐标；外扩 2 格，合并后正好 1 格外边
           const g = ctx.chunks.generateArea(new VoxelVolume(m.cx * 32 - 2, 0, m.cz * 32 - 2, 36, WORLD_HEIGHT, 36), false)
           const genMs = performance.now() - t0
-          const mesh = meshVolume(downsample2(g.volume))
+          const mesh = meshVolume(downsample2(g.volume), { skirt: 4 })
           const transfer: ArrayBuffer[] = []
           for (const l of mesh.layers) transfer.push(...meshTransferables(l))
           post({ type: 'chunk', id: m.id, cx: m.cx, cz: m.cz, lod: 2, data: null, layers: mesh.layers, stats: { genMs, meshMs: mesh.ms, quads: mesh.quads, trees: g.trees, structures: g.structures } }, transfer)
           break
         }
         const g = ctx.chunks.generate(m.cx, m.cz)
-        const mesh = meshVolume(g.volume)
+        const mesh = meshVolume(g.volume, { skirt: 8 })
         const data = g.chunk.toData()
         const transfer: ArrayBuffer[] = [data.heightmap.buffer as ArrayBuffer, data.biomeMap.buffer as ArrayBuffer, data.tintMap.buffer as ArrayBuffer]
         for (const s of data.sections) if (s?.blocks) transfer.push(s.blocks.buffer as ArrayBuffer)

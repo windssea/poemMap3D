@@ -2,8 +2,8 @@ import * as THREE from 'three'
 import { NightTokens } from '../../config/palette'
 import { Random } from '../../utils/math'
 
-const SKY_N = 48
-const RIVER_N = 40
+const SKY_N = 12
+const RIVER_N = 20
 
 interface SkyLantern {
   x: number

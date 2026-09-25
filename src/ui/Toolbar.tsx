@@ -1,15 +1,19 @@
 import { useApp } from '../app/AppStore'
+import { SOUND_MODES, SOUND_NAMES } from '../app/AmbientSound'
 import { QUALITY_PRESETS, type Quality } from '../engine/rendering/QualityManager'
 import { Icon } from './icons'
 import { useServices } from './ServicesContext'
 
 const ORDER: Quality[] = ['mid', 'high', 'low']
 
-/** 回到全国、画质、截图、隐藏界面、调试 */
+/** 回到全国、画质、截图、隐藏界面、自动取景、背景音（调试面板改由地址栏 ?debug 打开） */
 export function Toolbar() {
-  const { facade, store, tour } = useServices()
+  const services = useServices()
+  const { facade, store, tour } = services
+  const autoCam = useApp((s) => s.autoCamera)
+  const sound = useApp((s) => s.sound)
+  const soundOpen = useApp((s) => s.ui.soundOpen)
   const quality = useApp((s) => s.quality)
-  const debug = useApp((s) => s.debug)
   return (
     <div className="panel grp">
       <button
@@ -40,17 +44,34 @@ export function Toolbar() {
       <button className="ico" title="隐藏界面（任意处单击恢复）" onClick={() => store.set((s) => ({ ui: { ...s.ui, hidden: true } }))}>
         <Icon name="eye" />
       </button>
-      <button
-        className={`ico ${debug.chunks ? 'on' : ''}`}
-        title="调试：区块边界、地形取样"
-        onClick={() => {
-          const on = !debug.chunks
-          facade.setDebugChunks(on)
-          store.set({ debug: { chunks: on, terrain: on } })
-        }}
-      >
-        <Icon name="bug" />
+      <button className={`ico ${autoCam ? 'on' : ''}`} title={autoCam ? '自动取景：开（点地名时镜头自动对准）' : '自动取景：关（点地名只展开诗目，镜头不动）'} onClick={() => store.set({ autoCamera: !autoCam })}>
+        <Icon name="frame" />
       </button>
+      <div style={{ position: 'relative' }}>
+        <button className={`ico ${sound !== 'off' ? 'on' : ''}`} title={`背景音：${SOUND_NAMES[sound]}`} onClick={() => store.set((s) => ({ ui: { ...s.ui, soundOpen: !s.ui.soundOpen } }))}>
+          <Icon name={sound === 'off' ? 'mute' : 'sound'} />
+        </button>
+        {soundOpen && (
+          <div className="panel amb-pop sound-pop">
+            <div className="amb-row">
+              <span className="lab">声</span>
+              {SOUND_MODES.map((m) => (
+                <button
+                  key={m}
+                  className={`chip ${m === sound ? 'on' : ''}`}
+                  title={m === 'auto' ? '随季节、时辰、天气自动调配' : undefined}
+                  onClick={() => {
+                    services.sound.setMode(m)
+                    store.set((s) => ({ sound: m, ui: { ...s.ui, soundOpen: false } }))
+                  }}
+                >
+                  {SOUND_NAMES[m]}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react'
+import { SOUND_MODES, type SoundMode } from './AmbientSound'
 import type { CameraLevel } from '../engine/camera/CameraPose'
 import type { Season, TimeOfDay, Weather } from '../engine/environment/types'
 import type { Quality } from '../engine/rendering/QualityManager'
@@ -44,7 +45,11 @@ export interface AppState {
   quality: Quality
   tourState: TourState
   trailState: { poet: string | null; picking: boolean; phase: TrailPhase; prog: number; verseIdx: number }
-  ui: { ambienceOpen: boolean; hidden: boolean; tourSettingsOpen: boolean }
+  ui: { ambienceOpen: boolean; hidden: boolean; tourSettingsOpen: boolean; soundOpen: boolean }
+  /** 点地标时镜头自动取景 */
+  autoCamera: boolean
+  /** 背景音 */
+  sound: SoundMode
   debug: { chunks: boolean; terrain: boolean }
 }
 
@@ -75,7 +80,9 @@ function initial(): AppState {
     quality: (params.get('q') as Quality) || read<Quality>('shq', (v) => ['low', 'mid', 'high'].includes(v), undefined as unknown as Quality),
     tourState: { active: false, paused: false, region: '', stopName: '', poemId: null, round: 0, index: 0, total: 0, settings: DEFAULT_TOUR_SETTINGS },
     trailState: { poet: null, picking: false, phase: 'done', prog: 0, verseIdx: -1 },
-    ui: { ambienceOpen: false, hidden: false, tourSettingsOpen: false },
+    ui: { ambienceOpen: false, hidden: false, tourSettingsOpen: false, soundOpen: false },
+    autoCamera: read<string>('shac', (v) => v === '0' || v === '1', '1') !== '0',
+    sound: read<SoundMode>('shsd', (v) => (SOUND_MODES as readonly string[]).includes(v), 'off'),
     debug: { chunks: params.has('debug'), terrain: params.has('debug') },
   }
 }
@@ -107,6 +114,8 @@ export class AppStore {
       if (p.weather) localStorage.setItem('shw', p.weather)
       if (p.time) localStorage.setItem('shm', p.time)
       if (p.quality) localStorage.setItem('shq', p.quality)
+      if (p.autoCamera !== undefined) localStorage.setItem('shac', p.autoCamera ? '1' : '0')
+      if (p.sound) localStorage.setItem('shsd', p.sound)
     } catch {
       /* 隐私模式下不记忆 */
     }

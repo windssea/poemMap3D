@@ -82,7 +82,7 @@ const LUSHAN: LandmarkDefinition = {
     { t: 'hill', x: 2, z: 28, r: 22, h: 16 },
     { t: 'hill', x: -30, z: 32, r: 15, h: 11 },
     { t: 'hill', x: 14, z: -6, r: 12, h: 26, sharp: 1 },
-    { t: 'lake', x: 14, z: 9, rx: 6, rz: 5, depth: 2 },
+    { t: 'lake', x: 14, z: 8, rx: 8, rz: 6, depth: 3 },
   ],
   structures: [
     { b: 'pavilion', x: 6, z: -22, p: { width: 5 } },
@@ -91,7 +91,8 @@ const LUSHAN: LandmarkDefinition = {
     { b: 'pagoda', x: 44, z: 22, p: { levels: 5, width: 7 } },
     { b: 'hut', x: -12, z: 42, p: { width: 5, depth: 5 } },
   ],
-  waterfall: { x: 14, z: 0, top: 0, width: 3, dir: 's' },
+  // 三叠泉：落差 34 格、宽 5 格，从自砌的陡崖上分三叠落进潭里
+  waterfall: { x: 14, z: -1, top: 34, width: 5, dir: 's' },
   trees: [{ type: 'bamboo', pts: [[-20, 44], [-18, 36]], n: 2 }],
   vegetationProfile: { weights: { pine: 6, broadleaf: 1.5, bamboo: 0.6 }, density: 1.3 },
   cameraPreset: { yaw: 0.35, pitch: 0.34, distance: 130 },

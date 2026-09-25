@@ -30,7 +30,7 @@ const GEO_LABELS = [
  * React 只创建一次 DOM，逐帧位置由引擎的帧事件直接写 transform，不触发 React 重渲染。
  */
 export function LabelLayer() {
-  const { facade, aggregator, navigation, majorPlaces } = useServices()
+  const { facade, aggregator, navigation, majorPlaces, store } = useServices()
   const selected = useApp((s) => s.selectedPlaceId)
   const level = useApp((s) => s.cameraLevel)
   const tourActive = useApp((s) => s.tourState.active)
@@ -92,7 +92,7 @@ export function LabelLayer() {
       const { selected: sel, level: lv } = state.current
       const placed: { x0: number; y0: number; x1: number; y1: number }[] = []
       let shown = 0
-      const cap = lv === 'national' ? 16 : lv === 'regional' ? 36 : 10
+      const cap = lv === 'national' ? 12 : lv === 'regional' ? 16 : 7
       const order = sel ? [...sorted.filter((i) => i.placeId === sel), ...sorted.filter((i) => i.placeId !== sel)] : sorted
       let selPos: { x: number; y: number } | null = null
       for (const it of order) {
@@ -104,7 +104,8 @@ export function LabelLayer() {
           it.kind === 'geo' ? lv !== 'local' : isSel || lv !== 'national' || it.major || shown < 8
         if (allow && facade.project(it.anchor, pos)) {
           // 太远的不显示：近看只留镜头附近的，区域视角也收一收；被遮挡的不显示
-          const farLimit = lv === 'local' ? Math.max(140, f.distance * 1.7) : lv === 'regional' ? Math.max(700, f.distance * 2.2) : Infinity
+          // 近看：只留镜头附近的；区域视角：也只留较近的——走近了再显示
+          const farLimit = lv === 'local' ? Math.max(110, f.distance * 1.35) : lv === 'regional' ? Math.max(420, f.distance * 1.45) : Infinity
           const tooFar = it.kind === 'place' && !isSel && (pos.depth > farLimit || (lv !== 'national' && occluded.get(it.key) === true))
           const h = it.name.length * 16 + 34
           const w = 34
@@ -140,7 +141,7 @@ export function LabelLayer() {
             else refs.current.delete(it.key)
           }}
         >
-          <div className="in" onClick={() => it.placeId && navigation.selectPlace(it.placeId)} title={it.kind === 'place' ? `${it.name} · ${it.count} 首` : undefined}>
+          <div className="in" onClick={() => it.placeId && navigation.selectPlace(it.placeId, store.get().autoCamera)} title={it.kind === 'place' ? `${it.name} · ${it.count} 首` : undefined}>
             <span>{it.name}</span>
             {it.kind === 'place' && it.count! > 1 && <b>{it.count}</b>}
             {it.kind === 'place' && <i className="dot" />}

@@ -286,4 +286,183 @@ const SUZHOU: LandmarkDefinition = {
   vegetationProfile: { weights: { willow: 3, broadleaf: 2, peach: 1, bamboo: 1 }, density: 0.7 },
 }
 
-export const CITY_CATALOG: readonly LandmarkDefinition[] = [HUANGHELOU, YUEYANGLOU, TENGWANGGE, GUANQUELOU, DUOJINGLOU, JINLING, LUOYANG, CHENGDU, SUZHOU]
+
+/* ================= 第二批：黄州、扬州、汴京、山阴、密州 ================= */
+
+/** 黄州：大江北岸的东坡赤壁（红崖临江，崖上二赋堂、睡仙亭），城东东坡雪堂与躬耕的东坡，江边临皋亭 */
+const HUANGZHOU: LandmarkDefinition = {
+  id: 'huangzhou',
+  name: '黄州',
+  coordinate: { lng: 114.87, lat: 30.46 },
+  radius: 50,
+  major: true,
+  poetryPlaceId: 'huangzhou',
+  terrainModifier: [
+    { t: 'flatten', x: 0, z: -6, r: 20, rz: 14, square: true, blend: 6 },
+    { t: 'hill', x: -26, z: 10, r: 16, h: 17, sharp: 1 },
+    { t: 'flatten', x: -28, z: 6, r: 6, dy: 15, blend: 3 },
+    { t: 'flatten', x: 30, z: -12, r: 12, blend: 6 },
+  ],
+  walls: [{ x: 0, z: -6, hw: 16, hd: 11, height: 6, gates: ['s', 'e'] }],
+  structures: [
+    { b: 'hall', x: 0, z: -11, p: { width: 9, depth: 5, tile: 'gray', terrace: 1, lanterns: true } },
+    { b: 'house', x: -9, z: -2, p: { seed: 201, lanterns: true } },
+    { b: 'house', x: 9, z: -2, p: { seed: 202 } },
+    { b: 'shop', x: -9, z: -12, rot: 1, p: { seed: 203 } },
+    { b: 'shop', x: 9, z: -12, rot: 3, p: { seed: 204 } },
+    ...lamps([-3, 3], [-4, 2]),
+    { b: 'hall', x: -28, z: 5, atLevel: true, dy: 15, p: { width: 7, depth: 5, tile: 'gray', terrace: 1 } },
+    { b: 'pavilion', x: -20, z: 13, p: { width: 5, double: true } },
+    { b: 'hut', x: 30, z: -15, p: { width: 7, depth: 5 } },
+    { b: 'hut', x: 38, z: -9, rot: 3 },
+    { b: 'pavilion', x: 22, z: 10, p: { width: 5, tile: 'thatch' } },
+  ],
+  trees: [
+    { type: 'bamboo', pts: [[24, -22], [40, -22]], n: 3 },
+    { type: 'peach', pts: [[26, -4], [36, -2]], n: 2 },
+    { type: 'pine', variant: 2, pts: [[-34, 2], [-18, 18]], n: 3 },
+  ],
+  vegetationProfile: { weights: { broadleaf: 3, bamboo: 2, pine: 1 }, density: 0.8 },
+}
+
+/** 扬州：瘦西湖曲折如带，五亭桥（桥上五亭）、二十四桥、白塔；湖东城里楼阁酒肆；湖西北蜀冈上平山堂 */
+const YANGZHOU: LandmarkDefinition = {
+  id: 'yangzhou',
+  name: '扬州',
+  coordinate: { lng: 119.42, lat: 32.4 },
+  radius: 54,
+  major: true,
+  poetryPlaceId: 'yangzhou',
+  terrainModifier: [
+    { t: 'flatten', x: 0, z: 0, r: 42, blend: 6 },
+    { t: 'canal', pts: [[-40, -30], [-24, -18], [-14, -4], [-18, 10], [-8, 22], [8, 26], [24, 38]], w: 4 },
+    { t: 'lake', x: -14, z: -2, rx: 9, rz: 6, depth: 2 },
+    { t: 'hill', x: -40, z: -38, r: 14, h: 10 },
+    { t: 'flatten', x: -40, z: -38, r: 6, dy: 9, blend: 3 },
+    { t: 'pave', x0: 12, z0: -24, x1: 14, z1: 20 },
+  ],
+  structures: [
+    { b: 'bridge', x: -14, z: 1, rot: 0, atLevel: true, span: true, p: { length: 9 } },
+    ...[-4, 0, 4].map((dx, i) => ({ b: 'pavilion' as const, x: -14 + dx, z: 1, atLevel: true, dy: 3, overWater: true, p: { width: 3, tile: i === 1 ? 'yellow' : 'green' } as const })),
+    { b: 'bridge', x: -8, z: 22, rot: 1, atLevel: true, span: true, p: { length: 9 } },
+    { b: 'stupa', x: -26, z: -2 },
+    { b: 'waterPavilion', x: -24, z: -18, rot: 1, atLevel: true, overWater: true, p: { width: 7, depth: 5 } },
+    { b: 'hall', x: -40, z: -38, atLevel: true, dy: 9, p: { width: 9, depth: 5, tile: 'gray', terrace: 1, lanterns: true } },
+    { b: 'loft', x: 20, z: -16, rot: 3, p: { width: 7, depth: 5, seed: 301, lanterns: true } },
+    { b: 'loft', x: 20, z: -6, rot: 3, p: { width: 7, depth: 5, seed: 302, lanterns: true } },
+    { b: 'shop', x: 20, z: 4, rot: 3, p: { seed: 303 } },
+    { b: 'shop', x: 6, z: -16, rot: 1, p: { seed: 304 } },
+    { b: 'shop', x: 6, z: -6, rot: 1, p: { seed: 305 } },
+    { b: 'courtyard', x: 30, z: 12, p: { width: 11, seed: 306 } },
+    ...[16, 16, 16].map((x, i) => ({ b: 'stall' as const, x, z: 10 + i * 4, p: { seed: 310 + i } })),
+    ...lamps([10, 16], [-20, -10, 0]),
+  ],
+  trees: [
+    { type: 'willow', variant: 2, pts: [[-36, -26], [-22, -12]], n: 4 },
+    { type: 'willow', variant: 0, pts: [[-10, 12], [2, 30]], n: 4 },
+    { type: 'peach', pts: [[-4, -10], [-2, 4]], n: 2 },
+    { type: 'bamboo', pts: [[-46, -30], [-34, -30]], n: 2 },
+  ],
+  vegetationProfile: { weights: { willow: 4, broadleaf: 2, peach: 1 }, density: 0.8 },
+}
+
+/** 汴京：宣德门与御街、州桥跨汴河、大相国寺、樊楼（三层酒楼）、开宝寺铁塔；街市摊铺 */
+const BIANJING: LandmarkDefinition = {
+  id: 'bianjing',
+  name: '汴京',
+  coordinate: { lng: 114.33, lat: 34.79 },
+  radius: 56,
+  major: true,
+  poetryPlaceId: 'bianjing',
+  terrainModifier: [
+    { t: 'flatten', x: 0, z: 0, r: 34, rz: 26, square: true, blend: 6 },
+    { t: 'canal', pts: [[-44, 6], [-10, 4], [10, 6], [44, 4]], w: 3 },
+    { t: 'pave', x0: -3, z0: -22, x1: 3, z1: 26 },
+    { t: 'flatten', x: 0, z: -14, r: 8, square: true, pave: true, blend: 0 },
+  ],
+  walls: [{ x: 0, z: 0, hw: 30, hd: 22, height: 8, gates: ['n', 's', 'e', 'w'] }],
+  structures: [
+    { b: 'hall', x: 0, z: -15, p: { width: 15, depth: 7, height: 6, tile: 'yellow', double: true, terrace: 3, lanterns: true } },
+    { b: 'bridge', x: 0, z: 5, rot: 1, atLevel: true, span: true, p: { length: 9 } },
+    { b: 'grandTower', x: 16, z: -12, p: { levels: 3, width: 9, tile: 'green', terrace: 2 } },
+    { b: 'hall', x: -16, z: -12, p: { width: 11, depth: 7, tile: 'yellow', terrace: 2, lanterns: true } },
+    { b: 'pagoda', x: -24, z: -16, p: { levels: 7, width: 5, tile: 'gray' } },
+    { b: 'loft', x: 12, z: 14, rot: 2, p: { width: 7, depth: 5, seed: 401, lanterns: true } },
+    { b: 'loft', x: 21, z: 14, rot: 2, p: { width: 7, depth: 5, seed: 402, lanterns: true } },
+    { b: 'shop', x: -12, z: 14, rot: 2, p: { seed: 403 } },
+    { b: 'shop', x: -21, z: 14, rot: 2, p: { seed: 404 } },
+    ...[-20, -15, -10, 10, 15, 20].map((x, i) => ({ b: 'stall' as const, x, z: 9, p: { seed: 410 + i } })),
+    ...lamps([-5, 5], [-4, 12, 18, 30]),
+    { b: 'archway', x: 0, z: 30, p: { tile: 'yellow' } },
+    { b: 'brickPagoda', x: 40, z: -30, p: { levels: 9, width: 7 } },
+  ],
+  trees: [
+    { type: 'willow', variant: 0, pts: [[-42, 1], [-14, 1]], n: 5 },
+    { type: 'willow', variant: 0, pts: [[14, 1], [42, 1]], n: 5 },
+  ],
+  vegetationProfile: { weights: { broadleaf: 3, willow: 3 }, density: 0.6 },
+}
+
+/** 山阴：水乡人家枕河；沈园（池、水榭、游廊、假山、题壁的亭）；城外兰亭（曲水流觞、鹅池、兰亭碑亭） */
+const SHANYIN: LandmarkDefinition = {
+  id: 'shanyin',
+  name: '山阴',
+  coordinate: { lng: 120.58, lat: 30.0 },
+  radius: 50,
+  major: true,
+  poetryPlaceId: 'shanyin',
+  terrainModifier: [
+    { t: 'flatten', x: 0, z: 0, r: 36, blend: 6 },
+    { t: 'canal', pts: [[-40, 4], [40, 2]], w: 2 },
+    { t: 'canal', pts: [[10, -36], [8, 36]], w: 2 },
+    { t: 'lake', x: -22, z: -18, rx: 7, rz: 5, depth: 2 },
+    { t: 'canal', pts: [[26, 22], [30, 26], [26, 30], [32, 34]], w: 1 },
+    { t: 'lake', x: 36, z: 22, rx: 3, rz: 3, depth: 1 },
+  ],
+  structures: [
+    ...houseRow([-30, -20, 20, 30], -3, 0, 501),
+    ...houseRow([-30, -20, 20, 30], 11, 2, 511),
+    ...houseRow([-2, 18], 20, 3, 521),
+    { b: 'bridge', x: 9, z: 3, rot: 1, atLevel: true, p: { length: 7 } },
+    { b: 'bridge', x: -8, z: 3, rot: 1, atLevel: true, p: { length: 7 } },
+    { b: 'waterPavilion', x: -22, z: -12, rot: 2, atLevel: true, overWater: true, p: { width: 7, depth: 5 } },
+    { b: 'corridor', x: -22, z: -28, p: { length: 11 } },
+    { b: 'pavilion', x: -32, z: -20, p: { width: 5, double: true } },
+    { b: 'rockery', x: -12, z: -22, p: { seed: 7 } },
+    { b: 'pavilion', x: 28, z: 28, p: { width: 5, tile: 'green' } },
+    { b: 'pavilion', x: 38, z: 30, p: { width: 3 } },
+    ...lamps([4], [-10, 16]),
+  ],
+  trees: [
+    { type: 'bamboo', pts: [[20, 36], [40, 38]], n: 4 },
+    { type: 'willow', variant: 2, pts: [[-30, -12], [-14, -12]], n: 3 },
+    { type: 'peach', pts: [[-28, -26], [-18, -30]], n: 2 },
+    { type: 'willow', variant: 0, pts: [[-40, 0], [-26, 0]], n: 2 },
+  ],
+  vegetationProfile: { weights: { willow: 3, bamboo: 2, broadleaf: 2 }, density: 0.8 },
+}
+
+/** 密州：小城一座，城北超然台（砖台高筑、台上重檐亭）；城外猎场开阔、疏林 */
+const MIZHOU: LandmarkDefinition = {
+  id: 'mizhou',
+  name: '密州',
+  coordinate: { lng: 119.41, lat: 36.0 },
+  radius: 44,
+  major: true,
+  poetryPlaceId: 'p107',
+  terrainModifier: [{ t: 'flatten', x: 0, z: 0, r: 22, rz: 18, square: true, blend: 6 }, { t: 'pave', x0: -2, z0: -15, x1: 2, z1: 20 }],
+  walls: [{ x: 0, z: 2, hw: 18, hd: 13, height: 6, gates: ['n', 's', 'e', 'w'] }],
+  structures: [
+    { b: 'terrace', x: 0, z: -7, p: { width: 13, depth: 9, height: 6 } },
+    { b: 'pavilion', x: 0, z: -8, dy: 6, p: { width: 7, double: true, tile: 'gray', lanterns: true } },
+    { b: 'hall', x: -10, z: 6, rot: 1, p: { width: 7, depth: 5, tile: 'gray', terrace: 1 } },
+    { b: 'house', x: 10, z: 4, rot: 3, p: { seed: 601, lanterns: true } },
+    { b: 'house', x: 10, z: 11, rot: 3, p: { seed: 602 } },
+    { b: 'shop', x: -10, z: 12, rot: 1, p: { seed: 603 } },
+    ...lamps([-4, 4], [4, 10]),
+  ],
+  trees: [{ type: 'broadleaf', variant: 1, pts: [[26, -20], [34, 24]], n: 4 }],
+  vegetationProfile: { weights: { broadleaf: 3, pine: 1 }, density: 0.5 },
+}
+
+export const CITY_CATALOG: readonly LandmarkDefinition[] = [HUANGHELOU, YUEYANGLOU, TENGWANGGE, GUANQUELOU, DUOJINGLOU, JINLING, LUOYANG, CHENGDU, SUZHOU, HUANGZHOU, YANGZHOU, BIANJING, SHANYIN, MIZHOU]

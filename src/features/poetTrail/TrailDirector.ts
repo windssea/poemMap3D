@@ -66,7 +66,7 @@ export class TrailDirector {
     private readonly port: TrailPort,
   ) {}
 
-  /** 各站配诗：此人在该站附近（地名入题者优先）名气最高、尚未用过的一首 */
+  /** 各站配诗：说明里点名的那首优先；其余取此人在该站附近（地名入题者优先）名气最高、尚未用过的一首 */
   private versesFor(t: PoetTrail): (Poem | null)[] {
     const names = [...new Set(t.stops.map((s) => s.place))]
     const pos = new Map(t.stops.map((s) => [s.place, s]))
@@ -85,11 +85,31 @@ export class TrailDirector {
       if (best && bd < 0.6) pool.get(best)!.push(q)
     }
     for (const list of pool.values()) list.sort((a, b) => fameOf(b) - fameOf(a))
+    /* 说明里点了名的诗（「作《峨眉山月歌》」）优先：按题目匹配，同站展示的就是说明里那一首 */
+    const all = this.poetry.poemsBy(t.poet)
+    const norm = (x: string) => x.replace(/[s·・，。、《》〈〉「」“”"'()（）]/g, '')
+    const used = new Set<string>()
+    const named = t.stops.map((s) => {
+      for (const m of s.note.matchAll(/《([^》]+)》/g)) {
+        const want = norm(m[1])
+        const hit = all.find((q) => !used.has(q.id) && (norm(q.title) === want || norm(q.title).includes(want) || want.includes(norm(q.title))))
+        if (hit) {
+          used.add(hit.id)
+          return hit
+        }
+      }
+      return null
+    })
     const seen = new Map<string, number>()
-    return t.stops.map((s) => {
-      const k = (seen.get(s.place) ?? -1) + 1
-      seen.set(s.place, k)
-      return pool.get(s.place)![k] ?? null
+    return t.stops.map((s, i) => {
+      if (named[i]) return named[i]
+      const list = pool.get(s.place)!
+      let k = seen.get(s.place) ?? 0
+      while (k < list.length && used.has(list[k].id)) k++
+      seen.set(s.place, k + 1)
+      const q = list[k] ?? null
+      if (q) used.add(q.id)
+      return q
     })
   }
 

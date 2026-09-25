@@ -916,3 +916,10 @@ textarea,
   -webkit-user-select: text;
   user-select: text;
 }
+
+/* 背景音选单：在按钮上方展开 */
+.sound-pop {
+  right: 0;
+  left: auto;
+  white-space: nowrap;
+}
