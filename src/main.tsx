@@ -4,6 +4,7 @@ import { App } from './App'
 import { TreeLab } from './devtools/TreeLab'
 import { applyTheme } from './ui/theme'
 import './ui/styles.css'
+import './ui/mount.css'
 
 applyTheme()
 const lab = new URLSearchParams(location.search).get('lab')

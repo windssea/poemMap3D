@@ -47,7 +47,7 @@ self.onmessage = (e: MessageEvent<WorkerRequest>) => {
         const g = ctx.chunks.generate(m.cx, m.cz)
         const mesh = meshVolume(g.volume)
         const data = g.chunk.toData()
-        const transfer: ArrayBuffer[] = [data.heightmap.buffer as ArrayBuffer, data.biomeMap.buffer as ArrayBuffer]
+        const transfer: ArrayBuffer[] = [data.heightmap.buffer as ArrayBuffer, data.biomeMap.buffer as ArrayBuffer, data.tintMap.buffer as ArrayBuffer]
         for (const s of data.sections) if (s?.blocks) transfer.push(s.blocks.buffer as ArrayBuffer)
         for (const l of mesh.layers) transfer.push(...meshTransferables(l))
         post(

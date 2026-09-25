@@ -112,7 +112,7 @@ export class WorldManager {
   update(dt: number, camera: THREE.Camera, focus: THREE.Vector3, distance: number): void {
     this.chunks.setFocus(focus.x, focus.z, this.radiusFor(distance), camera)
     this.chunks.update(dt)
-    this.overview.update(distance)
+    this.overview.update(distance, camera.position)
   }
 
   landmarkView(placeId: string): LandmarkView | null {

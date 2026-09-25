@@ -51,6 +51,13 @@ const FAMOUS: Record<string, (r: Random) => Pick<LandmarkDefinition, 'structures
   彭城: () => capital(20, 'gray'),
 }
 
+/** 大街两侧的街灯 */
+const lamps = (z0: number, z1: number): StructureSpec[] => {
+  const out: StructureSpec[] = []
+  for (let z = z0; z <= z1; z += 8) out.push({ b: 'lamp', x: -4, z, rot: 2 }, { b: 'lamp', x: 4, z })
+  return out
+}
+
 function capital(hw: number, tile: 'yellow' | 'gray'): Pick<LandmarkDefinition, 'structures' | 'terrainModifier' | 'walls' | 'radius'> {
   const hd = Math.round(hw * 0.8)
   const houses: StructureSpec[] = []
@@ -59,7 +66,7 @@ function capital(hw: number, tile: 'yellow' | 'gray'): Pick<LandmarkDefinition, 
     radius: hw + 16,
     terrainModifier: [{ t: 'flatten', x: 0, z: 0, r: hw + 6, square: true, blend: 10 }, { t: 'pave', x0: -2, z0: -hd, x1: 2, z1: hd + 8 }],
     walls: [{ x: 0, z: 0, hw, hd, height: 7, gates: ['n', 's', 'e', 'w'] }],
-    structures: [{ b: 'hall', x: 0, z: -Math.round(hd * 0.5), p: { width: 15, depth: 9, double: true, tile, lanterns: true, terrace: 2 } }, ...houses],
+    structures: [{ b: 'hall', x: 0, z: -Math.round(hd * 0.5), p: { width: 15, depth: 9, double: true, tile, lanterns: true, terrace: 2 } }, ...houses, ...lamps(-hd + 6, hd + 6)],
   }
 }
 

@@ -3,7 +3,7 @@ import type { Engine } from '../engine/core/Engine'
 import type { FrameContext } from '../engine/core/FrameContext'
 import type { Season, TimeOfDay, Weather } from '../engine/environment/types'
 import type { Quality } from '../engine/rendering/QualityManager'
-import { type TrailRepository, trailFraming } from '../features/poetTrail/TrailService'
+import type { TrailDirector, TrailPort } from '../features/poetTrail/TrailDirector'
 import type { TourPort, TourService } from '../features/tour/TourService'
 import type { AppStore } from './AppStore'
 
@@ -27,6 +27,8 @@ export interface EngineFacade {
 
   /* —— 以下为 UI 需要的补充能力 —— */
   hidePoetTrail(): void
+  isFlying(): boolean
+  trailHead(frac: number): THREE.Vector3
   flyToView(key: string): void
   flyToGeo(lng: number, lat: number, distance?: number): void
   onFrame(fn: (f: FrameContext) => void): () => void
@@ -37,6 +39,7 @@ export interface EngineFacade {
   screenshot(): string
   setDebugChunks(on: boolean): void
   onHover(fn: (info: HoverInfo | null) => void): () => void
+  onHoverPlace(fn: (placeId: string | null) => void): () => void
   stats(): EngineStats
   setThemeFog(k: number): void
 }
@@ -64,13 +67,13 @@ export interface EngineStats {
   overviewTriangles: number
 }
 
-export class EngineFacadeImpl implements EngineFacade, TourPort {
+export class EngineFacadeImpl implements EngineFacade, TourPort, TrailPort {
   tour: TourService | null = null
+  director: TrailDirector | null = null
 
   constructor(
     private readonly engine: Engine,
     private readonly store: AppStore,
-    private readonly trails: TrailRepository,
   ) {}
 
   focusLandmark(id: string): void {
@@ -104,18 +107,12 @@ export class EngineFacadeImpl implements EngineFacade, TourPort {
   }
 
   showPoetTrail(poetId: string): void {
-    const t = this.trails.get(poetId)
-    if (!t) return
-    this.engine.showTrail(t.stops, t.color)
-    const f = trailFraming(t, (lng, lat) => this.engine.world.sampler.project(lng, lat))
-    const target = this.engine.world.sampler
-    void this.engine.camera.flyTo({ target: this.engine.geoToWorld(target.geo(f.x, f.z).lng, target.geo(f.x, f.z).lat), yaw: 0.2, pitch: 1.05, distance: f.distance })
-    this.store.set({ trailState: { poet: poetId, picking: false } })
+    this.tour?.stop()
+    this.director?.start(poetId)
   }
 
   hidePoetTrail(): void {
-    this.engine.hideTrail()
-    this.store.set({ trailState: { poet: null, picking: false } })
+    this.director?.stop()
   }
 
   setQuality(level: Quality): void {
@@ -166,6 +163,10 @@ export class EngineFacadeImpl implements EngineFacade, TourPort {
     this.engine.setThemeFog(k)
   }
 
+  onHoverPlace(fn: (placeId: string | null) => void): () => void {
+    return this.engine.events.on('hoverPlace', fn)
+  }
+
   onHover(fn: (info: HoverInfo | null) => void): () => void {
     return this.engine.events.on('hover', (hit) => {
       if (!hit) return fn(null)
@@ -201,6 +202,43 @@ export class EngineFacadeImpl implements EngineFacade, TourPort {
       worldTriangles: e.scene.stats('world').triangles,
       overviewTriangles: e.scene.stats('overview').triangles,
     }
+  }
+
+  isFlying(): boolean {
+    return this.engine.isFlying()
+  }
+
+  /* —— TrailPort —— */
+  buildTrail(stops: { lng: number; lat: number }[], color: string) {
+    return this.engine.buildTrail(stops, color)
+  }
+  setTrailProgress(frac: number): void {
+    this.engine.setTrailProgress(frac)
+  }
+  trailHead(frac: number): THREE.Vector3 {
+    return this.engine.trailHead(frac)
+  }
+  clearTrail(): void {
+    this.engine.hideTrail()
+  }
+  flyToPose(p: { target: THREE.Vector3; yaw: number; pitch: number; distance: number }, duration?: number): Promise<void> {
+    return this.engine.camera.flyTo({ target: p.target.clone(), yaw: p.yaw, pitch: p.pitch, distance: p.distance }, duration ? { duration } : undefined)
+  }
+  follow(p: { target: THREE.Vector3; yaw: number; pitch: number; distance: number }): void {
+    this.engine.follow(p)
+  }
+  fitPoints(points: THREE.Vector3[], leftPad: number): void {
+    void this.engine.camera.flyTo(this.engine.framePoints(points, leftPad), { duration: 3.2 })
+  }
+  setUserCamera(on: boolean): void {
+    this.engine.setUserCamera(on)
+  }
+  getAmbience(): { season: Season; time: TimeOfDay; weather: Weather } {
+    const s = this.store.get()
+    return { season: s.season, time: s.time, weather: s.weather }
+  }
+  onTick(fn: (dt: number) => void): () => void {
+    return this.engine.events.on('frame', (f) => fn(f.dt))
   }
 
   /* —— TourPort —— */

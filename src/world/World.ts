@@ -77,6 +77,7 @@ export class World {
         if (!c) continue
         const ix = blockToLocal(x)
         const iz = blockToLocal(z)
+        vol.tint[lz * vol.sx + lx] = c.tintMap[columnIndex(ix, iz)]
         vol.biome[lz * vol.sx + lx] = c.biomeMap[columnIndex(ix, iz)]
         const top = c.heightmap[columnIndex(ix, iz)]
         for (let y = 0; y <= Math.min(top, WORLD_HEIGHT - 1); y++) {
@@ -95,6 +96,7 @@ export class World {
         const vx = lx + pad
         const vz = lz + pad
         c.biomeMap[columnIndex(lx, lz)] = vol.biome[vz * vol.sx + vx]
+        c.tintMap[columnIndex(lx, lz)] = vol.tint[vz * vol.sx + vx]
         let top = 0
         for (let y = 0; y < vol.sy; y++) {
           const s = vol.data[(y * vol.sz + vz) * vol.sx + vx]

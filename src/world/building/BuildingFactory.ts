@@ -108,7 +108,21 @@ export function house(p: BuildingParams = {}): VoxelStructure {
   const roof = buildRoof({ width: w + 2, depth: d + 2, type: 'xuanshan', tile: p.tile ?? (r.chance(0.15) ? 'thatch' : 'gray') })
   b.s.merge(roof, 0, h + 1, 0)
   fillGables(b, [x0, x1], z0 + 1, z1 - 1, h + 1, S(B.PLASTER))
-  if (p.lanterns) b.set(0, 3, z1 + 1, S(B.LANTERN))
+  // 门前灯笼：约半数人家挂灯，夜里有人间烟火
+  if (p.lanterns ?? r.chance(0.5)) {
+    b.set(-2, 3, z1 + 1, S(B.LANTERN))
+    b.set(2, 3, z1 + 1, S(B.LANTERN))
+  }
+  return b.build()
+}
+
+/** 街灯：木柱挑出一盏灯笼 */
+export function lamp(): VoxelStructure {
+  const b = new StructureBuilder('lamp')
+  b.set(0, 0, 0, S(B.STONE_BRICK_SLAB))
+  for (let y = 1; y <= 4; y++) b.set(0, y, 0, post(B.DARK_POST))
+  b.set(0, 5, 0, post(B.DARK_PLANKS, Axis.X)).set(1, 5, 0, post(B.DARK_PLANKS, Axis.X))
+  b.set(1, 4, 0, S(B.LANTERN))
   return b.build()
 }
 

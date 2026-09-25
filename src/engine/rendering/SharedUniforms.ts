@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { AutumnTokens, FoliageTokens, MaterialTokens, WaterTokens } from '../../config/palette'
+import { AutumnTokens, FoliageTokens, MaterialTokens, NightTokens, WaterTokens, WinterTokens } from '../../config/palette'
 
 /**
  * 所有材质共享的环境 uniform：由 EnvironmentManager 每帧写入，方块、水、覆盖图、粒子读取。
@@ -34,6 +34,13 @@ export function createSharedUniforms() {
     /** 花树不在花期时的叶色 */
     uLeafGreen: { value: new THREE.Color(FoliageTokens.broad) },
     uSnowColor: { value: new THREE.Color(MaterialTokens.snow[0]) },
+    /** 夜里窗纸的暖光 */
+    uWindow: { value: new THREE.Color(NightTokens.window) },
+    /** 冬日落叶：阔叶镂空比例 */
+    uBare: { value: 0 },
+    /** 冬日结冰：水面向冰色混合 */
+    uIce: { value: 0 },
+    uIceColor: { value: new THREE.Color(WinterTokens.ice) },
     uWaterShallow: { value: new THREE.Color(WaterTokens.shallow) },
     uWaterMid: { value: new THREE.Color(WaterTokens.mid) },
     uWaterDeep: { value: new THREE.Color(WaterTokens.deep) },

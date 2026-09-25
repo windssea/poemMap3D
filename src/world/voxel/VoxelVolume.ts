@@ -15,10 +15,12 @@ export class VoxelVolume {
   readonly oy: number
   readonly oz: number
   readonly data: Uint16Array
-  /** 每列的生物群系（sx × sz），供染色 */
+  /** 每列的配色分区（sx × sz），供草叶染色 */
+  readonly tint: Uint8Array
+  /** 每列的生物群系（sx × sz） */
   readonly biome: Uint8Array
 
-  constructor(ox: number, oy: number, oz: number, sx: number, sy: number, sz: number, data?: Uint16Array, biome?: Uint8Array) {
+  constructor(ox: number, oy: number, oz: number, sx: number, sy: number, sz: number, data?: Uint16Array, tint?: Uint8Array) {
     this.ox = ox
     this.oy = oy
     this.oz = oz
@@ -26,7 +28,8 @@ export class VoxelVolume {
     this.sy = sy
     this.sz = sz
     this.data = data ?? new Uint16Array(sx * sy * sz)
-    this.biome = biome ?? new Uint8Array(sx * sz)
+    this.tint = tint ?? new Uint8Array(sx * sz)
+    this.biome = new Uint8Array(sx * sz)
   }
 
   /** 世界坐标取方块；越界：世界底部以下视为实心岩（不出底面），其余为空气 */
@@ -61,10 +64,10 @@ export class VoxelVolume {
     return lx >= 0 && lz >= 0 && lx < this.sx && lz < this.sz
   }
 
-  biomeAt(x: number, z: number): number {
+  tintAt(x: number, z: number): number {
     const lx = Math.min(this.sx - 1, Math.max(0, x - this.ox))
     const lz = Math.min(this.sz - 1, Math.max(0, z - this.oz))
-    return this.biome[lz * this.sx + lx]
+    return this.tint[lz * this.sx + lx]
   }
 
   static forChunk(cx: number, cz: number, pad = 1): VoxelVolume {

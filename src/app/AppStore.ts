@@ -2,6 +2,7 @@ import { useSyncExternalStore } from 'react'
 import type { CameraLevel } from '../engine/camera/CameraPose'
 import type { Season, TimeOfDay, Weather } from '../engine/environment/types'
 import type { Quality } from '../engine/rendering/QualityManager'
+import type { TrailPhase } from '../features/poetTrail/TrailDirector'
 
 export type PanelState = 'none' | 'place' | 'poem'
 
@@ -42,7 +43,7 @@ export interface AppState {
   time: TimeOfDay
   quality: Quality
   tourState: TourState
-  trailState: { poet: string | null; picking: boolean }
+  trailState: { poet: string | null; picking: boolean; phase: TrailPhase; prog: number; verseIdx: number }
   ui: { ambienceOpen: boolean; hidden: boolean; tourSettingsOpen: boolean }
   debug: { chunks: boolean; terrain: boolean }
 }
@@ -73,7 +74,7 @@ function initial(): AppState {
     time: read<TimeOfDay>('shm', (v) => ['dawn', 'day', 'dusk', 'night'].includes(v), 'day'),
     quality: (params.get('q') as Quality) || read<Quality>('shq', (v) => ['low', 'mid', 'high'].includes(v), undefined as unknown as Quality),
     tourState: { active: false, paused: false, region: '', stopName: '', poemId: null, round: 0, index: 0, total: 0, settings: DEFAULT_TOUR_SETTINGS },
-    trailState: { poet: null, picking: false },
+    trailState: { poet: null, picking: false, phase: 'done', prog: 0, verseIdx: -1 },
     ui: { ambienceOpen: false, hidden: false, tourSettingsOpen: false },
     debug: { chunks: params.has('debug'), terrain: params.has('debug') },
   }

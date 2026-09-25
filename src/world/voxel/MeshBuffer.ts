@@ -22,6 +22,8 @@ export const VertexFlag = {
   TintMask: 7,
   Emissive: 8,
   Falling: 16,
+  /** 暖光（窗纸）：夜里透出暖色，而不是按贴图本色发光 */
+  Warm: 32,
 } as const
 
 /** 可增长的顶点缓冲；四边形为基本单位 */

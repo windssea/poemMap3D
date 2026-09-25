@@ -6,76 +6,108 @@ export interface TrailPoint {
   z: number
 }
 
+export interface BuiltTrail {
+  /** 每站在整条线上的弧长位置（0–1） */
+  stopFrac: number[]
+  /** 每站的地面位置 */
+  stops: THREE.Vector3[]
+}
+
 /**
- * 诗人足迹：相邻两站之间一道拱起的光带，年岁越后弧越高，沿线有流光；每站一根细柱。
+ * 诗人足迹光带：各站之间拱起的弧（远程弧高、近程弧低，越往后的行程整体抬高一层），
+ * 串成一条按弧长参数化的曲线；内芯 + 外晕两层管，按进度逐段「画」出来，沿线有流光。
  */
 export class TrailRenderer {
   readonly group = new THREE.Group()
-  private mat: THREE.ShaderMaterial | null = null
+  private curve: THREE.CatmullRomCurve3 | null = null
+  private mats: THREE.ShaderMaterial[] = []
 
-  show(points: TrailPoint[], color: string): void {
+  build(stops: TrailPoint[], color: string, groundAt: (x: number, z: number) => number): BuiltTrail {
     this.clear()
-    if (points.length < 2) return
-    this.mat = new THREE.ShaderMaterial({
-      uniforms: { uTime: { value: 0 }, uColor: { value: new THREE.Color(color) }, uCount: { value: points.length - 1 } },
-      vertexShader: /* glsl */ `
-        varying vec2 vUv;
-        void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-      fragmentShader: /* glsl */ `
-        uniform float uTime;
-        uniform vec3 uColor;
-        varying vec2 vUv;
-        void main() {
-          float flow = fract(vUv.x * 3.0 - uTime * 0.6);
-          float glow = smoothstep(0.0, 0.15, flow) * smoothstep(0.35, 0.15, flow);
-          vec3 c = uColor * (0.75 + glow * 1.2);
-          gl_FragColor = vec4(c, 0.92);
-          #include <colorspace_fragment>
-        }`,
-      transparent: true,
-      depthWrite: false,
-      fog: false,
-    })
-    for (let i = 1; i < points.length; i++) {
-      const a = new THREE.Vector3(points[i - 1].x, points[i - 1].y, points[i - 1].z)
-      const b = new THREE.Vector3(points[i].x, points[i].y, points[i].z)
-      const d = a.distanceTo(b)
-      const lift = 30 + d * 0.22 + i * 4
-      const mid = a.clone().add(b).multiplyScalar(0.5)
-      mid.y = Math.max(a.y, b.y) + lift
-      const curve = new THREE.QuadraticBezierCurve3(a, mid, b)
-      const radius = Math.max(1.4, Math.min(6, d * 0.006))
-      const tube = new THREE.TubeGeometry(curve, Math.max(12, Math.min(60, Math.round(d / 12))), radius, 5, false)
-      const m = new THREE.Mesh(tube, this.mat)
-      m.renderOrder = 7
+    const P = stops.map((s) => new THREE.Vector3(s.x, s.y, s.z))
+    const pts: THREE.Vector3[] = []
+    const stopAt = [0]
+    for (let i = 1; i < P.length; i++) {
+      const A = P[i - 1]
+      const B = P[i]
+      const d = Math.hypot(B.x - A.x, B.z - A.z)
+      const n = Math.max(10, Math.ceil(d / 14))
+      const hh = 16 + d * 0.13 + i * 3
+      const lift = 8 + i * 0.7
+      for (let q = i === 1 ? 0 : 1; q <= n; q++) {
+        const t = q / n
+        const x = A.x + (B.x - A.x) * t
+        const z = A.z + (B.z - A.z) * t
+        const y = A.y + (B.y - A.y) * t + lift + Math.sin(t * Math.PI) * hh
+        pts.push(new THREE.Vector3(x, Math.max(y, groundAt(x, z) + 10), z))
+      }
+      stopAt.push(pts.length - 1)
+    }
+    if (pts.length < 2) return { stopFrac: P.map(() => 0), stops: P }
+    const cum = [0]
+    for (let i = 1; i < pts.length; i++) cum.push(cum[i - 1] + pts[i].distanceTo(pts[i - 1]))
+    const total = cum[cum.length - 1] || 1
+    const curve = new THREE.CatmullRomCurve3(pts, false, 'centripetal')
+    curve.arcLengthDivisions = pts.length * 6
+    this.curve = curve
+    const segs = Math.min(3000, pts.length * 5)
+    const c = new THREE.Color(color)
+    const make = (radius: number, glow: boolean) => {
+      const mat = new THREE.ShaderMaterial({
+        uniforms: { uTime: { value: 0 }, uProg: { value: 0 }, uColor: { value: c.clone() }, uGlow: { value: glow ? 1 : 0 } },
+        vertexShader: /* glsl */ `
+          varying vec2 vUv;
+          void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+        fragmentShader: /* glsl */ `
+          uniform float uTime;
+          uniform float uProg;
+          uniform vec3 uColor;
+          uniform float uGlow;
+          varying vec2 vUv;
+          void main() {
+            if (vUv.x > uProg) discard;
+            float flow = fract(vUv.x * 18.0 - uTime * 0.5);
+            float band = smoothstep(0.0, 0.12, flow) * smoothstep(0.32, 0.12, flow);
+            float tip = smoothstep(uProg - 0.004, uProg, vUv.x);
+            vec3 col = uColor * (0.8 + band * 0.9 + tip * 1.4);
+            float a = uGlow > 0.5 ? 0.22 + band * 0.15 : 0.95;
+            gl_FragColor = vec4(col, a);
+            #include <colorspace_fragment>
+          }`,
+        transparent: true,
+        depthWrite: !glow,
+        blending: glow ? THREE.AdditiveBlending : THREE.NormalBlending,
+        fog: false,
+      })
+      this.mats.push(mat)
+      const m = new THREE.Mesh(new THREE.TubeGeometry(curve, segs, radius, glow ? 10 : 8, false), mat)
+      m.frustumCulled = false
+      m.renderOrder = glow ? 21 : 20
       this.group.add(m)
     }
-    const pillar = new THREE.CylinderGeometry(1.2, 1.2, 24, 6)
-    pillar.translate(0, 12, 0)
-    for (const p of points) {
-      const m = new THREE.Mesh(pillar, this.mat)
-      m.position.set(p.x, p.y, p.z)
-      this.group.add(m)
-    }
+    make(1.5, false)
+    make(5.5, true)
+    return { stopFrac: stopAt.map((k) => cum[k] / total), stops: P }
   }
 
-  update(time: number, distance: number): void {
-    if (!this.mat) return
-    this.mat.uniforms.uTime.value = time
-    const s = Math.max(1, distance / 900)
-    for (const c of this.group.children) if ((c as THREE.Mesh).geometry.type === 'CylinderGeometry') c.scale.set(s, s, s)
+  setProgress(frac: number): void {
+    for (const m of this.mats) m.uniforms.uProg.value = frac
+  }
+
+  headAt(frac: number, out = new THREE.Vector3()): THREE.Vector3 {
+    return this.curve ? out.copy(this.curve.getPointAt(Math.min(1, Math.max(0, frac)))) : out.set(0, 0, 0)
+  }
+
+  update(time: number): void {
+    for (const m of this.mats) m.uniforms.uTime.value = time
   }
 
   clear(): void {
-    const geos = new Set<THREE.BufferGeometry>()
-    this.group.traverse((o) => {
-      const m = o as THREE.Mesh
-      if (m.isMesh) geos.add(m.geometry)
-    })
-    for (const g of geos) g.dispose()
+    this.group.traverse((o) => (o as THREE.Mesh).geometry?.dispose())
     this.group.clear()
-    this.mat?.dispose()
-    this.mat = null
+    for (const m of this.mats) m.dispose()
+    this.mats = []
+    this.curve = null
   }
 
   get visible(): boolean {

@@ -214,9 +214,9 @@ export class ChunkManager {
     rec.state = ChunkState.REMESH
     const vol = this.world.buildVolume(rec.cx, rec.cz)
     const job = this.mesher.submit<MeshResult>(
-      (id) => ({ type: 'mesh', id, cx: rec.cx, cz: rec.cz, volume: { ox: vol.ox, oy: vol.oy, oz: vol.oz, sx: vol.sx, sy: vol.sy, sz: vol.sz, data: vol.data, biome: vol.biome } }),
+      (id) => ({ type: 'mesh', id, cx: rec.cx, cz: rec.cz, volume: { ox: vol.ox, oy: vol.oy, oz: vol.oz, sx: vol.sx, sy: vol.sy, sz: vol.sz, data: vol.data, tint: vol.tint } }),
       () => this.priority(rec),
-      [vol.data.buffer, vol.biome.buffer],
+      [vol.data.buffer, vol.tint.buffer],
     )
     job.promise.then(
       (r) => {

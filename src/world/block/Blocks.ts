@@ -198,7 +198,7 @@ export function createDefaultBlockRegistry(): BlockRegistry {
   r.register(stairs(B.MARBLE_STAIRS, 'marble_stairs', 'marble', { tags: ['building'] }))
   r.register(base(B.MARBLE_FENCE, 'marble_fence', BlockShape.FENCE, 'marble', { tags: ['building'] }))
   r.register(base(B.WOOD_FENCE, 'wood_fence', BlockShape.FENCE, 'dark_planks', { tags: ['building', 'wood'] }))
-  r.register(base(B.LATTICE_WINDOW, 'lattice_window', BlockShape.PANE, 'lattice', { layer: BlockRenderLayer.Cutout, tags: ['building'] }))
+  r.register(base(B.LATTICE_WINDOW, 'lattice_window', BlockShape.PANE, 'lattice', { layer: BlockRenderLayer.Cutout, tags: ['building'], emissive: 0.8 }))
   r.register(cube(B.PAVING, 'paving', 'paving', { tags: ['building', 'terrain'] }))
   r.register(cube(B.PATH, 'path', 'path', { tags: ['terrain'] }))
   r.register(cube(B.GOLD, 'gold', 'gold', { tags: ['ornament'] }))

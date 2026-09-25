@@ -1,8 +1,8 @@
-import { BiomeTint, FoliageTokens, MaterialTokens, type MaterialTokenKey } from '../../config/palette'
+import { FoliageTokens, MaterialTokens, type MaterialTokenKey, ShanshuiZones } from '../../config/palette'
 import { TintClass } from '../block/BlockDefinition'
 import { B, Blocks } from '../block/Blocks'
 import { TEXTURES } from '../block/BlockTextures'
-import { BIOME_KEYS, BiomeId } from '../biome/BiomeId'
+import { BiomeId } from '../biome/BiomeId'
 import { biomeDef } from '../biome/BiomeRegistry'
 import type { WorldContext } from '../generation/WorldContext'
 import { WorldConfig } from '../WorldConfig'
@@ -89,11 +89,11 @@ export function buildOverviewTile(ctx: WorldContext, grid: OverviewGrid, tx: num
       if (forest) {
         const evergreen = s.biome === BiomeId.Mountain || s.biome === BiomeId.Plateau
         rgb = hexRgb(evergreen ? FoliageTokens.pine : FoliageTokens.broad)
-        const bf = hexRgb(BiomeTint[BIOME_KEYS[s.biome]].foliage)
+        const bf = hexRgb(ShanshuiZones[s.tintZone].foliage)
         rgb = [(rgb[0] + bf[0]) >> 1, (rgb[1] + bf[1]) >> 1, (rgb[2] + bf[2]) >> 1]
         k = evergreen ? TintClass.Evergreen : TintClass.Deciduous
       } else if (s.topBlock === B.GRASS) {
-        rgb = hexRgb(BiomeTint[BIOME_KEYS[s.biome]].grass)
+        rgb = hexRgb(ShanshuiZones[s.tintZone].grass)
         k = TintClass.Grass
       } else rgb = blockColor(s.topBlock, 'top')
       const o = (j * n + i) * 3

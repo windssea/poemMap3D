@@ -99,15 +99,14 @@ const CHANGAN: LandmarkDefinition = {
   id: 'changan',
   name: '长安',
   coordinate: { lng: 108.95, lat: 34.27 },
-  offset: [0, 16],
   radius: 70,
   major: true,
   poetryPlaceId: 'changan',
   terrainModifier: [
-    { t: 'flatten', x: 0, z: 8, r: 58, square: true, blend: 12, overWater: true },
+    { t: 'flatten', x: 0, z: 8, r: 58, square: true, blend: 12 },
     { t: 'pave', x0: -2, z0: -30, x1: 2, z1: 60 },
     { t: 'pave', x0: -32, z0: -2, x1: 32, z1: 2 },
-    { t: 'flatten', x: 0, z: -17, r: 13, square: true, pave: true, blend: 0, overWater: true },
+    { t: 'flatten', x: 0, z: -17, r: 13, square: true, pave: true, blend: 0 },
   ],
   walls: [{ x: 0, z: 0, hw: 36, hd: 30, height: 8, gates: ['n', 's', 'e', 'w'] }],
   structures: [
@@ -118,6 +117,7 @@ const CHANGAN: LandmarkDefinition = {
     ...grid(steps(8, 30, 8), steps(6, 24, 7)),
     { b: 'brickPagoda', x: 24, z: 50, p: { levels: 7, width: 11 } },
     { b: 'hall', x: 8, z: 50, rot: 3, p: { width: 9, depth: 7, terrace: 1 } },
+    ...[-22, -14, -6, 2, 10, 18, 26].flatMap((z) => [{ b: 'lamp' as const, x: -7, z, rot: 2 }, { b: 'lamp' as const, x: 7, z }]),
   ],
   trees: [
     { type: 'willow', variant: 0, pts: [[-5, -4], [-5, 26]], n: 5 },

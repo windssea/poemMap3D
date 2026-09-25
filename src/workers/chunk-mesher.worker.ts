@@ -16,7 +16,7 @@ self.onmessage = (e: MessageEvent<WorkerRequest>) => {
   if (m.type !== 'mesh') return
   try {
     const v = m.volume
-    const vol = new VoxelVolume(v.ox, v.oy, v.oz, v.sx, v.sy, v.sz, v.data, v.biome)
+    const vol = new VoxelVolume(v.ox, v.oy, v.oz, v.sx, v.sy, v.sz, v.data, v.tint)
     const r = meshVolume(vol)
     const transfer: ArrayBuffer[] = []
     for (const l of r.layers) transfer.push(...meshTransferables(l))

@@ -53,8 +53,7 @@ export class LandmarkRegistry {
     const defs = [...LANDMARK_CATALOG, ...planSettlements(anchors, LANDMARK_CATALOG, (lng, lat) => P.project(lng, lat))]
     defs.forEach((def, index) => {
       const c = P.project(def.coordinate.lng, def.coordinate.lat)
-      const x = Math.round(c.x + (def.offset?.[0] ?? 0))
-      const z = Math.round(c.z + (def.offset?.[1] ?? 0))
+      const [x, z] = this.clearOfRivers(def, Math.round(c.x + (def.offset?.[0] ?? 0)), Math.round(c.z + (def.offset?.[1] ?? 0)), baseTerrain)
       const level = this.baseLevel(baseTerrain, x, z) + (def.levelDy ?? 0)
       const lm: ResolvedLandmark = {
         index,
@@ -71,6 +70,41 @@ export class LandmarkRegistry {
       this.byPlace.set(def.poetryPlaceId, lm)
       this.modifiers.push(this.makeModifier(lm))
     })
+  }
+
+  /**
+   * 城池不压江河：城墙（或整片营造区）若盖住河湖水面，就在附近螺旋搜索一处不压水的位置，
+   * 让城稍稍让开，河道照旧流过。
+   */
+  private clearOfRivers(def: LandmarkDefinition, x: number, z: number, t: TerrainManager): [number, number] {
+    const w = def.walls?.[0]
+    if (!w && def.radius < 30) return [x, z]
+    const hw = (w ? w.hw + Math.abs(w.x) : def.radius * 0.6) + 8
+    const hd = (w ? w.hd + Math.abs(w.z) : def.radius * 0.6) + 8
+    const wet = (cx: number, cz: number) => {
+      let n = 0
+      for (let dz = -hd; dz <= hd; dz += 4)
+        for (let dx = -hw; dx <= hw; dx += 4) {
+          const c = t.column(cx + dx, cz + dz)
+          if (c.waterY > c.height) n++
+        }
+      return n
+    }
+    let best: [number, number] = [x, z]
+    let bestWet = wet(x, z)
+    if (bestWet === 0) return best
+    for (let r = 6; r <= 90 && bestWet > 0; r += 6)
+      for (let a = 0; a < 16; a++) {
+        const cx = Math.round(x + Math.cos((a / 16) * Math.PI * 2) * r)
+        const cz = Math.round(z + Math.sin((a / 16) * Math.PI * 2) * r)
+        const n = wet(cx, cz)
+        if (n < bestWet) {
+          bestWet = n
+          best = [cx, cz]
+          if (!n) break
+        }
+      }
+    return best
   }
 
   private baseLevel(t: TerrainManager, x: number, z: number): number {

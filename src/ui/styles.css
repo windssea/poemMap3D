@@ -42,6 +42,9 @@ button {
 .world-canvas canvas.grabbing {
   cursor: grabbing;
 }
+.world-canvas canvas.pointing {
+  cursor: pointer;
+}
 
 /* ———— 通用浮层 ———— */
 .chrome {
@@ -664,10 +667,15 @@ button {
 .lbl.sel span {
   color: var(--c-zhusha);
 }
-.lbl.dim {
+.lbl.on.dim {
   opacity: 0.38 !important;
 }
-.lbl.dim.on:hover {
+.lbl.on.hov span {
+  transform: translateY(-3px);
+  color: var(--c-zhusha);
+}
+.lbl.dim.on:hover,
+.lbl.on.hov {
   opacity: 1 !important;
 }
 .lbl.geo span {

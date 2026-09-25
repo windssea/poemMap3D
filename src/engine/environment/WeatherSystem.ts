@@ -45,7 +45,7 @@ export class WeatherSystem {
     const k = Math.min(1, dt / 3)
     this.rain += (tr - this.rain) * k
     this.snow += (ts - this.snow) * k
-    const target = Math.max(baseSnow * 0.35, this.snow > 0.3 ? 1 : 0)
+    const target = Math.max(baseSnow * 0.8, this.snow > 0.3 ? 1 : 0)
     this.cover += (target - this.cover) * Math.min(1, dt / (target > this.cover ? 12 : 25))
   }
 

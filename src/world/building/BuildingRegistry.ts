@@ -7,6 +7,7 @@ import {
   hall,
   house,
   hut,
+  lamp,
   pagoda,
   pavilion,
   stupa,
@@ -15,7 +16,7 @@ import {
   wallSegment,
 } from './BuildingFactory'
 
-export type BuildingId = 'house' | 'hall' | 'pavilion' | 'pagoda' | 'brickPagoda' | 'gate' | 'wall' | 'tower' | 'bridge' | 'stupa' | 'terrace' | 'hut'
+export type BuildingId = 'lamp' | 'house' | 'hall' | 'pavilion' | 'pagoda' | 'brickPagoda' | 'gate' | 'wall' | 'tower' | 'bridge' | 'stupa' | 'terrace' | 'hut'
 
 export interface BuildingDefinition {
   id: BuildingId
@@ -28,6 +29,7 @@ export interface BuildingDefinition {
 }
 
 const defs: BuildingDefinition[] = [
+  { id: 'lamp', name: '街灯', entrance: 'none', foundation: 'stone', build: lamp },
   { id: 'house', name: '民居', entrance: 'front', foundation: 'stone', build: house },
   { id: 'hut', name: '茅舍', entrance: 'front', foundation: 'stone', build: hut },
   { id: 'hall', name: '殿', entrance: 'front', foundation: 'stone', build: hall },

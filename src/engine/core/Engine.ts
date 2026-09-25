@@ -2,9 +2,10 @@ import * as THREE from 'three'
 import type { PlaceAnchor } from '../../world/landmark/LandmarkDefinition'
 import { WorldManager } from '../../world/WorldManager'
 import { CameraController } from '../camera/CameraController'
-import type { CameraLevel, CameraPose } from '../camera/CameraPose'
+import { type CameraLevel, type CameraPose, poseToPosition } from '../camera/CameraPose'
 import type { FlightOptions } from '../camera/FlightController'
-import { TrailRenderer } from '../effects/TrailRenderer'
+import { NightLanterns } from '../effects/NightLanterns'
+import { type BuiltTrail, TrailRenderer } from '../effects/TrailRenderer'
 import { EnvironmentManager } from '../environment/EnvironmentManager'
 import type { Season, TimeOfDay, Weather } from '../environment/types'
 import { HoverSystem } from '../interaction/HoverSystem'
@@ -28,6 +29,7 @@ export interface EngineEvents {
   level: CameraLevel
   select: { placeId: string | null; point: THREE.Vector3 | null }
   hover: RayHit | null
+  hoverPlace: string | null
   progress: { label: string; value: number }
   ready: void
   interact: void
@@ -53,7 +55,8 @@ export class Engine {
   readonly materials: MaterialLibrary
   readonly shadows: ShadowManager
   readonly trail = new TrailRenderer()
-  readonly hover = new HoverSystem()
+  hover!: HoverSystem
+  lanterns!: NightLanterns
   world!: WorldManager
   camera!: CameraController
   env!: EnvironmentManager
@@ -77,7 +80,6 @@ export class Engine {
     this.shadows = new ShadowManager(this.renderer.renderer, q.shadowSize)
     this.shadows.setEnabled(q.shadows, q.shadowSize)
     this.scene.attach('effects', this.trail.group)
-    this.scene.attach('effects', this.hover.outline)
     this.loop = new RenderLoop(() => this.ready && this.pipeline.render())
     this.loop.add((dt, t) => this.tick(dt, t))
   }
@@ -103,6 +105,16 @@ export class Engine {
     this.env = new EnvironmentManager(this.shared, this.scene, this.shadows, this.renderer.renderer, { time: this.opts.time, season: this.opts.season, weather: this.opts.weather }, this.world.waterfalls())
     this.env.setQuality(q.particles, q.clouds)
     this.raycast = new RaycastSystem(this.world.world, this.world.sampler)
+    this.hover = new HoverSystem(this.renderer.canvas)
+    const terrain = this.world.ctx.terrain
+    this.lanterns = new NightLanterns(
+      (x, z) => this.world.sampler.groundHeightAt(x, z),
+      (x, z) => {
+        const c = terrain.column(Math.floor(x), Math.floor(z))
+        return c.waterY > c.height && c.waterKind !== 1 ? c.waterY : -1
+      },
+    )
+    this.scene.attach('effects', this.lanterns.group)
     this.selection = new SelectionSystem(this.world.ctx.landmarks)
     this.input = new InputController(this.renderer.canvas, {
       onStart: () => {
@@ -150,13 +162,13 @@ export class Engine {
     const pose = this.camera.effective
     this.world.update(dt, cam, pose.target, pose.distance)
     this.env.update(dt, time, cam, pose.target, pose.distance, this.renderer.renderer.getPixelRatio())
-    this.trail.update(time, pose.distance)
-    if (this.hoverPending) {
+    this.trail.update(time)
+    this.lanterns.update(dt, time, pose.target, pose.distance, this.shared.uNight.value)
+    if (this.hoverPending && this.loop.frame % 3 === 0) {
       const h = this.hoverPending
       this.hoverPending = null
-      const local = this.camera.level === 'local'
-      const hit = local || this.chunkDebug ? this.pick(h.x, h.y) : null
-      this.hover.set(hit, local)
+      const hit = this.pick(h.x, h.y)
+      if (this.hover.set(hit, this.selection.pick(hit))) this.events.emit('hoverPlace', this.hover.placeId)
       this.events.emit('hover', hit)
     }
     this.chunkDebug?.update(this.world.chunks)
@@ -204,18 +216,96 @@ export class Engine {
     this.env.fog.extra = k
   }
 
-  showTrail(points: { lng: number; lat: number }[], color: string): void {
-    this.trail.show(
-      points.map((p) => {
-        const v = this.geoToWorld(p.lng, p.lat)
-        return { x: v.x, y: v.y, z: v.z }
-      }),
+  /** 诗人足迹光带：返回各站位置与在线上的进度位置 */
+  buildTrail(points: { lng: number; lat: number }[], color: string): BuiltTrail {
+    return this.trail.build(
+      points.map((p) => this.geoToWorld(p.lng, p.lat)),
       color,
+      (x, z) => this.world.sampler.groundHeightAt(x, z),
     )
+  }
+
+  setTrailProgress(frac: number): void {
+    this.trail.setProgress(frac)
+  }
+
+  trailHead(frac: number): THREE.Vector3 {
+    return this.trail.headAt(frac)
   }
 
   hideTrail(): void {
     this.trail.clear()
+  }
+
+  /** 跟随镜头：直接写目标姿态（仍经平滑与避山） */
+  follow(pose: CameraPose): void {
+    this.camera.follow(pose)
+  }
+
+  /** 镜头由程序驱动时关掉拖动与滚轮 */
+  setUserCamera(enabled: boolean): void {
+    this.camera.orbit.enabled = enabled
+  }
+
+  /** 取景：斜俯视装下一组点，并为左侧面板让出 leftPad 像素 */
+  framePoints(points: THREE.Vector3[], leftPad: number): CameraPose {
+    const yaw = 0.25
+    const pitch = 0.6
+    const W = this.renderer.width
+    const H = this.renderer.height
+    const L = leftPad + 16
+    const Rr = W - 120
+    const T = 110
+    const B = H - 90
+    const cam = this.camera.camera.clone()
+    const c = new THREE.Vector3()
+    for (const p of points) c.add(p)
+    c.divideScalar(points.length)
+    const v = new THREE.Vector3()
+    const box = (tgt: THREE.Vector3, dist: number) => {
+      poseToPosition({ target: tgt, yaw, pitch, distance: dist }, cam.position)
+      cam.lookAt(tgt)
+      cam.updateMatrixWorld()
+      let x0 = Infinity
+      let x1 = -Infinity
+      let y0 = Infinity
+      let y1 = -Infinity
+      for (const p of points) {
+        v.copy(p).project(cam)
+        const sx = (v.x * 0.5 + 0.5) * W
+        const sy = (-v.y * 0.5 + 0.5) * H
+        x0 = Math.min(x0, sx)
+        x1 = Math.max(x1, sx)
+        y0 = Math.min(y0, sy)
+        y1 = Math.max(y1, sy)
+      }
+      return { x0, x1, y0, y1 }
+    }
+    const tgt = c.clone()
+    let dist = 1000
+    for (let it = 0; it < 5; it++) {
+      let lo = 100
+      let hi = 6000
+      for (let q = 0; q < 20; q++) {
+        const m = (lo + hi) / 2
+        const b = box(tgt, m)
+        if (b.x1 - b.x0 <= Rr - L && b.y1 - b.y0 <= B - T) hi = m
+        else lo = m
+      }
+      dist = hi * 1.04
+      const b = box(tgt, dist)
+      const dx = (L + Rr) / 2 - (b.x0 + b.x1) / 2
+      const dy = (T + B) / 2 - (b.y0 + b.y1) / 2
+      const right = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 0).setY(0).normalize()
+      const fwd = new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 2).setY(0).normalize()
+      const wpp = (2 * dist * Math.tan((cam.fov * Math.PI) / 360)) / H
+      tgt.addScaledVector(right, -dx * wpp).addScaledVector(fwd, (-dy * wpp) / Math.sin(pitch) * 0.9)
+    }
+    return { target: tgt, yaw, pitch, distance: dist }
+  }
+
+  isFlying(): boolean {
+    return this.camera.flight.active
   }
 
   startOrbit(speed?: number): void {
@@ -251,7 +341,6 @@ export class Engine {
     this.world?.dispose()
     this.env?.dispose()
     this.trail.clear()
-    this.hover.dispose()
     this.materials.dispose()
     this.renderer.dispose()
     this.events.clear()

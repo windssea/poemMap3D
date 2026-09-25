@@ -4,7 +4,7 @@ import { B, Blocks } from '../block/Blocks'
 import { stateAxis, stateFacing, stateHalf, stateVariant } from '../block/BlockState'
 import { textureIndex } from '../block/BlockTextures'
 import { Axis, DIRECTION_VECTORS, rotateXZ } from '../block/Direction'
-import { BIOME_COUNT } from '../biome/BiomeId'
+import { ZONE_COUNT } from '../biome/TintZone'
 import { buildTintTable } from '../biome/BiomeTints'
 import { hash3i } from '../../utils/math'
 import { MeshBuffer, type MeshLayerData, VertexFlag } from './MeshBuffer'
@@ -36,6 +36,7 @@ interface Tables {
   side: Uint8Array
   tintClass: Uint8Array
   emissive: Uint8Array
+  warm: Uint8Array
   isWood: Uint8Array
   isPlant: Uint8Array
 }
@@ -55,6 +56,7 @@ function tablesFor(reg: BlockRegistry, tint?: Uint32Array): Tables {
       side: new Uint8Array(n),
       tintClass: new Uint8Array(n),
       emissive: new Uint8Array(n),
+      warm: new Uint8Array(n),
       isWood: new Uint8Array(n),
       isPlant: new Uint8Array(n),
     }
@@ -64,6 +66,7 @@ function tablesFor(reg: BlockRegistry, tint?: Uint32Array): Tables {
       t.side[d.id] = textureIndex(d.faces.side)
       t.tintClass[d.id] = d.tint
       t.emissive[d.id] = d.emissive ? 1 : 0
+      t.warm[d.id] = d.emissive && d.emissive < 1 ? 1 : 0
       t.isWood[d.id] = d.tags.includes('wood') ? 1 : 0
       t.isPlant[d.id] = d.tags.includes('plant') ? 1 : 0
     }
@@ -142,8 +145,8 @@ export function meshVolume(vol: VoxelVolume, opts: MesherOptions = {}): MeshResu
     }
   }
 
-  const flagsFor = (id: number): number => (T.tintClass[id] & VertexFlag.TintMask) | (T.emissive[id] ? VertexFlag.Emissive : 0)
-  const tintFor = (tile: number, biome: number): number => T.tint[tile * BIOME_COUNT + biome]
+  const flagsFor = (id: number): number => (T.tintClass[id] & VertexFlag.TintMask) | (T.emissive[id] ? VertexFlag.Emissive : 0) | (T.warm[id] ? VertexFlag.Warm : 0)
+  const tintFor = (tile: number, biome: number): number => T.tint[tile * ZONE_COUNT + biome]
 
   /** 按面轴取贴图（原木等横放时，端面换到侧面） */
   const tileFor = (id: number, state: number, axis: number, sign: number): number => {
@@ -222,8 +225,8 @@ export function meshVolume(vol: VoxelVolume, opts: MesherOptions = {}): MeshResu
               aoCorners(pos[0] + nrm[0], pos[1] + nrm[1], pos[2] + nrm[2], du, dv, aoTmp)
               aoKey = aoTmp[0] | (aoTmp[1] << 2) | (aoTmp[2] << 4) | (aoTmp[3] << 6)
             }
-            const tinted = T.tint[tile * BIOME_COUNT] !== 0xffffff
-            const biome = tinted ? vol.biome[pos[2] * sx + pos[0]] : 0
+            const tinted = T.tint[tile * ZONE_COUNT] !== 0xffffff
+            const biome = tinted ? vol.tint[pos[2] * sx + pos[0]] : 0
             const key = (reg.layer[id] << 29) | (flagsFor(id) << 21) | (biome << 16) | (aoKey << 8) | tile
             mask[n] = key + 1
           }
@@ -304,7 +307,7 @@ export function meshVolume(vol: VoxelVolume, opts: MesherOptions = {}): MeshResu
     flagsExtra = 0,
     rgbOverride = -1,
   ): void => {
-    const biome = vol.biome[z * sx + x]
+    const biome = vol.tint[z * sx + x]
     for (let f = 0; f < 6; f++) {
       if (skipMask & (1 << f)) continue
       const { axis, sign } = boxFaces[f]
@@ -456,7 +459,7 @@ export function meshVolume(vol: VoxelVolume, opts: MesherOptions = {}): MeshResu
             const py = y + outOff[1]
             const r = 0.42
             const tile = T.side[id]
-            const rgb = tintFor(tile, vol.biome[z * sx + x])
+            const rgb = tintFor(tile, vol.tint[z * sx + x])
             const ao = [2, 2, 3, 3]
             for (const [ax, az, bx, bz] of [
               [-r, -r, r, r],

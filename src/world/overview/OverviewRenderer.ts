@@ -20,7 +20,7 @@ const hexRgb = (h: string): [number, number, number] => {
  */
 export class OverviewRenderer {
   readonly group = new THREE.Group()
-  private readonly tiles = new Map<number, THREE.Mesh[]>()
+  private readonly tiles = new Map<number, { fine: THREE.Mesh[]; coarse: THREE.Mesh[]; cx: number; cz: number; lod: number }>()
   private readonly ink = new THREE.Group()
   private readonly inkMaterials: THREE.MeshBasicMaterial[] = []
   loaded = 0
@@ -67,7 +67,22 @@ export class OverviewRenderer {
   }
 
   private addTile(t: OverviewTileData): void {
-    const { n, cell } = t
+    const fine = this.buildTile(t, 1)
+    const coarse = this.buildTile(t, 2)
+    for (const m of [...fine, ...coarse]) this.group.add(m)
+    for (const m of coarse) m.visible = false
+    const span = t.n * t.cell
+    this.tiles.set(t.tz * this.grid.tilesX + t.tx, { fine, coarse, cx: t.x0 + span / 2, cz: t.z0 + span / 2, lod: 0 })
+  }
+
+  /**
+   * 一块覆盖图的网格。step = 1 为原分辨率（8 方块一格），2 为远处用的粗网格（16 方块一格，三角形约为四分之一）。
+   * 水面沿行合并成长条。
+   */
+  private buildTile(t: OverviewTileData, step: number): THREE.Mesh[] {
+    const { n } = t
+    const cell = t.cell * step
+    const m = n / step
     const W = n + 2
     const pos: number[] = []
     const nrm: number[] = []
@@ -78,9 +93,9 @@ export class OverviewRenderer {
     const wnrm: number[] = []
     const wtint: number[] = []
     const widx: number[] = []
-    const quad = (p: number[], normal: [number, number, number], c: [number, number, number], k: number) => {
+    const quad = (q: number[], normal: [number, number, number], c: [number, number, number], k: number) => {
       const v = pos.length / 3
-      pos.push(...p)
+      pos.push(...q)
       for (let i = 0; i < 4; i++) {
         nrm.push(...normal)
         col.push(c[0], c[1], c[2])
@@ -88,65 +103,80 @@ export class OverviewRenderer {
       }
       idx.push(v, v + 1, v + 2, v, v + 2, v + 3)
     }
-    const top = (i: number, j: number) => {
-      const k = (j + 1) * W + (i + 1)
+    const raw = (i: number, j: number) => {
+      const k = (Math.min(n, Math.max(-1, j)) + 1) * W + (Math.min(n, Math.max(-1, i)) + 1)
       return Math.max(t.surface[k], t.water[k])
     }
-    for (let j = 0; j < n; j++)
-      for (let i = 0; i < n; i++) {
+    const top = (ci: number, cj: number) => {
+      let h = -Infinity
+      for (let dj = 0; dj < step; dj++) for (let di = 0; di < step; di++) h = Math.max(h, raw(ci * step + di, cj * step + dj))
+      return h
+    }
+    for (let cj = 0; cj < m; cj++) {
+      let run: { x0: number; y: number; depth: number; z0: number; z1: number } | null = null
+      const flush = (x1: number) => {
+        if (!run) return
+        const v = wpos.length / 3
+        wpos.push(run.x0, run.y, run.z0, run.x0, run.y, run.z1, x1, run.y, run.z1, x1, run.y, run.z0)
+        for (let q = 0; q < 4; q++) {
+          wnrm.push(0, 1, 0)
+          wtint.push(run.depth * 36, 0, 0)
+        }
+        widx.push(v, v + 1, v + 2, v, v + 2, v + 3)
+        run = null
+      }
+      for (let ci = 0; ci < m; ci++) {
+        const i = ci * step
+        const j = cj * step
         const k = (j + 1) * W + (i + 1)
-        const x0 = t.x0 + i * cell
-        const z0 = t.z0 + j * cell
+        const x0 = t.x0 + ci * cell
+        const z0 = t.z0 + cj * cell
         const x1 = x0 + cell
         const z1 = z0 + cell
         const o = (j * n + i) * 3
         const c: [number, number, number] = [t.color[o], t.color[o + 1], t.color[o + 2]]
         const sc: [number, number, number] = [t.side[o], t.side[o + 1], t.side[o + 2]]
         const wet = t.water[k] > t.surface[k]
-        const h = top(i, j) + 1
         if (wet) {
           const y = t.water[k] + 14 / 16
-          const v = wpos.length / 3
-          wpos.push(x0, y, z0, x0, y, z1, x1, y, z1, x1, y, z0)
           const depth = Math.min(7, Math.round((t.water[k] - t.surface[k]) / 4))
-          for (let q = 0; q < 4; q++) {
-            wnrm.push(0, 1, 0)
-            wtint.push(depth * 36, 0, 0)
-          }
-          widx.push(v, v + 1, v + 2, v, v + 2, v + 3)
-        } else quad([x0, h, z0, x0, h, z1, x1, h, z1, x1, h, z0], [0, 1, 0], c, t.kind[j * n + i])
-        if (wet) continue
-        /* 侧面：邻格更低时出面 */
+          if (run && (run.y !== y || run.depth !== depth)) flush(x0)
+          if (!run) run = { x0, y, depth, z0, z1 }
+          continue
+        }
+        flush(x0)
+        const h = top(ci, cj) + 1
+        quad([x0, h, z0, x0, h, z1, x1, h, z1, x1, h, z0], [0, 1, 0], c, t.kind[j * n + i])
         const sides: [number, number, [number, number, number], number[]][] = [
-          [i + 1, j, [1, 0, 0], [x1, 0, z1, x1, 0, z0]],
-          [i - 1, j, [-1, 0, 0], [x0, 0, z0, x0, 0, z1]],
-          [i, j + 1, [0, 0, 1], [x0, 0, z1, x1, 0, z1]],
-          [i, j - 1, [0, 0, -1], [x1, 0, z0, x0, 0, z0]],
+          [ci + 1, cj, [1, 0, 0], [x1, 0, z1, x1, 0, z0]],
+          [ci - 1, cj, [-1, 0, 0], [x0, 0, z0, x0, 0, z1]],
+          [ci, cj + 1, [0, 0, 1], [x0, 0, z1, x1, 0, z1]],
+          [ci, cj - 1, [0, 0, -1], [x1, 0, z0, x0, 0, z0]],
         ]
         for (const [ni, nj, normal, e] of sides) {
           const nh = top(ni, nj) + 1
           if (nh >= h) continue
           const shade = normal[0] ? 0.82 : 0.7
-          const scol: [number, number, number] = [sc[0] * shade, sc[1] * shade, sc[2] * shade]
-          // 侧面顶沿一圈沿用顶面色（草皮口）
           const lip = Math.max(nh, h - 1)
-          quad([e[0], nh, e[2], e[3], nh, e[5], e[3], lip, e[5], e[0], lip, e[2]], normal, scol, 0)
+          quad([e[0], nh, e[2], e[3], nh, e[5], e[3], lip, e[5], e[0], lip, e[2]], normal, [sc[0] * shade, sc[1] * shade, sc[2] * shade], 0)
           quad([e[0], lip, e[2], e[3], lip, e[5], e[3], h, e[5], e[0], h, e[2]], normal, [c[0] * shade, c[1] * shade, c[2] * shade], t.kind[j * n + i])
         }
       }
+      flush(t.x0 + m * cell)
+    }
     const meshes: THREE.Mesh[] = []
     if (idx.length) {
       const g = new THREE.BufferGeometry()
       g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
-      g.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3))
+      g.setAttribute('normal', new THREE.BufferAttribute(Int8Array.from(nrm.map((v) => v * 127)), 3, true))
       g.setAttribute('aColor', new THREE.BufferAttribute(Uint8Array.from(col), 3, true))
       g.setAttribute('aKind', new THREE.BufferAttribute(Uint8Array.from(kind), 1))
-      g.setIndex(idx)
+      g.setIndex(pos.length / 3 < 65536 ? new THREE.Uint16BufferAttribute(idx, 1) : new THREE.Uint32BufferAttribute(idx, 1))
       g.computeBoundingSphere()
-      const m = new THREE.Mesh(g, this.materials.overview)
-      m.receiveShadow = true
-      m.matrixAutoUpdate = false
-      meshes.push(m)
+      const mesh = new THREE.Mesh(g, this.materials.overview)
+      mesh.receiveShadow = true
+      mesh.matrixAutoUpdate = false
+      meshes.push(mesh)
     }
     if (widx.length) {
       const g = new THREE.BufferGeometry()
@@ -156,12 +186,11 @@ export class OverviewRenderer {
       g.setAttribute('aFlags', new THREE.BufferAttribute(new Uint8Array(wpos.length / 3), 1))
       g.setIndex(widx)
       g.computeBoundingSphere()
-      const m = new THREE.Mesh(g, this.materials.overviewWater)
-      m.matrixAutoUpdate = false
-      meshes.push(m)
+      const mesh = new THREE.Mesh(g, this.materials.overviewWater)
+      mesh.matrixAutoUpdate = false
+      meshes.push(mesh)
     }
-    for (const m of meshes) this.group.add(m)
-    this.tiles.set(t.tz * this.grid.tilesX + t.tx, meshes)
+    return meshes
   }
 
   /** 名胜体量代理：每座建筑一个「墙身 + 屋顶」的盒子，远看有城有塔 */
@@ -258,7 +287,18 @@ export class OverviewRenderer {
   }
 
   /** 镜头拉远时显出墨线 */
-  update(distance: number): void {
+  update(distance: number, camera?: THREE.Vector3): void {
+    /* 远处的图块换粗网格（带回差） */
+    if (camera)
+      for (const t of this.tiles.values()) {
+        const d = Math.hypot(t.cx - camera.x, t.cz - camera.z)
+        const lod = d > (t.lod ? 1400 : 1700) ? 1 : 0
+        if (lod !== t.lod) {
+          t.lod = lod
+          for (const m of t.fine) m.visible = !lod
+          for (const m of t.coarse) m.visible = !!lod
+        }
+      }
     const a = Math.min(1, Math.max(0, (distance - 900) / 900)) * 0.85
     for (const m of this.inkMaterials) m.opacity = a
     this.ink.visible = a > 0.01
@@ -269,7 +309,7 @@ export class OverviewRenderer {
   }
 
   dispose(): void {
-    for (const ms of this.tiles.values()) for (const m of ms) m.geometry.dispose()
+    for (const t of this.tiles.values()) for (const m of [...t.fine, ...t.coarse]) m.geometry.dispose()
     this.group.traverse((o) => (o as THREE.Mesh).geometry?.dispose())
     this.ink.traverse((o) => (o as THREE.Mesh).geometry?.dispose())
     for (const m of this.inkMaterials) m.dispose()

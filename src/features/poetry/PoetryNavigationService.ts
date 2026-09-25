@@ -1,5 +1,5 @@
 import type { AppStore } from '../../app/AppStore'
-import type { PoetryRepository } from './PoetryRepository'
+import type { PlaceRepository, PoetryRepository } from './PoetryRepository'
 
 /** 引擎侧只暴露「聚焦某地标」，导航服务不持有任何 Three.js 对象 */
 export interface FocusPort {
@@ -12,6 +12,7 @@ export class PoetryNavigationService {
   constructor(
     private readonly store: AppStore,
     private readonly poetry: PoetryRepository,
+    private readonly places: PlaceRepository,
     private readonly focus: FocusPort,
     private readonly hasTrail: (poet: string) => boolean,
   ) {}
@@ -21,8 +22,11 @@ export class PoetryNavigationService {
       this.store.set({ selectedPlaceId: null, selectedPoemId: null, panelState: 'none' })
       return
     }
-    this.store.set({ selectedPlaceId: placeId, selectedPoemId: null, panelState: 'place' })
     if (fly) this.focus.focusLandmark(placeId)
+    // 一处只有一首：直接展卷；多首先列诗目
+    const only = this.places.get(placeId)?.poemIds
+    if (only && only.length === 1) this.store.set({ selectedPlaceId: placeId, selectedPoemId: only[0], panelState: 'poem' })
+    else this.store.set({ selectedPlaceId: placeId, selectedPoemId: null, panelState: 'place' })
   }
 
   selectPoem(poemId: string, fly = true): void {
@@ -44,7 +48,8 @@ export class PoetryNavigationService {
 
   closePanel(): void {
     const s = this.store.get()
-    if (s.panelState === 'poem') this.store.set({ panelState: 'place', selectedPoemId: null })
+    const many = (s.selectedPlaceId && this.places.get(s.selectedPlaceId)?.poemIds.length) || 0
+    if (s.panelState === 'poem' && many > 1) this.store.set({ panelState: 'place', selectedPoemId: null })
     else this.store.set({ panelState: 'none', selectedPlaceId: null })
   }
 }

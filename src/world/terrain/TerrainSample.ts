@@ -29,6 +29,8 @@ export interface TerrainSample {
   waterKind: WaterKind
   slope: number
   biome: BiomeId
+  /** 千里江山图配色分区（草叶染色） */
+  tintZone: number
 
   topBlock: BlockId
   soilBlock: BlockId

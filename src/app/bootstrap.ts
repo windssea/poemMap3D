@@ -1,5 +1,6 @@
 import { Engine } from '../engine/core/Engine'
 import { ResourceManager } from '../engine/core/ResourceManager'
+import { TrailDirector } from '../features/poetTrail/TrailDirector'
 import { type TrailData, TrailRepository } from '../features/poetTrail/TrailService'
 import { PlaceAggregator } from '../features/poetry/PlaceAggregator'
 import { PoetryNavigationService } from '../features/poetry/PoetryNavigationService'
@@ -23,6 +24,7 @@ export interface AppServices {
   navigation: PoetryNavigationService
   tour: TourService
   trails: TrailRepository
+  director: TrailDirector
   resources: ResourceManager
   /** 有手工 / 名楼营造的地点（标签加框） */
   majorPlaces: ReadonlySet<string>
@@ -57,17 +59,19 @@ export async function bootstrap(container: HTMLElement): Promise<AppServices> {
 
   const major = new Set<string>([...LANDMARK_CATALOG.map((d) => d.poetryPlaceId), ...engine.world.ctx.landmarks.landmarks.filter((l) => l.def.major).map((l) => l.def.poetryPlaceId)])
   const aggregator = new PlaceAggregator(places, poetry, major)
-  const facade = new EngineFacadeImpl(engine, store, trails)
-  const navigation = new PoetryNavigationService(store, poetry, facade, (poet) => !!trails.get(poet))
+  const facade = new EngineFacadeImpl(engine, store)
+  const navigation = new PoetryNavigationService(store, poetry, places, facade, (poet) => !!trails.get(poet))
   const tour = new TourService(tourData, poetry, store, facade)
   facade.tour = tour
+  const director = new TrailDirector(trails, poetry, store, facade)
+  facade.director = director
   const search = new PoetrySearchService(poetry, places)
 
   /* 接线：引擎事件 → 应用状态 */
   engine.events.on('level', (l) => store.set({ cameraLevel: l }))
   engine.events.on('select', ({ placeId }) => {
     if (store.get().tourState.active) return
-    if (placeId) navigation.selectPlace(placeId, false)
+    if (placeId) navigation.selectPlace(placeId, true)
   })
   engine.events.on('interact', () => {
     if (store.get().tourState.active) tour.stop()
@@ -76,5 +80,5 @@ export async function bootstrap(container: HTMLElement): Promise<AppServices> {
   if (store.get().debug.chunks) engine.setChunkDebug(true)
   res.lazy('font-poems')
   ;(window as unknown as { __shanhe?: unknown }).__shanhe = { engine, facade, store }
-  return { store, facade, poetry, places, aggregator, search, navigation, tour, trails, resources: res, majorPlaces: major }
+  return { store, facade, poetry, places, aggregator, search, navigation, tour, trails, director, resources: res, majorPlaces: major }
 }

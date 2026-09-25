@@ -1,6 +1,6 @@
 /**
  * 色彩唯一来源。
- * 业务代码禁止散落十六进制色值：一律从这里的 Palette / MaterialTokens / BiomeTint / SeasonTint / WeatherTint / SkyTokens 取色。
+ * 业务代码禁止散落十六进制色值：一律从这里的 Palette / MaterialTokens / ShanshuiZones / SeasonTint / WeatherTint / SkyTokens 取色。
  */
 
 /** 国画矿物色 —— 全局视觉方向 */
@@ -23,9 +23,10 @@ export const Palette = {
  */
 export const MaterialTokens = {
   grassTop: ['#e8e8e8', '#dcdcdc', '#f2f2f2', '#d0d0d0'],
-  dirt: ['#8a6446', '#7b573c', '#976f4f', '#6e4d35'],
-  stone: ['#7f8485', '#8f9495', '#72777a', '#999d9c'],
-  rock: ['#6c7471', '#5f6866', '#7a817c', '#565f5d'],
+  dirt: ['#9a7550', '#8a6646', '#a8825b', '#7b5b3e'],
+  // 石青山体：岩层偏蓝灰（千里江山图的青绿山水）
+  stone: ['#6f858c', '#7b9096', '#62777e', '#8a9ba0'],
+  rock: ['#4a5e66', '#56696f', '#3f525a', '#6d7874'],
   cobble: ['#6d7072', '#85898a', '#5a5d60', '#9a9d9c'],
   gravel: ['#88817a', '#9c958d', '#766f69', '#aaa39a'],
   sand: ['#dccfa0', '#d2c392', '#e5d9ae', '#c8b986'],
@@ -74,23 +75,33 @@ export const MaterialTokens = {
 
 export type MaterialTokenKey = keyof typeof MaterialTokens
 
-/** 生物群系染色（草顶 / 树叶） */
-export const BiomeTint = {
-  mountain: { grass: '#7fa068', foliage: '#4f8062' },
-  hillside: { grass: '#8fb06a', foliage: '#5a8a58' },
-  plain: { grass: '#9dbb6c', foliage: '#6a9559' },
-  riverside: { grass: '#8cb872', foliage: '#6aa05e' },
-  wetland: { grass: '#7fae78', foliage: '#5e9463' },
-  garden: { grass: '#98c07a', foliage: '#6a9c5e' },
-  plateau: { grass: '#a9ad74', foliage: '#617c55' },
-  steppe: { grass: '#b3b879', foliage: '#6e8a55' },
-  desert: { grass: '#c4b27a', foliage: '#7e8a5a' },
-  gobi: { grass: '#b4a47a', foliage: '#7a8458' },
-  cliff: { grass: '#7c9a66', foliage: '#4c7a5c' },
-  snow: { grass: '#a8b8a8', foliage: '#4c6e5a' },
-  ocean: { grass: '#9dbb6c', foliage: '#6a9559' },
-  beach: { grass: '#a9c07a', foliage: '#6a9559' },
-} as const
+/**
+ * 千里江山图配色分区：草顶与树叶按「生物群系 × 海拔 × 纬度」取一个分区色。
+ * 平原北为黄绿田、南为稻绿；丘陵转石绿；高山转石青；高原为黄褐高山草甸；雪线以上积雪。
+ */
+export const ShanshuiZones = [
+  { key: 'field', grass: '#c2b582', foliage: '#6a9559' },
+  { key: 'field2', grass: '#cdbf8c', foliage: '#6f9a5c' },
+  { key: 'paddy', grass: '#9bb27a', foliage: '#5f9055' },
+  { key: 'paddy2', grass: '#aab884', foliage: '#6a9559' },
+  { key: 'meadow', grass: '#8fb06e', foliage: '#5a8f58' },
+  { key: 'foothill', grass: '#7a9c6e', foliage: '#4f8062' },
+  { key: 'forest', grass: '#5a8a66', foliage: '#4f8062' },
+  { key: 'forest2', grass: '#4f8062', foliage: '#466f58' },
+  { key: 'malachite', grass: '#4f8a72', foliage: '#3f7a64' },
+  { key: 'teal', grass: '#3b7b88', foliage: '#356f6a' },
+  { key: 'azure2', grass: '#34788e', foliage: '#2f6670' },
+  { key: 'azure', grass: '#276b83', foliage: '#2a5f6c' },
+  { key: 'alp', grass: '#b4a86f', foliage: '#617c55' },
+  { key: 'alp2', grass: '#98aa70', foliage: '#5b7a58' },
+  { key: 'alpAzure', grass: '#6f9a90', foliage: '#3f6a66' },
+  { key: 'steppe', grass: '#b3b977', foliage: '#6e8a55' },
+  { key: 'steppe2', grass: '#c0b57e', foliage: '#74875a' },
+  { key: 'gobi', grass: '#c6ae7e', foliage: '#7a8458' },
+  { key: 'north', grass: '#8fa56c', foliage: '#4c7a58' },
+  { key: 'shore', grass: '#a7b67f', foliage: '#6a9a5e' },
+] as const
+export type ShanshuiZoneKey = (typeof ShanshuiZones)[number]['key']
 
 /** 专用树叶色（与生物群系叠乘前的树种底色） */
 export const FoliageTokens = {
@@ -106,8 +117,14 @@ export const SeasonTint = {
   spring: { grass: '#f4fff0', foliage: '#f2ffe6', autumn: 0.0, snow: 0 },
   summer: { grass: '#e6f2dc', foliage: '#dcecd2', autumn: 0.0, snow: 0 },
   autumn: { grass: '#fff0c8', foliage: '#ffffff', autumn: 0.85, snow: 0 },
-  winter: { grass: '#e8e4d8', foliage: '#d6d8d0', autumn: 0.45, snow: 1 },
+  winter: { grass: '#e8e4d8', foliage: '#c9ccc4', autumn: 0.55, snow: 1 },
 } as const
+
+/** 冬日：雾与天光偏冷白、阳光偏冷、画面略褪色；水面结冰 */
+export const WinterTokens = { fog: '#dfe6ec', sky: '#c9d4de', sun: '#f2f4ff', ice: '#cfe3ec', window: '#ffc27a' } as const
+
+/** 夜：窗纸透出的暖光 */
+export const NightTokens = { window: '#ffb865', lanternGlow: '#ffc070', skyLantern: '#ff9848', riverLantern: '#ff7f96', riverCandle: '#fff1b8' } as const
 
 /** 秋叶：阔叶在秋季混向这组暖色 */
 export const AutumnTokens = { maple: '#c8562e', gold: '#d9a23a', rust: '#a8482a' } as const
@@ -125,7 +142,7 @@ export const SkyTokens = {
   dawn: { top: '#94b0d0', horizon: '#f2dccb', sun: '#ffd6aa', ambientSky: '#d9dde6', ambientGround: '#b39c86', fog: '#ebe3da', cloud: '#fff1e6' },
   day: { top: '#7aa8bd', horizon: '#f2ead8', sun: '#fff3e2', ambientSky: '#e4eef2', ambientGround: '#c6ab7c', fog: '#e8e4d6', cloud: '#ffffff' },
   dusk: { top: '#8298b0', horizon: '#f2c38e', sun: '#ffb070', ambientSky: '#c4c8d6', ambientGround: '#a47f60', fog: '#e6c7a0', cloud: '#ffd9b8' },
-  night: { top: '#122038', horizon: '#384a6c', sun: '#b4c6ff', ambientSky: '#667aa6', ambientGround: '#2c3440', fog: '#2e3b57', cloud: '#56627e' },
+  night: { top: '#15254a', horizon: '#46597f', sun: '#c2d2ff', ambientSky: '#8093bd', ambientGround: '#3a4254', fog: '#36466a', cloud: '#5d6a88' },
 } as const
 
 /** 水色：浅 → 中 → 深 */
@@ -158,4 +175,28 @@ export const DebugTokens = {
   chunkPending: '#b89a64',
   chunkDirty: '#a43d32',
   selection: '#1b1b1b',
+} as const
+
+/** 书画装裱：纸、锦、木轴、玉别子（界面用，经 theme.ts 写成 CSS 变量） */
+export const MountTokens = {
+  paper: '#f3ead4',
+  paperLight: '#f8f1df',
+  paperWarm: '#f1e6cc',
+  paperEdge: '#efe3c8',
+  paperOld: '#ecdfc2',
+  paperOldEdge: '#ebddbf',
+  paperGold: '#eddcb6',
+  goldFleck: '#c49a3e',
+  goldSeam: '#d6c49a',
+  goldSeamLight: '#e8dcb8',
+  brocade: ['#9fb8a7', '#b5c9b8', '#9ab3a2'],
+  brocadeInk: '#284c3e',
+  wood: ['#6b4428', '#7a4f30', '#5f3b22', '#734a2c', '#5a3820'],
+  woodCap: ['#b88a55', '#a57643'],
+  jade: ['#9fbfae', '#e4f0e6', '#86a898'],
+  sealDeep: '#8d2f20',
+  famous: '#8f2c1c',
+  inkDeep: '#1a1612',
+  inkText: '#302820',
+  hills: '#2c4a48',
 } as const

@@ -21,7 +21,7 @@ const PRESET: Record<TimeOfDay, { dir: [number, number, number]; sunI: number; a
   dawn: { dir: [0.8, 0.38, 0.3], sunI: 1.8, ambientI: 0.95, night: 0, exposure: 1.05 },
   day: { dir: [0.3, 0.85, 0.55], sunI: 2.6, ambientI: 1.05, night: 0, exposure: 1.02 },
   dusk: { dir: [-0.75, 0.33, 0.3], sunI: 2.1, ambientI: 0.85, night: 0.25, exposure: 1.1 },
-  night: { dir: [0.35, 0.6, -0.5], sunI: 0.55, ambientI: 0.55, night: 1, exposure: 1.3 },
+  night: { dir: [0.35, 0.62, -0.5], sunI: 1.05, ambientI: 1.0, night: 1, exposure: 1.38 },
 }
 
 const lookOf = (t: TimeOfDay): Look => {

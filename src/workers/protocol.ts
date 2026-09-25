@@ -34,7 +34,7 @@ export interface MeshRequest {
   id: number
   cx: number
   cz: number
-  volume: { ox: number; oy: number; oz: number; sx: number; sy: number; sz: number; data: Uint16Array; biome: Uint8Array }
+  volume: { ox: number; oy: number; oz: number; sx: number; sy: number; sz: number; data: Uint16Array; tint: Uint8Array }
 }
 
 export type WorkerRequest = InitRequest | ChunkRequest | OverviewRequest | MeshRequest

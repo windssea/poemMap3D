@@ -30,6 +30,8 @@ uniform highp sampler2DArray uBlockAtlas;
 uniform float uFade;
 uniform vec3 uLeafGreen;
 uniform vec3 uSnowColor;
+uniform vec3 uWindow;
+uniform float uBare;
 varying vec3 vBlockUv;
 varying float vAo;
 varying vec3 vTint;
@@ -112,6 +114,7 @@ export class MaterialLibrary {
           vec4 texel = texture(uBlockAtlas, vec3(vBlockUv.x, -vBlockUv.y, vBlockUv.z));
           float tclass = mod(vFlags, 8.0);
           ${kind === 'cutout' ? 'if (texel.a < 0.4) discard; float tintAmt = 1.0;' : kind === 'solid' ? 'float tintAmt = 1.0 - texel.a;' : 'float tintAmt = 0.0;'}
+          ${kind === 'cutout' ? 'if (uBare > 0.01 && tclass > 1.5 && tclass < 2.5 && hash13(floor(vBWorld * 16.0 + 0.01)) < uBare) discard; // 冬日落叶：阔叶按像素镂空，露出枝干' : ''}
           vec3 tint = seasonTint(vTint, tclass, vBWorld);
           vec3 col = texel.rgb * mix(vec3(1.0), tint, tintAmt);
           if (tclass > 3.5 && tclass < 4.5) {
@@ -132,7 +135,10 @@ export class MaterialLibrary {
         .replace(
           '#include <emissivemap_fragment>',
           `#include <emissivemap_fragment>
-          if (mod(floor(vFlags / 8.0), 2.0) > 0.5) totalEmissiveRadiance += col * (0.35 + uNight * 2.2);`,
+          if (mod(floor(vFlags / 8.0), 2.0) > 0.5) {
+            bool warm = mod(floor(vFlags / 32.0), 2.0) > 0.5;
+            totalEmissiveRadiance += (warm ? uWindow * (0.35 + dot(texel.rgb, vec3(0.6))) : col * 2.4) * uNight;
+          }`,
         )
         .replace('#include <opaque_fragment>', `outgoingLight = desaturate(outgoingLight, uSaturation);\n#include <opaque_fragment>`)
       if (kind === 'cutout') frag = frag.replace('#include <normal_fragment_begin>', 'float faceDirection = 1.0;\nvec3 normal = normalize( vNormal );\nvec3 nonPerturbedNormal = normal;')
@@ -210,6 +216,8 @@ export class MaterialLibrary {
         uniform vec3 uWaterDeep;
         uniform vec3 uWaterFoam;
         uniform vec3 uSnowColor;
+        uniform float uIce;
+        uniform vec3 uIceColor;
         uniform float uFade;
         ${overview ? 'uniform sampler2D uChunkMask; uniform vec4 uChunkMaskRect;' : ''}
         varying vec3 vTint;
@@ -245,8 +253,9 @@ export class MaterialLibrary {
             col = mix(col, uWaterFoam, 0.35 + 0.35 * stripe);
           }
           col = mix(col, uSnowColor * 0.9, uSnow * 0.15);
-          col *= mix(1.0, 0.32, uNight);
-          float alpha = falling ? 0.88 : mix(0.64, 0.9, depth);
+          col = mix(col, uIceColor, falling ? 0.0 : uIce);
+          col *= mix(1.0, 0.45, uNight);
+          float alpha = falling ? 0.88 : mix(mix(0.64, 0.9, depth), 0.95, uIce);
           gl_FragColor = vec4(col, ${overview ? '1.0' : 'alpha'});
           #include <tonemapping_fragment>
           #include <colorspace_fragment>

@@ -1,8 +1,9 @@
+import { useEffect } from 'react'
 import type { TourSettings } from '../app/AppStore'
 import { useApp } from '../app/AppStore'
-import { famousLines } from '../features/poetry/types'
 import { Icon } from './icons'
 import { useServices } from './ServicesContext'
+import { VerseScroll } from './VerseScroll'
 
 const OPTIONS: { key: keyof TourSettings; label: string; values: [TourSettings[keyof TourSettings], string][] }[] = [
   { key: 'speed', label: '速度', values: [[1, '普通'], [1.5, '快'], [2, '特快']] },
@@ -14,9 +15,29 @@ const OPTIONS: { key: keyof TourSettings; label: string; values: [TourSettings[k
   { key: 'caption', label: '题诗', values: [[true, '显示'], [false, '隐藏']] },
 ]
 
-/** 巡游：开始 / 停止 / 暂停、设置、当前站与题诗立轴 */
+function SettingsPop() {
+  const { tour } = useServices()
+  const ts = useApp((s) => s.tourState)
+  return (
+    <div className="panel settings-pop" onClick={(e) => e.stopPropagation()}>
+      <div className="tp-h">巡游设置</div>
+      {OPTIONS.map((o) => (
+        <div key={o.key} className="amb-row">
+          <span className="ap-k">{o.label}</span>
+          {o.values.map(([v, name]) => (
+            <button key={String(v)} className={`chip ${ts.settings[o.key] === v ? 'on' : ''}`} onClick={() => tour.updateSettings({ [o.key]: v } as Partial<TourSettings>)}>
+              {name}
+            </button>
+          ))}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** 底栏里的巡游按钮与设置 */
 export function TourControls() {
-  const { facade, tour, store } = useServices()
+  const { facade, store } = useServices()
   const ts = useApp((s) => s.tourState)
   const open = useApp((s) => s.ui.tourSettingsOpen)
   return (
@@ -24,65 +45,44 @@ export function TourControls() {
       <button className={`ico ${ts.active ? 'on' : ''}`} title={ts.active ? '停止巡游' : '开始巡游'} onClick={() => (ts.active ? facade.stopTour() : facade.startTour())}>
         <Icon name={ts.active ? 'stop' : 'play'} />
       </button>
-      {ts.active && (
-        <button className="ico" title={ts.paused ? '继续' : '暂停'} onClick={() => tour.togglePause()}>
-          <Icon name={ts.paused ? 'play' : 'pause'} />
-        </button>
-      )}
       <button className={`ico ${open ? 'on' : ''}`} title="巡游设置" onClick={() => store.set((s) => ({ ui: { ...s.ui, tourSettingsOpen: !s.ui.tourSettingsOpen } }))}>
         <Icon name="gear" />
       </button>
-      {open && (
-        <div className="panel settings-pop">
-          {OPTIONS.map((o) => (
-            <div key={o.key} className="amb-row">
-              <span className="lab">{o.label}</span>
-              {o.values.map(([v, name]) => (
-                <button key={String(v)} className={`chip ${ts.settings[o.key] === v ? 'on' : ''}`} onClick={() => tour.updateSettings({ [o.key]: v } as Partial<TourSettings>)}>
-                  {name}
-                </button>
-              ))}
-            </div>
-          ))}
-        </div>
-      )}
+      {open && !ts.active && <SettingsPop />}
     </div>
   )
 }
 
-/** 巡游中的站名条与题诗立轴 */
+/** 巡游中：收起其余控件，只留巡游条；右侧展开题诗立轴 */
 export function TourCaption() {
-  const { poetry } = useServices()
+  const { poetry, facade, store, places } = useServices()
   const ts = useApp((s) => s.tourState)
+  const peek = useApp((s) => s.ui.tourSettingsOpen)
+  useEffect(() => {
+    document.body.classList.toggle('touring', ts.active)
+    return () => document.body.classList.remove('touring')
+  }, [ts.active])
   if (!ts.active) return null
   const poem = ts.poemId ? poetry.get(ts.poemId) : null
+  const place = poem ? places.get(poem.placeId) : null
+  const placeName = ts.stopName || place?.name || ''
   return (
     <>
-      <div className="chrome panel tour-bar">
-        <span className="where">
-          {ts.region}
-          {ts.stopName && ` · ${ts.stopName}`}
-          <small>
-            {ts.index + 1} / {ts.total}
-          </small>
+      <div className="tourbar">
+        <span className="tb-dot" />
+        <span className="tb-t">
+          巡游中 · {ts.region}
+          {placeName && ` · ${placeName}`}
         </span>
+        <button title="巡游设置" onClick={() => store.set((s) => ({ ui: { ...s.ui, tourSettingsOpen: !s.ui.tourSettingsOpen } }))}>
+          设置
+        </button>
+        <button className="stop" onClick={() => facade.stopTour()}>
+          停止
+        </button>
+        {peek && <SettingsPop />}
       </div>
-      {poem && ts.settings.caption && (
-        <div className="chrome hanging" key={poem.id}>
-          <div className="v">
-            <span className="tt">{poem.title}</span>
-            <span className="au">
-              {poem.dynasty} · {poem.author}
-            </span>
-            {famousLines(poem).map((l, i) => (
-              <span className="ln" key={i}>
-                {l}
-              </span>
-            ))}
-          </div>
-          <div className="stamp">{poem.author.slice(0, 1)}</div>
-        </div>
-      )}
+      {poem && ts.settings.caption && <VerseScroll key={`${poem.id}-${ts.index}`} poem={poem} place={ts.region === placeName ? placeName : `${ts.region} · ${placeName}`} />}
     </>
   )
 }

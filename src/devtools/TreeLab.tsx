@@ -6,7 +6,7 @@ import { MaterialLibrary } from '../engine/rendering/MaterialLibrary'
 import { createSharedUniforms } from '../engine/rendering/SharedUniforms'
 import { B } from '../world/block/Blocks'
 import { S } from '../world/block/BlockState'
-import { BiomeId } from '../world/biome/BiomeId'
+import { zoneIndex } from '../world/biome/TintZone'
 import { createChunkMeshes } from '../world/chunk/ChunkMeshFactory'
 import { analyzeConnectivity } from '../world/structure/StructureAnalysis'
 import { PlaceMode, placeStructure, preparePlacement } from '../world/structure/StructurePlacer'
@@ -80,7 +80,7 @@ export function TreeLab() {
     /* 草地台子 + 各树，一次网格化 */
     const W = 5 * SPACING + 2
     const vol = new VoxelVolume(-1, 0, -1, W, 40, TREE_TYPES.length * SPACING + 2)
-    vol.biome.fill(BiomeId.Plain)
+    vol.tint.fill(zoneIndex('paddy'))
     for (let z = 0; z < vol.sz; z++) for (let x = 0; x < vol.sx; x++) vol.set(vol.ox + x, 0, vol.oz + z, S(B.GRASS))
     for (const c of cells) placeStructure(vol, preparePlacement({ id: 't', structure: c.s, x: c.x, y: 1, z: c.z, mode: PlaceMode.Soft, order: 0 }))
     const mesh = meshVolume(vol)

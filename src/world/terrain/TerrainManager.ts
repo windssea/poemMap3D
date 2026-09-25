@@ -1,16 +1,17 @@
-import { clamp, lerp, smoothstep } from '../../utils/math'
+import { clamp, hash2i, hashUnit, lerp, smoothstep } from '../../utils/math'
 import { createSimplex2D, fbm, ridged, type Noise2D } from '../../utils/noise'
 import { B } from '../block/Blocks'
 import type { BlockId } from '../block/BlockState'
 import { BiomeId } from '../biome/BiomeId'
 import { biomeDef } from '../biome/BiomeRegistry'
 import { resolveBiome } from '../biome/BiomeResolver'
+import { tintZoneOf } from '../biome/TintZone'
 import { SEA_LEVEL, WORLD_HEIGHT } from '../coordinate/constants'
 import { type FocusProjection, getProjection } from '../coordinate/GeoProjection'
 import { MacroKind, type MacroSampler } from '../generation/geography/MacroGeography'
 import type { LakeManager } from '../water/LakeManager'
 import { BANK_MAX, type RiverManager } from '../water/RiverManager'
-import { WorldConfig } from '../WorldConfig'
+import { WorldConfig, yToMeters } from '../WorldConfig'
 import { type TerrainColumn, type TerrainModifier, type TerrainSample, WaterKind } from './TerrainSample'
 
 /** 一块矩形区域的地形取样结果（区块生成用：一次算好，填方块与种树共享） */
@@ -189,7 +190,7 @@ export class TerrainManager {
       soilDepth = 6
       if (slope > 0.9 || n2 > 0.35) top = B.LOESS
     } else if (lat < 27.5 && (biome === BiomeId.Hillside || biome === BiomeId.Mountain)) soil = B.RED_EARTH
-    if ((biome === BiomeId.Mountain || biome === BiomeId.Hillside) && slope > 1.8) {
+    if ((biome === BiomeId.Mountain || biome === BiomeId.Hillside) && slope > 2.6) {
       // 陡坡裸岩：土层也换成岩层，台阶侧面不出一道道土带
       top = n2 > 0 ? B.ROCK : B.STONE
       soil = rock
@@ -220,6 +221,7 @@ export class TerrainManager {
       waterKind: c.waterKind,
       slope,
       biome,
+      tintZone: tintZoneOf(biome, yToMeters(surfaceY), lat, noise, hashUnit(hash2i(c.x, c.z, 7331))),
       topBlock: top,
       soilBlock: soil,
       rockBlock: rock,

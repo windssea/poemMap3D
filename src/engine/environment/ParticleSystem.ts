@@ -9,7 +9,7 @@ const DRIFT_COLORS: Record<Season, [string, string, number]> = {
   spring: [MaterialTokens.blossom[0], MaterialTokens.blossomDeep[0], 1],
   summer: [MaterialTokens.bambooStalk[2], MaterialTokens.bambooStalk[1], 0.45],
   autumn: [AutumnTokens.maple, AutumnTokens.gold, 0.9],
-  winter: [MaterialTokens.snow[0], MaterialTokens.snow[1], 0],
+  winter: [MaterialTokens.snow[0], MaterialTokens.snow[1], 0.7],
 }
 
 /**

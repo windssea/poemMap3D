@@ -1,34 +1,21 @@
-import * as THREE from 'three'
-import { DebugTokens } from '../../config/palette'
 import type { RayHit } from './RaycastSystem'
 
 /**
- * 悬停：近景下给光标所指的方块描一圈细黑框（Minecraft 式选框）。
+ * 悬停：记下光标下的地面与所属诗词地点。
+ * 指到可点的地点时光标变成手形、对应地名签浮起高亮；其余情况保持「可拖动」的手掌。
+ * 不画方块选框——这不是搭建游戏，只需告诉读者「这里能点」。
  */
 export class HoverSystem {
-  readonly outline: THREE.LineSegments
   hit: RayHit | null = null
+  placeId: string | null = null
 
-  constructor() {
-    const g = new THREE.EdgesGeometry(new THREE.BoxGeometry(1.004, 1.004, 1.004))
-    const m = new THREE.LineBasicMaterial({ color: new THREE.Color(DebugTokens.selection), transparent: true, opacity: 0.55, depthWrite: false })
-    this.outline = new THREE.LineSegments(g, m)
-    this.outline.visible = false
-    this.outline.renderOrder = 10
-  }
+  constructor(private readonly canvas: HTMLElement) {}
 
-  set(hit: RayHit | null, enabled: boolean): void {
+  set(hit: RayHit | null, placeId: string | null): boolean {
     this.hit = hit
-    if (!enabled || !hit?.block) {
-      this.outline.visible = false
-      return
-    }
-    this.outline.visible = true
-    this.outline.position.set(hit.block.x + 0.5, hit.block.y + 0.5, hit.block.z + 0.5)
-  }
-
-  dispose(): void {
-    this.outline.geometry.dispose()
-    ;(this.outline.material as THREE.Material).dispose()
+    const changed = placeId !== this.placeId
+    this.placeId = placeId
+    this.canvas.classList.toggle('pointing', !!placeId)
+    return changed
   }
 }

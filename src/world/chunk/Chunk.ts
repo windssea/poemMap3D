@@ -30,6 +30,7 @@ export interface ChunkData {
   sections: ({ uniform: number; blocks: Uint16Array | null } | null)[]
   heightmap: Uint16Array
   biomeMap: Uint8Array
+  tintMap: Uint8Array
 }
 
 export class Chunk {
@@ -41,6 +42,8 @@ export class Chunk {
   /** 每列最高的非空气方块 Y（无则 0） */
   readonly heightmap = new Uint16Array(CHUNK_SIZE * CHUNK_SIZE)
   readonly biomeMap = new Uint8Array(CHUNK_SIZE * CHUNK_SIZE)
+  /** 每列的配色分区（网格重建时的草叶染色） */
+  readonly tintMap = new Uint8Array(CHUNK_SIZE * CHUNK_SIZE)
   state: ChunkState = ChunkState.UNLOADED
 
   constructor(cx: number, cz: number) {
@@ -82,7 +85,7 @@ export class Chunk {
       const s = this.sections.get(sy)
       sections.push(s && !s.isEmpty ? { uniform: s.uniform, blocks: s.blocks } : null)
     }
-    return { cx: this.cx, cz: this.cz, sections, heightmap: this.heightmap, biomeMap: this.biomeMap }
+    return { cx: this.cx, cz: this.cz, sections, heightmap: this.heightmap, biomeMap: this.biomeMap, tintMap: this.tintMap }
   }
 
   static fromData(d: ChunkData): Chunk {
@@ -92,6 +95,7 @@ export class Chunk {
     })
     c.heightmap.set(d.heightmap)
     c.biomeMap.set(d.biomeMap)
+    c.tintMap.set(d.tintMap)
     return c
   }
 

@@ -1,6 +1,6 @@
-import { BiomeTint, FoliageTokens } from '../../config/palette'
+import { FoliageTokens, ShanshuiZones } from '../../config/palette'
 import { TEXTURES } from '../block/BlockTextures'
-import { BIOME_COUNT, BIOME_KEYS } from './BiomeId'
+import { ZONE_COUNT } from './TintZone'
 
 const hexToRgb = (h: string): [number, number, number] => {
   const n = parseInt(h.slice(1), 16)
@@ -12,30 +12,30 @@ const mix = (a: [number, number, number], b: [number, number, number], t: number
   Math.round(a[2] + (b[2] - a[2]) * t),
 ]
 
-/** 每张可染色贴图的底色：草按生物群系；树叶以树种底色为主，少量偏向当地叶色 */
-const TILE_TINT: Record<string, { base: keyof typeof FoliageTokens | 'grass'; biomeMix: number }> = {
-  grass_top: { base: 'grass', biomeMix: 1 },
-  grass_side: { base: 'grass', biomeMix: 1 },
-  tall_grass: { base: 'grass', biomeMix: 1 },
-  leaves_broad: { base: 'broad', biomeMix: 0.35 },
-  leaves_pine: { base: 'pine', biomeMix: 0.12 },
-  leaves_willow: { base: 'willow', biomeMix: 0.2 },
-  bamboo_leaves: { base: 'bamboo', biomeMix: 0.15 },
+/** 每张可染色贴图的底色：草按分区；树叶以树种底色为主，偏向当地叶色（山里树也发青） */
+const TILE_TINT: Record<string, { base: keyof typeof FoliageTokens | 'grass'; zoneMix: number }> = {
+  grass_top: { base: 'grass', zoneMix: 1 },
+  grass_side: { base: 'grass', zoneMix: 1 },
+  tall_grass: { base: 'grass', zoneMix: 1 },
+  leaves_broad: { base: 'broad', zoneMix: 0.55 },
+  leaves_pine: { base: 'pine', zoneMix: 0.3 },
+  leaves_willow: { base: 'willow', zoneMix: 0.25 },
+  bamboo_leaves: { base: 'bamboo', zoneMix: 0.3 },
 }
 
 /**
- * 染色表：tile × biome → RGB（打包成 24 位整数）。不可染色的贴图为白色。
+ * 染色表：tile × 配色分区 → RGB（24 位整数）。不可染色的贴图为白色。
  * 由 mesher（Worker 内）直接查表，结果写进顶点色。
  */
 export function buildTintTable(): Uint32Array {
-  const t = new Uint32Array(TEXTURES.length * BIOME_COUNT).fill(0xffffff)
+  const t = new Uint32Array(TEXTURES.length * ZONE_COUNT).fill(0xffffff)
   TEXTURES.forEach((tex, ti) => {
     const spec = TILE_TINT[tex.key]
     if (!spec) return
-    for (let b = 0; b < BIOME_COUNT; b++) {
-      const biome = BiomeTint[BIOME_KEYS[b]]
-      const rgb = spec.base === 'grass' ? hexToRgb(biome.grass) : mix(hexToRgb(FoliageTokens[spec.base]), hexToRgb(biome.foliage), spec.biomeMix)
-      t[ti * BIOME_COUNT + b] = (rgb[0] << 16) | (rgb[1] << 8) | rgb[2]
+    for (let z = 0; z < ZONE_COUNT; z++) {
+      const zone = ShanshuiZones[z]
+      const rgb = spec.base === 'grass' ? hexToRgb(zone.grass) : mix(hexToRgb(FoliageTokens[spec.base]), hexToRgb(zone.foliage), spec.zoneMix)
+      t[ti * ZONE_COUNT + z] = (rgb[0] << 16) | (rgb[1] << 8) | rgb[2]
     }
   })
   return t

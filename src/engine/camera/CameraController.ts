@@ -60,6 +60,15 @@ export class CameraController {
     this.focus.stopOrbit()
   }
 
+  /** 跟随：写入目标姿态（飞行中忽略） */
+  follow(p: CameraPose): void {
+    if (this.flight.active) return
+    this.goal.target.copy(p.target)
+    this.goal.yaw = p.yaw
+    this.goal.pitch = p.pitch
+    this.goal.distance = p.distance
+  }
+
   flyTo(to: CameraPose, opts?: FlightOptions): Promise<void> {
     this.focus.stopOrbit()
     const p = this.flight.flyTo(this.pose, to, opts)
@@ -84,22 +93,35 @@ export class CameraController {
     } else {
       this.focus.update(dt, this.goal)
       /* 目标点贴地：平移后慢慢落到地面高度 */
-      const gy = this.sampler.groundHeightAt(this.goal.target.x, this.goal.target.z)
-      this.goal.target.y += (gy - this.goal.target.y) * (1 - Math.exp(-dt * 3))
+      const gy = this.groundAround(this.goal.target.x, this.goal.target.z, 1.5 + this.goal.distance * 0.03)
+      this.goal.target.y += (gy - this.goal.target.y) * (1 - Math.exp(-dt * 2))
       const k = 1 - Math.exp(-dt * 9)
       this.pose.target.lerp(this.goal.target, k)
       this.pose.yaw += angleDelta(this.pose.yaw, this.goal.yaw) * k
       this.pose.pitch += (this.goal.pitch - this.pose.pitch) * k
-      this.pose.distance = Math.exp(Math.log(this.pose.distance) + (Math.log(this.goal.distance) - Math.log(this.pose.distance)) * k)
+      // 推拉单独用稍慢的阻尼，滚轮一格一格时不顿
+      const kd = 1 - Math.exp(-dt * 6)
+      this.pose.distance = Math.exp(Math.log(this.pose.distance) + (Math.log(this.goal.distance) - Math.log(this.pose.distance)) * kd)
     }
     this.resolved = this.collision.resolve(this.pose, dt)
     const pos = poseToPosition(this.resolved, this.camera.position)
-    this.camera.near = Math.max(0.3, this.resolved.distance * 0.004)
-    this.camera.far = Math.max(3000, this.resolved.distance * 5 + 2000)
-    this.camera.updateProjectionMatrix()
+    /* 远近裁剪随距离缓变；远裁剪面贴着雾的尽头，雾外的覆盖图块直接被视锥剔除 */
+    const near = Math.max(0.3, this.resolved.distance * 0.004)
+    const far = Math.max(1500, this.resolved.distance * 3.6 + 1200)
+    if (Math.abs(near - this.camera.near) > near * 0.05 || Math.abs(far - this.camera.far) > far * 0.05) {
+      this.camera.near = near
+      this.camera.far = far
+      this.camera.updateProjectionMatrix()
+    }
     this.camera.position.copy(pos)
     this.camera.lookAt(this.resolved.target)
     this.updateLevel()
+  }
+
+  /** 目标点周围几处地面的平均高：平移经过方块台阶时不上下颠 */
+  private groundAround(x: number, z: number, r: number): number {
+    const s = this.sampler
+    return (s.groundHeightAt(x, z) * 2 + s.groundHeightAt(x + r, z) + s.groundHeightAt(x - r, z) + s.groundHeightAt(x, z + r) + s.groundHeightAt(x, z - r)) / 6
   }
 
   private updateLevel(): void {

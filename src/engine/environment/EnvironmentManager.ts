@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { WeatherTint } from '../../config/palette'
+import { WeatherTint, WinterTokens } from '../../config/palette'
 import type { SceneManager } from '../rendering/SceneManager'
 import type { ShadowManager } from '../rendering/ShadowManager'
 import type { SharedUniforms } from '../rendering/SharedUniforms'
@@ -29,6 +29,11 @@ export class EnvironmentManager {
   private readonly hemi: THREE.HemisphereLight
   private readonly tmpColor = new THREE.Color()
   private readonly rainSky = new THREE.Color(WeatherTint.rainColor)
+  private readonly winterFog = new THREE.Color(WinterTokens.fog)
+  private readonly winterSky = new THREE.Color(WinterTokens.sky)
+  private readonly winterSun = new THREE.Color(WinterTokens.sun)
+  /** 补光：与日光相对的一盏弱平行光，阴面不至于死黑 */
+  private readonly fill = new THREE.DirectionalLight(new THREE.Color(1, 1, 1), 0.3)
 
   constructor(
     private readonly shared: SharedUniforms,
@@ -48,6 +53,8 @@ export class EnvironmentManager {
     this.hemi = new THREE.HemisphereLight(new THREE.Color(1, 1, 1), new THREE.Color(0.5, 0.45, 0.4), 1)
     scene.scene.fog = this.fog.fog
     scene.attach('environment', this.hemi)
+    scene.attach('environment', this.fill)
+    scene.attach('environment', this.fill.target)
     for (const o of shadows.objects) scene.attach('environment', o)
     scene.attach('environment', this.sky.mesh)
     scene.attach('environment', this.clouds.mesh)
@@ -88,10 +95,19 @@ export class EnvironmentManager {
     u.uBlossom.value = S.blossom
     u.uSnow.value = this.weather.cover
     u.uWet.value = this.weather.rain
-    u.uSaturation.value = W.saturation
+    /* 冬：画面偏冷、略褪色；阔叶落尽，水面结冰 */
+    const winter = S.snow
+    u.uSaturation.value = W.saturation * (1 - 0.16 * winter)
+    u.uBare.value = 0.62 * winter
+    u.uIce.value = 0.6 * winter
 
     /* 光照 */
-    this.shadows.light.color.copy(L.sun)
+    this.shadows.light.color.copy(L.sun).lerp(this.winterSun, 0.5 * winter)
+    this.fill.color.copy(L.ambientSky)
+    this.fill.intensity = (0.25 + 0.25 * L.night) * W.light
+    this.fill.position.set(focus.x - L.sunDir.x * 400, focus.y + 300, focus.z - L.sunDir.z * 400)
+    this.fill.target.position.copy(focus)
+    this.fill.target.updateMatrixWorld()
     this.shadows.light.intensity = L.sunI * W.light
     this.hemi.color.copy(L.ambientSky)
     this.hemi.groundColor.copy(L.ambientGround)
@@ -100,8 +116,8 @@ export class EnvironmentManager {
     this.shadows.update(focus, L.sunDir, distance)
 
     /* 天空、雾、云 */
-    const horizon = this.tmpColor.copy(L.horizon).lerp(L.fog, 0.5).lerp(this.rainSky, wet * 0.5)
-    const top = L.top.clone().lerp(horizon, wet * 0.6)
+    const horizon = this.tmpColor.copy(L.horizon).lerp(L.fog, 0.5).lerp(this.rainSky, wet * 0.5).lerp(this.winterFog, 0.45 * winter * (1 - L.night * 0.7))
+    const top = L.top.clone().lerp(horizon, wet * 0.6).lerp(this.winterSky, 0.3 * winter * (1 - L.night))
     this.sky.update(camera, top, horizon)
     this.fog.update(distance, horizon, W.fog)
     this.clouds.update(dt, focus, L.cloud, wet)

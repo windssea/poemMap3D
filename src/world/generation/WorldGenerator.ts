@@ -43,6 +43,7 @@ export class ChunkGenerator {
     for (let lz = 0; lz < vol.sz; lz++)
       for (let lx = 0; lx < vol.sx; lx++) {
         const s = region.samples[lz * vol.sx + lx]
+        vol.tint[lz * vol.sx + lx] = s.tintZone
         vol.biome[lz * vol.sx + lx] = s.biome
         const base = lx + lz * vol.sx
         const stride = vol.sx * vol.sz

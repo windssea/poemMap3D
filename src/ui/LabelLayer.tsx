@@ -5,7 +5,7 @@ import { useServices } from './ServicesContext'
 
 interface LabelItem {
   key: string
-  kind: 'place' | 'geo' | 'rgn'
+  kind: 'place' | 'geo'
   name: string
   cls: string
   placeId?: string
@@ -17,7 +17,7 @@ interface LabelItem {
   lat?: number
 }
 
-/** 地理与文化区名（全国视角） */
+/** 江河与长城的名签（全国、区域视角） */
 const GEO_LABELS = [
   { name: '长江', lng: 112.9, lat: 29.9, cls: 'jiang' },
   { name: '长江', lng: 106.9, lat: 29.8, cls: 'jiang' },
@@ -25,17 +25,6 @@ const GEO_LABELS = [
   { name: '黄河', lng: 106.5, lat: 38.9, cls: 'he' },
   { name: '万里长城', lng: 115.9, lat: 40.6, cls: 'wall' },
 ]
-const REGIONS = [
-  { name: '江南', sub: '吴越', lng: 119.8, lat: 30.1 },
-  { name: '中原', sub: '河洛', lng: 113.8, lat: 34.3 },
-  { name: '关中', sub: '秦川', lng: 108.6, lat: 34.9 },
-  { name: '巴蜀', sub: '天府', lng: 104.8, lat: 30.3 },
-  { name: '荆楚', sub: '云梦', lng: 112.6, lat: 30.6 },
-  { name: '塞北', sub: '边关', lng: 106, lat: 41.5 },
-  { name: '岭南', sub: '南粤', lng: 113.6, lat: 23.6 },
-  { name: '齐鲁', sub: '泰岱', lng: 117.8, lat: 36.3 },
-]
-
 /**
  * 地名签：三级显示（全国 / 区域 / 地点）、屏幕矩形避让（彼此之间与界面面板）、选中聚焦。
  * React 只创建一次 DOM，逐帧位置由引擎的帧事件直接写 transform，不触发 React 重渲染。
@@ -64,16 +53,24 @@ export function LabelLayer() {
       lat: s.place.lat,
     }))
     GEO_LABELS.forEach((g, i) => out.push({ key: `g-${i}`, kind: 'geo', name: g.name, cls: `geo ${g.cls}`, priority: 1000 - i, major: true, anchor: null, lng: g.lng, lat: g.lat }))
-    REGIONS.forEach((r, i) => out.push({ key: `r-${i}`, kind: 'rgn', name: r.name, cls: 'rgn', priority: 2000 - i, major: true, anchor: null, lng: r.lng, lat: r.lat }))
     for (const it of out) {
       if (!it.anchor && it.lng !== undefined) {
         const v = facade.geoAnchor(it.lng, it.lat!)
-        v.y += it.kind === 'rgn' ? 40 : 18
+        v.y += 18
         it.anchor = v
       }
     }
     return out
   }, [aggregator, facade, majorPlaces])
+
+  /* 光标指到的地点：地名签浮起高亮 */
+  useEffect(
+    () =>
+      facade.onHoverPlace((id) => {
+        for (const [k, el] of refs.current) el.classList.toggle('hov', !!id && k === `p-${id}`)
+      }),
+    [facade],
+  )
 
   useEffect(() => {
     const pos = { x: 0, y: 0, depth: 0 }
@@ -85,7 +82,7 @@ export function LabelLayer() {
       const { selected: sel, level: lv } = state.current
       const placed: { x0: number; y0: number; x1: number; y1: number }[] = []
       let shown = 0
-      const cap = lv === 'national' ? 16 : lv === 'regional' ? 60 : 10
+      const cap = lv === 'national' ? 16 : lv === 'regional' ? 36 : 10
       const order = sel ? [...sorted.filter((i) => i.placeId === sel), ...sorted.filter((i) => i.placeId !== sel)] : sorted
       let selPos: { x: number; y: number } | null = null
       for (const it of order) {
@@ -94,11 +91,11 @@ export function LabelLayer() {
         let on = false
         const isSel = !!sel && it.placeId === sel
         const allow =
-          it.kind === 'rgn' ? lv === 'national' : it.kind === 'geo' ? lv !== 'local' : isSel || lv !== 'national' || it.major || shown < 8
+          it.kind === 'geo' ? lv !== 'local' : isSel || lv !== 'national' || it.major || shown < 8
         if (allow && facade.project(it.anchor, pos)) {
           const tooFar = it.kind === 'place' && lv === 'local' && pos.depth > f.distance * 2.6 && !isSel
-          const h = it.kind === 'rgn' ? 40 : it.name.length * 16 + 34
-          const w = it.kind === 'rgn' ? 160 : 34
+          const h = it.name.length * 16 + 34
+          const w = 34
           const r = { x0: pos.x - w / 2, y0: pos.y - h, x1: pos.x + w / 2, y1: pos.y + 4 }
           const inView = pos.x > -20 && pos.y > 10 && pos.x < innerWidth + 20 && pos.y < innerHeight + 10
           const hit = placed.some((p) => r.x0 < p.x1 && r.x1 > p.x0 && r.y0 < p.y1 && r.y1 > p.y0)
