@@ -42,11 +42,12 @@ export class WeatherSystem {
     const e = this.effective()
     const tr = e === 'rain' ? 1 : 0
     const ts = e === 'snow' ? 1 : 0
-    const k = Math.min(1, dt / 3)
+    const k = Math.min(1, dt / 1.5)
     this.rain += (tr - this.rain) * k
     this.snow += (ts - this.snow) * k
     const target = Math.max(baseSnow * 0.8, this.snow > 0.3 ? 1 : 0)
-    this.cover += (target - this.cover) * Math.min(1, dt / (target > this.cover ? 12 : 25))
+    // 积雪与融雪：四季切换时几秒内完成，不拖泥带水
+    this.cover += (target - this.cover) * Math.min(1, dt / (target > this.cover ? 3.5 : 4.5))
   }
 
   /** 光照、雾、饱和度的天气乘子 */

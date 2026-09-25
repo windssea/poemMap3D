@@ -78,7 +78,16 @@ export function LabelLayer() {
     let panels: DOMRect[] = []
     let tick = 0
     const sorted = [...items].sort((a, b) => b.priority - a.priority)
+    /* 遮挡：每帧轮流检查几个地名签（射线穿过山体或近处建筑就藏起来） */
+    const occluded = new Map<string, boolean>()
+    let occIdx = 0
+    const lv0 = () => state.current.level
     const off = facade.onFrame((f) => {
+      if (lv0() !== 'national')
+        for (let k = 0; k < 4 && sorted.length; k++) {
+          const it = sorted[occIdx++ % sorted.length]
+          if (it.anchor && it.kind === 'place') occluded.set(it.key, facade.isOccluded(it.anchor))
+        }
       if (tick++ % 30 === 0) panels = [...document.querySelectorAll('.chrome')].map((e) => e.getBoundingClientRect()).filter((r) => r.width > 0 && r.width < innerWidth * 0.9)
       const { selected: sel, level: lv } = state.current
       const placed: { x0: number; y0: number; x1: number; y1: number }[] = []
@@ -94,7 +103,9 @@ export function LabelLayer() {
         const allow =
           it.kind === 'geo' ? lv !== 'local' : isSel || lv !== 'national' || it.major || shown < 8
         if (allow && facade.project(it.anchor, pos)) {
-          const tooFar = it.kind === 'place' && lv === 'local' && pos.depth > f.distance * 2.6 && !isSel
+          // 太远的不显示：近看只留镜头附近的，区域视角也收一收；被遮挡的不显示
+          const farLimit = lv === 'local' ? Math.max(140, f.distance * 1.7) : lv === 'regional' ? Math.max(700, f.distance * 2.2) : Infinity
+          const tooFar = it.kind === 'place' && !isSel && (pos.depth > farLimit || (lv !== 'national' && occluded.get(it.key) === true))
           const h = it.name.length * 16 + 34
           const w = 34
           const r = { x0: pos.x - w / 2, y0: pos.y - h, x1: pos.x + w / 2, y1: pos.y + 4 }

@@ -35,6 +35,8 @@ export interface EngineFacade {
   /** 世界坐标 → 屏幕像素；不可见返回 null */
   project(v: THREE.Vector3, out: { x: number; y: number; depth: number }): boolean
   placeAnchor(placeId: string): THREE.Vector3 | null
+  /** 镜头到该点之间是否被山体或方块遮挡 */
+  isOccluded(p: THREE.Vector3): boolean
   /** 地标营造范围（方块） */
   placeRadius(placeId: string): number
   /** 名楼名胜的名字（岳阳楼、滕王阁……），自动聚落为 null */
@@ -154,6 +156,10 @@ export class EngineFacadeImpl implements EngineFacade, TourPort, TrailPort {
 
   placeRadius(placeId: string): number {
     return this.engine.world.ctx.landmarks.byPlaceId(placeId)?.def.radius ?? 12
+  }
+
+  isOccluded(p: THREE.Vector3): boolean {
+    return this.engine.isOccluded(p)
   }
 
   placeAnchor(placeId: string): THREE.Vector3 | null {

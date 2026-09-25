@@ -29,6 +29,8 @@ export class CameraController {
   level: CameraLevel = 'national'
   onLevelChange: ((l: CameraLevel) => void) | null = null
   private resolved: CameraPose
+  /** 聚焦名楼后保持注视点高度（看楼身而不是楼脚）；用户一平移就恢复贴地 */
+  private holdY = false
 
   constructor(
     private readonly sampler: WorldSampler,
@@ -72,8 +74,21 @@ export class CameraController {
   /** 飞行目的地（飞行中才有）：世界据此预读 */
   destination: CameraPose | null = null
 
+  /** 平移：注视点恢复贴地 */
+  pan(dx: number, dy: number, viewportH: number): void {
+    this.holdY = false
+    this.orbit.pan(dx, dy, viewportH)
+  }
+
+  /** 推拉：朝光标推近时注视点跟着落地 */
+  zoom(delta: number, ground: THREE.Vector3 | null): void {
+    if (ground && delta < 0) this.holdY = false
+    this.orbit.zoom(delta, ground)
+  }
+
   flyTo(to: CameraPose, opts?: FlightOptions): Promise<void> {
     this.focus.stopOrbit()
+    this.holdY = true
     const p = this.flight.flyTo(this.pose, to, opts)
     this.destination = to
     return p.then(() => {
@@ -98,8 +113,10 @@ export class CameraController {
     } else {
       this.focus.update(dt, this.goal)
       /* 目标点贴地：平移后慢慢落到地面高度 */
-      const gy = this.groundAround(this.goal.target.x, this.goal.target.z, 1.5 + this.goal.distance * 0.03)
-      this.goal.target.y += (gy - this.goal.target.y) * (1 - Math.exp(-dt * 2))
+      if (!this.holdY) {
+        const gy = this.groundAround(this.goal.target.x, this.goal.target.z, 1.5 + this.goal.distance * 0.03)
+        this.goal.target.y += (gy - this.goal.target.y) * (1 - Math.exp(-dt * 2))
+      }
       const k = 1 - Math.exp(-dt * 9)
       this.pose.target.lerp(this.goal.target, k)
       this.pose.yaw += angleDelta(this.pose.yaw, this.goal.yaw) * k

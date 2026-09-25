@@ -10,9 +10,14 @@ const angleDelta = (a: number, b: number): number => Math.atan2(Math.sin(b - a),
 
 export interface DesignedView {
   preset: CameraPreset
-  /** 注视点高度（方块 Y）：名楼取楼身三分之一处，而不是地面 */
+  /** 注视点：全部建筑的包围盒中心，高度取楼身三分之一处 */
+  targetX: number
   targetY: number
+  targetZ: number
 }
+
+/** 镜头竖直视角（度），与 CameraController 一致 */
+const FOV = 42
 
 /**
  * 为一处地点设计镜头：在 16 个方位 × 3 个俯角 × 2 个距离里挑最好的一个。
@@ -24,12 +29,27 @@ export interface DesignedView {
  * 纯函数，按地形与植被数据计算，结果缓存。
  */
 export function designCamera(lm: ResolvedLandmark, terrain: TerrainManager, trees: TreePlacementSystem, fog?: FogMap): DesignedView {
-  /* 注视点：主体建筑的三分之一高处 */
+  /* 取景框：全部建筑（含城墙）的包围盒；镜头距离让它整个落在画面里 */
+  let minX = lm.x - 6
+  let maxX = lm.x + 6
+  let minZ = lm.z - 6
+  let maxZ = lm.z + 6
   let top = lm.level
-  for (const p of lm.placements) if (Math.hypot(p.x - lm.x, p.z - lm.z) < 14) top = Math.max(top, p.world.maxY)
+  for (const p of lm.placements) {
+    const w = p.world
+    minX = Math.min(minX, w.minX)
+    maxX = Math.max(maxX, w.maxX)
+    minZ = Math.min(minZ, w.minZ)
+    maxZ = Math.max(maxZ, w.maxZ)
+    top = Math.max(top, w.maxY)
+  }
+  const tx = (minX + maxX) / 2
+  const tz = (minZ + maxZ) / 2
+  const half = Math.max(maxX - minX, maxZ - minZ) / 2 + 3
   const tall = top - lm.level
-  const targetY = lm.level + 1 + Math.min(16, tall * 0.35)
-  const base = Math.max(55, Math.min(170, lm.def.radius * 2.2), tall * 2.4)
+  const targetY = lm.level + 1 + Math.min(18, tall * 0.3)
+  const sphere = Math.hypot(half, tall / 2)
+  const base = Math.max(42, Math.min(230, (sphere / Math.sin(((FOV / 2) * Math.PI) / 180)) * 1.02))
 
   const canopy = new Map<number, number>()
   /** 地表高度 + 树冠（密林约 13 格、疏林约 7 格）+ 地标建筑 */
@@ -57,22 +77,40 @@ export function designCamera(lm: ResolvedLandmark, terrain: TerrainManager, tree
   let bestScore = -Infinity
   for (let i = 0; i < 16; i++) {
     const yaw = angleDelta(0, (i / 16) * TAU)
-    for (const pitch of [0.42, 0.55, 0.7])
+    for (const pitch of [0.56, 0.66, 0.78])
       for (const dm of [1, 1.3]) {
         const d = base * dm
         const cp = Math.cos(pitch)
-        const cx = lm.x + Math.sin(yaw) * cp * d
+        const cx = tx + Math.sin(yaw) * cp * d
         const cy = targetY + Math.sin(pitch) * d
-        const cz = lm.z + Math.cos(yaw) * cp * d
+        const cz = tz + Math.cos(yaw) * cp * d
         let score = 0
         /* 1. 视线 */
         for (let k = 1; k < 18; k++) {
           const t = k / 18
-          const px = cx + (lm.x - cx) * t
+          const px = cx + (tx - cx) * t
           const py = cy + (targetY - cy) * t
-          const pz = cz + (lm.z - cz) * t
+          const pz = cz + (tz - cz) * t
           const g = ground(px, pz)
           if (py < g + 1.5) score -= 30 * (1.2 - t * 0.6)
+        }
+        /* 1b. 取景框四角：山体遮住城的一角也要扣分（长安南边的终南山） */
+        for (const [qx, qz] of [
+          [minX, minZ],
+          [maxX, minZ],
+          [minX, maxZ],
+          [maxX, maxZ],
+        ]) {
+          for (let k = 2; k < 12; k++) {
+            const t = k / 12
+            const px = cx + (qx - cx) * t
+            const py = cy + (lm.level + 2 - cy) * t
+            const pz = cz + (qz - cz) * t
+            if (py < ground(px, pz) + 1.5) {
+              score -= 12
+              break
+            }
+          }
         }
         /* 2. 镜头离地 */
         const clear = cy - ground(cx, cz)
@@ -83,11 +121,11 @@ export function designCamera(lm: ResolvedLandmark, terrain: TerrainManager, tree
         let water = 0
         for (let k = 2; k <= 8; k++) {
           const t = k / 10
-          if (wet(cx + (lm.x - cx) * t, cz + (lm.z - cz) * t)) water++
+          if (wet(cx + (tx - cx) * t, cz + (tz - cz) * t)) water++
         }
         score += Math.min(4, water) * 3
         /* 5. 俯角、距离偏好 */
-        score -= Math.abs(pitch - 0.55) * 12 + (dm - 1) * 10
+        score -= Math.abs(pitch - 0.66) * 14 + (dm - 1) * 10
         /* 6. 不进雾 */
         if (fog && fogAt(fog, cx, cz) > 0.3) score -= 60
         if (score > bestScore) {
@@ -96,5 +134,5 @@ export function designCamera(lm: ResolvedLandmark, terrain: TerrainManager, tree
         }
       }
   }
-  return { preset: best, targetY }
+  return { preset: best, targetX: tx, targetY, targetZ: tz }
 }

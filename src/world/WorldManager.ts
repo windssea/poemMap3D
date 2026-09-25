@@ -173,7 +173,7 @@ export class WorldManager {
       d = designCamera(lm, this.ctx.terrain, this.ctx.trees, this.fog)
       this.designed.set(lm.index, d)
     }
-    return { target: new THREE.Vector3(lm.x, d.targetY, lm.z), preset: d.preset, name: lm.def.name, radius: lm.def.radius }
+    return { target: new THREE.Vector3(d.targetX, d.targetY, d.targetZ), preset: d.preset, name: lm.def.name, radius: lm.def.radius }
   }
 
   /** 名胜瀑布（粒子水雾用） */

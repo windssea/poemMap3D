@@ -63,6 +63,7 @@ export class Engine {
   camera!: CameraController
   env!: EnvironmentManager
   raycast!: RaycastSystem
+  private readonly tmpDir = new THREE.Vector3()
   selection!: SelectionSystem
   chunkDebug: ChunkDebugOverlay | null = null
   private input: InputController | null = null
@@ -130,8 +131,8 @@ export class Engine {
         this.events.emit('interact', undefined)
       },
       rotate: (dx, dy) => this.camera.orbit.rotate(dx, dy),
-      pan: (dx, dy) => this.camera.orbit.pan(dx, dy, this.renderer.height),
-      zoom: (delta, x, y) => this.camera.orbit.zoom(delta, this.pick(x, y)?.point ?? null),
+      pan: (dx, dy) => this.camera.pan(dx, dy, this.renderer.height),
+      zoom: (delta, x, y) => this.camera.zoom(delta, this.pick(x, y)?.point ?? null),
       tap: (x, y) => {
         const hit = this.pick(x, y)
         this.events.emit('select', { placeId: this.selection.pick(hit), point: hit?.point ?? null })
@@ -208,10 +209,23 @@ export class Engine {
   }
 
   /** 地点的标签锚点：地标中心上方 */
+  /** 地名签的锚点：主体建筑屋脊之上（签挂在楼顶，不贴在楼身上） */
   placeAnchor(placeId: string): THREE.Vector3 | null {
     const lm = this.world.ctx.landmarks.byPlaceId(placeId)
     if (!lm) return null
-    return new THREE.Vector3(lm.x + 0.5, this.world.sampler.surfaceHeightAt(lm.x, lm.z) + 3, lm.z + 0.5)
+    let top = this.world.sampler.surfaceHeightAt(lm.x, lm.z) + 3
+    for (const p of lm.placements) if (Math.hypot(p.x - lm.x, p.z - lm.z) < 16 && !/^(wall|gate|corner)/.test(p.id)) top = Math.max(top, p.world.maxY + 3)
+    return new THREE.Vector3(lm.x + 0.5, top, lm.z + 0.5)
+  }
+
+  /** 镜头到这一点之间有没有山体或方块挡着（地名签被近处建筑、山挡住就不显示） */
+  isOccluded(p: THREE.Vector3): boolean {
+    const cam = this.camera.camera.position
+    const dir = this.tmpDir.copy(p).sub(cam)
+    const d = dir.length()
+    if (d < 6) return false
+    const hit = this.raycast.cast(cam, dir, d - 2)
+    return !!hit && hit.distance < d - 4
   }
 
   setTime(t: TimeOfDay): void {

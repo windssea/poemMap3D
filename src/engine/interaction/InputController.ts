@@ -43,6 +43,9 @@ export class InputController {
 
   private down(e: PointerEvent): void {
     if (!this.enabled) return
+    // 按住拖动时不让浏览器开始框选文字（地名签、界面文字）
+    e.preventDefault()
+    window.getSelection()?.removeAllRanges()
     this.el.setPointerCapture(e.pointerId)
     const p = this.local(e)
     this.pointers.set(e.pointerId, { ...p, button: e.button })

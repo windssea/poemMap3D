@@ -68,7 +68,7 @@ export class TimeOfDaySystem {
 
   update(dt: number): void {
     if (this.t >= 1) return
-    this.t = Math.min(1, this.t + dt / 2)
+    this.t = Math.min(1, this.t + dt / 1.4)
     this.apply(this.t * this.t * (3 - 2 * this.t))
   }
 

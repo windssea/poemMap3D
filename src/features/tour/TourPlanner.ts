@@ -32,8 +32,8 @@ const WET_P: Record<Season, number> = { spring: 0.4, summer: 0.3, autumn: 0.2, w
 /**
  * 巡游编排：江南 → 洛阳 → 长安 → 三峡 → 川蜀 → 边塞。
  *  - 季节：每片区一季，每巡一轮顺移一季，每个地方都会轮到四季；
- *  - 时辰：诗意优先（夜 / 月 → 夜，朝 / 晓 → 晨，暮 / 夕 → 暮），其余段内错开；
- *  - 天气：诗里有雨雪就下，其余按季节概率取固定种子伪随机，雨雪不超过一半；
+ *  - 时辰：以白天为主；题目或首句写明夜色的才入夜（每片区至多一站），晨、暮偶尔点缀；
+ *  - 天气：以晴为主；诗里写雨雪的才有机会下，每片区至多一站；
  *  - 选诗：每站配两首（多为一唐一宋），轮流展示。
  */
 export function planTour(plan: TourPlanData, poetry: PoetryRepository, round: number, s: TourSettings): TourStop[] {
@@ -43,19 +43,23 @@ export function planTour(plan: TourPlanData, poetry: PoetryRepository, round: nu
     const season = SEASONS[(SEASONS.indexOf(seg.season) + round) % 4]
     const stops = seg.stops.filter((st) => !st.extra || s.count !== 'normal')
     let wet = 0
+    let nights = 0
     stops.forEach((st, k) => {
       const poemId = st.poemIds[round % st.poemIds.length]
       const poem = poetry.get(poemId)
       if (!poem) return
-      const text = poem.title + poem.lines.join('')
-      let time: TimeOfDay = TIMES[(k + si + round) % 3]
-      if (/[夜月]/.test(text)) time = 'night'
-      else if (/[朝晓晨旦]/.test(text)) time = 'dawn'
-      else if (/[暮夕晚]/.test(text)) time = 'dusk'
+      const head = poem.title + (poem.lines[0] ?? '')
+      let time: TimeOfDay = 'day'
+      if (/夜|宵|月明|明月/.test(head) && nights < 1) {
+        time = 'night'
+        nights++
+      } else if (/[朝晓晨旦]/.test(head) && rng.chance(0.7)) time = 'dawn'
+      else if (/[暮夕晚]/.test(head) && rng.chance(0.7)) time = 'dusk'
+      else if (rng.chance(0.12)) time = TIMES[(k + si + round) % 2 === 0 ? 0 : 2]
       let weather: Weather = 'clear'
-      const poemWet = /[雨雪]/.test(text)
-      const cap = s.rain === 'none' ? 0 : s.rain === 'less' ? 1 : Math.ceil(stops.length / 2)
-      if (s.rain !== 'none' && (poemWet || rng.chance(WET_P[season] * (s.rain === 'often' ? 1.6 : 0.7))) && wet < cap) {
+      const poemWet = /[雨雪]/.test(head)
+      const cap = s.rain === 'none' ? 0 : s.rain === 'less' ? 1 : 2
+      if (s.rain !== 'none' && ((poemWet && rng.chance(0.6)) || rng.chance(WET_P[season] * (s.rain === 'often' ? 0.8 : 0.25))) && wet < cap) {
         weather = season === 'winter' ? 'snow' : 'rain'
         wet++
       }

@@ -161,9 +161,9 @@ function waterTown(r: Random, feature: 'pagoda' | 'stupa' | 'pavilion'): Pick<La
  * 距已有地标太近的地点不再另建。
  */
 export function planSettlements(anchors: readonly PlaceAnchor[], handmade: readonly LandmarkDefinition[], project: (lng: number, lat: number) => { x: number; z: number }): LandmarkDefinition[] {
-  const taken: { x: number; z: number; r: number }[] = handmade.map((d) => {
+  const taken: { x: number; z: number; r: number; hand: boolean }[] = handmade.map((d) => {
     const p = project(d.coordinate.lng, d.coordinate.lat)
-    return { x: p.x + (d.offset?.[0] ?? 0), z: p.z + (d.offset?.[1] ?? 0), r: d.radius }
+    return { x: p.x + (d.offset?.[0] ?? 0), z: p.z + (d.offset?.[1] ?? 0), r: d.radius, hand: true }
   })
   const handIds = new Set(handmade.map((d) => d.poetryPlaceId))
   const out: LandmarkDefinition[] = []
@@ -176,13 +176,30 @@ export function planSettlements(anchors: readonly PlaceAnchor[], handmade: reado
     const mountain = !famousKey && /[山峰岭顶]$/.test(a.name) && !/[州城县镇]/.test(a.name)
     const named = famousKey ? null : byName(a.name, r)
     const body = famousKey ? FAMOUS[famousKey](r) : named ? named : mountain ? { radius: 14, levelMode: 'summit' as const, terrainModifier: [{ t: 'raise' as const, r: 4, blend: 4 }], structures: [{ b: 'pavilion' as const, x: 0, z: 0, atLevel: true, p: { double: true } }] } : generic(a.weight, r)
-    if (taken.some((t) => Math.hypot(t.x - p.x, t.z - p.z) < Math.max(14, (t.r + body.radius) * 0.55))) continue
-    taken.push({ x: p.x, z: p.z, r: body.radius })
+    /* 落在手工名城、名楼范围里的地点（渭城之于长安）：沿真实方位推到城外另建，不与城混成一片 */
+    let ox = 0
+    let oz = 0
+    for (const t of taken) {
+      if (!t.hand) continue
+      const dx = p.x - t.x
+      const dz = p.z - t.z
+      const d = Math.hypot(dx, dz)
+      const need = t.r * 0.85 + body.radius * 0.7
+      if (d < need && d > 4) {
+        ox += (dx / d) * (need - d)
+        oz += (dz / d) * (need - d)
+      }
+    }
+    const px = p.x + ox
+    const pz = p.z + oz
+    if (taken.some((t) => Math.hypot(t.x - px, t.z - pz) < Math.max(14, (t.r + body.radius) * 0.55))) continue
+    taken.push({ x: px, z: pz, r: body.radius, hand: false })
     out.push({
       id: `place-${a.id}`,
       name: a.name,
       coordinate: { lng: a.lng, lat: a.lat },
       poetryPlaceId: a.id,
+      offset: ox || oz ? [Math.round(ox), Math.round(oz)] : undefined,
       major: !!famousKey || a.weight >= 6,
       cameraPreset: { yaw: r.range(-1, 1), pitch: 0.55, distance: Math.max(60, body.radius * 2.4) },
       ...body,
@@ -191,32 +208,63 @@ export function planSettlements(anchors: readonly PlaceAnchor[], handmade: reado
   return out
 }
 
-function generic(weight: number, r: Random): Pick<LandmarkDefinition, 'structures' | 'terrainModifier' | 'radius'> {
+/**
+ * 普通地点按诗作多少分三级：
+ *  - 一首：一处茅舍 / 小亭 / 人家，门前两棵树、一盏灯；
+ *  - 两三首：小村——两户朝南并排、一间小铺、一亭，围出一块小场院；
+ *  - 四首以上：村镇——正街铺地，街口牌坊，街北祠堂，两侧铺面与摊，街灯，塔或钟鼓楼。
+ */
+function generic(weight: number, r: Random): Pick<LandmarkDefinition, 'structures' | 'terrainModifier' | 'radius' | 'trees'> {
+  const tree = r.pick(['willow', 'peach', 'bamboo', 'broadleaf'] as const)
   if (weight <= 1) {
     const b = r.pick(['hut', 'pavilion', 'house'] as const)
-    return { radius: 12, terrainModifier: [{ t: 'flatten', x: 0, z: 0, r: 6, blend: 6 }], structures: [{ b, x: 0, z: 0, rot: r.int(0, 3) }] }
+    return {
+      radius: 12,
+      terrainModifier: [{ t: 'flatten', x: 0, z: 0, r: 7, blend: 6 }],
+      structures: [{ b, x: 0, z: 0, p: b === 'pavilion' ? { width: 5, double: r.chance(0.4) } : { seed: r.int(0, 99), lanterns: true } }, { b: 'lamp', x: 4, z: 5 }],
+      trees: [{ type: tree, variant: 0, pts: [[-7, -4], [-7, 5]], n: 2 }],
+    }
   }
   if (weight <= 3) {
     return {
-      radius: 18,
-      terrainModifier: [{ t: 'flatten', x: 0, z: 0, r: 11, blend: 7 }],
+      radius: 20,
+      terrainModifier: [{ t: 'flatten', x: 0, z: 0, r: 13, blend: 7 }],
       structures: [
-        { b: 'house', x: -5, z: -3, p: { seed: r.int(0, 99) } },
-        { b: 'house', x: 6, z: 2, rot: r.int(0, 3), p: { seed: r.int(0, 99) } },
-        { b: r.pick(['pavilion', 'hut'] as const), x: -3, z: 9 },
+        { b: 'house', x: -5, z: -5, p: { seed: r.int(0, 99), lanterns: true } },
+        { b: 'house', x: 5, z: -5, p: { seed: r.int(0, 99) } },
+        { b: 'shop', x: 7, z: 7, rot: 3, p: { seed: r.int(0, 99) } },
+        { b: r.pick(['pavilion', 'hut'] as const), x: -6, z: 7, p: { width: 5 } },
+        { b: 'lamp', x: 1, z: 3 },
       ],
+      trees: [{ type: tree, variant: 0, pts: [[-12, -8], [12, -10]], n: 3 }],
     }
   }
-  const s: StructureSpec[] = [{ b: 'hall', x: 0, z: -9, p: { width: 11, depth: 7, lanterns: true, terrace: 1 } }]
-  for (const [x, z] of [
-    [-12, 4],
-    [12, 4],
-    [-12, 13],
-    [12, 13],
-    [0, 16],
-  ])
-    s.push({ b: 'house', x, z, rot: x < 0 ? 3 : x > 0 ? 1 : 0, p: { seed: x * 5 + z } })
-  if (r.chance(0.5)) s.push({ b: 'pagoda', x: 16, z: -12, p: { levels: 5, width: 5 } })
-  else s.push({ b: 'pavilion', x: 16, z: -12 })
-  return { radius: 28, terrainModifier: [{ t: 'flatten', x: 0, z: 0, r: 20, blend: 8 }, { t: 'pave', x0: -1, z0: -3, x1: 1, z1: 20 }], structures: s }
+  const s: StructureSpec[] = [
+    { b: 'hall', x: 0, z: -9, p: { width: 11, depth: 7, lanterns: true, terrace: 1 } },
+    { b: 'archway', x: 0, z: 22, p: { tile: 'gray' } },
+    { b: 'shop', x: -9, z: 5, rot: 1, p: { seed: r.int(0, 99) } },
+    { b: 'shop', x: 9, z: 5, rot: 3, p: { seed: r.int(0, 99) } },
+    { b: 'house', x: -12, z: 15, rot: 1, p: { seed: r.int(0, 99), lanterns: true } },
+    { b: 'house', x: 12, z: 15, rot: 3, p: { seed: r.int(0, 99), lanterns: true } },
+    { b: 'house', x: -14, z: -8, p: { seed: r.int(0, 99) } },
+    { b: 'house', x: 14, z: -8, p: { seed: r.int(0, 99) } },
+    { b: 'stall', x: -4, z: 9, p: { seed: r.int(0, 99) } },
+    { b: 'stall', x: 4, z: 13, p: { seed: r.int(0, 99) } },
+    { b: 'lamp', x: -3, z: 2, rot: 2 },
+    { b: 'lamp', x: 3, z: 18 },
+  ]
+  if (r.chance(0.5)) s.push({ b: 'pagoda', x: 18, z: -18, p: { levels: 5, width: 5 } })
+  else s.push({ b: 'bellTower', x: 18, z: -18, p: { width: 7 } })
+  return {
+    radius: 30,
+    terrainModifier: [
+      { t: 'flatten', x: 0, z: 0, r: 22, blend: 8 },
+      { t: 'pave', x0: -1, z0: -3, x1: 1, z1: 25 },
+    ],
+    structures: s,
+    trees: [
+      { type: tree, variant: 0, pts: [[-22, 4], [-22, 20]], n: 3 },
+      { type: 'broadleaf', variant: 1, pts: [[22, 2], [22, 18]], n: 2 },
+    ],
+  }
 }

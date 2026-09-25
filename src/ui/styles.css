@@ -900,3 +900,19 @@ body.head-folded .head-tog svg {
     transform: translateY(-16px);
   }
 }
+
+/* 拖动转视角时不框选地名签等文字；输入框与诗卷正文仍可选 */
+html,
+body,
+#root {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+input,
+textarea,
+.hscroll .body,
+.hscroll p {
+  -webkit-user-select: text;
+  user-select: text;
+}

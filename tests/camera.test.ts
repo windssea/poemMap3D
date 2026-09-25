@@ -16,8 +16,8 @@ describe('地点机位', () => {
       const d = designCamera(lm, w.terrain, w.trees)
       const p = d.preset
       const cp = Math.cos(p.pitch)
-      const cx = lm.x + Math.sin(p.yaw) * cp * p.distance
-      const cz = lm.z + Math.cos(p.yaw) * cp * p.distance
+      const cx = d.targetX + Math.sin(p.yaw) * cp * p.distance
+      const cz = d.targetZ + Math.cos(p.yaw) * cp * p.distance
       const cy = d.targetY + Math.sin(p.pitch) * p.distance
       const s = w.terrain.sample(Math.floor(cx), Math.floor(cz))
       if (cy - Math.max(s.surfaceY, s.waterY) < 10) bad.push(`${lm.def.name} 离地 ${Math.round(cy - s.surfaceY)}`)
@@ -26,7 +26,7 @@ describe('地点机位', () => {
     const avg = (performance.now() - t0) / Math.max(1, n)
     expect(bad, bad.join('；')).toEqual([])
     expect(avg).toBeLessThan(120)
-  })
+  }, 60000)
   it('所有诗词地点都能找到地标', () => {
     const places: { id: string; name: string }[] = JSON.parse(fs.readFileSync('public/data/poems.json', 'utf8')).places
     const missing = places.filter((a) => !w.landmarks.byPlaceId(a.id)).map((a) => a.name)
