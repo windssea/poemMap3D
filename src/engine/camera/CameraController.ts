@@ -122,8 +122,11 @@ export class CameraController {
       this.pose.yaw += angleDelta(this.pose.yaw, this.goal.yaw) * k
       this.pose.pitch += (this.goal.pitch - this.pose.pitch) * k
       // 推拉单独用稍慢的阻尼，滚轮一格一格时不顿
-      const kd = 1 - Math.exp(-dt * 6)
-      this.pose.distance = Math.exp(Math.log(this.pose.distance) + (Math.log(this.goal.distance) - Math.log(this.pose.distance)) * kd)
+      // 每帧最多变 4%（按 60 帧计），连续快滚也是匀匀地推拉，不会一下窜出去
+      const kd = 1 - Math.exp(-dt * 4.5)
+      const step = (Math.log(this.goal.distance) - Math.log(this.pose.distance)) * kd
+      const cap = 0.04 * Math.max(1, dt * 60)
+      this.pose.distance = Math.exp(Math.log(this.pose.distance) + Math.max(-cap, Math.min(cap, step)))
     }
     this.resolved = this.collision.resolve(this.pose, dt)
     const pos = poseToPosition(this.resolved, this.camera.position)

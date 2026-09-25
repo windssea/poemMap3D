@@ -76,7 +76,6 @@ export function App() {
             <TourControls />
             <Toolbar />
           </div>
-          <div className="chrome hint">拖动观景 · 右键平移 · 滚轮远近 · 点地名读诗</div>
           <DebugPanel />
           {hidden && <div style={{ position: 'fixed', inset: 0, zIndex: 9 }} onClick={() => services.store.set((s) => ({ ui: { ...s.ui, hidden: false } }))} />}
         </ServicesContext.Provider>
