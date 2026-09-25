@@ -1,17 +1,30 @@
 {
   "name": "shanhe-shijuan",
-  "version": "3.0.0",
+  "version": "4.0.0",
   "private": true,
-  "description": "山河诗卷 · 三维水墨诗词地图（纯静态、离线）",
+  "description": "山河诗卷 · Minecraft 风格中国诗词体素世界（Greenfield 重写）",
   "type": "module",
   "scripts": {
-    "data": "node tools/build-data.mjs",
-    "build": "node tools/build-tour.mjs && node tools/build-font.mjs && node tools/build.mjs",
-    "serve": "node tools/serve.mjs 5188"
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --pretty",
+    "test": "vitest run",
+    "import-legacy": "node tools/import-legacy.mjs"
+  },
+  "dependencies": {
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "three": "^0.186.1"
   },
   "devDependencies": {
-    "esbuild": "0.25.10",
-    "subset-font": "^2.9.0",
-    "three": "0.160.0"
+    "@types/node": "^26.6.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@types/three": "^0.186.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.1",
+    "vitest": "^5.0.1"
   }
 }

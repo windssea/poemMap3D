@@ -1,0 +1,249 @@
+{
+ "version": 1,
+ "segments": [
+  {
+   "region": "江南",
+   "season": "spring",
+   "time": "day",
+   "weather": "rain",
+   "stops": [
+    {
+     "poemIds": [
+      "yin-hu-shang",
+      "hui-xiang-ou-shu"
+     ],
+     "note": "越州永兴",
+     "extra": false
+    },
+    {
+     "poemIds": [
+      "jing-ye-si",
+      "bo-chuan-gua-zhou"
+     ],
+     "note": "扬州旅舍",
+     "extra": false
+    },
+    {
+     "poemIds": [
+      "fengqiao-ye-bo",
+      "yi-jian-mei-wujiang"
+     ],
+     "note": "枫桥",
+     "extra": false
+    },
+    {
+     "poemIds": [
+      "yuan-ri",
+      "mei-hua-jueju"
+     ],
+     "note": "金陵",
+     "extra": true
+    },
+    {
+     "poemIds": [
+      "wuyi-xiang",
+      "shui-long-yin"
+     ],
+     "note": "三山",
+     "extra": true
+    }
+   ]
+  },
+  {
+   "region": "洛阳",
+   "season": "summer",
+   "time": "dusk",
+   "weather": "clear",
+   "stops": [
+    {
+     "poemIds": [
+      "yu-lin-ling",
+      "huan-xi-sha-yanshu"
+     ],
+     "note": "汴京",
+     "extra": false
+    },
+    {
+     "poemIds": [
+      "yu-lou-chun-guizhi",
+      "qiu-si-luoyang"
+     ],
+     "note": "洛阳",
+     "extra": false
+    },
+    {
+     "poemIds": [
+      "shi-hao-li",
+      "huai-mianchi-ji-zizhan"
+     ],
+     "note": "石壕村",
+     "extra": true
+    },
+    {
+     "poemIds": [
+      "bie-dong-da",
+      "die-lian-hua-jian-ju"
+     ],
+     "note": "睢阳",
+     "extra": true
+    }
+   ]
+  },
+  {
+   "region": "长安",
+   "season": "autumn",
+   "time": "day",
+   "weather": "clear",
+   "stops": [
+    {
+     "poemIds": [
+      "chun-wang",
+      "jin-se"
+     ],
+     "note": "长安",
+     "extra": false
+    },
+    {
+     "poemIds": [
+      "song-yuan-er",
+      "yi-qin-e"
+     ],
+     "note": "渭城",
+     "extra": false
+    },
+    {
+     "poemIds": [
+      "shan-ming-niao-ti",
+      "zhongnan-shan"
+     ],
+     "note": "终南山",
+     "extra": true
+    },
+    {
+     "poemIds": [
+      "ci-tongguan",
+      "xing-jing-hua-yin"
+     ],
+     "note": "华山",
+     "extra": true
+    }
+   ]
+  },
+  {
+   "region": "三峡",
+   "season": "summer",
+   "time": "dawn",
+   "weather": "clear",
+   "stops": [
+    {
+     "poemIds": [
+      "du-jingmen-songbie",
+      "ta-sha-xing-hou-guan"
+     ],
+     "note": "荆门山",
+     "extra": false
+    },
+    {
+     "poemIds": [
+      "zao-fa-bai-di-cheng",
+      "deng-gao"
+     ],
+     "note": "白帝城",
+     "extra": false
+    },
+    {
+     "poemIds": [
+      "yong-huai-gu-ji-san"
+     ],
+     "note": "昭君村",
+     "extra": true
+    },
+    {
+     "poemIds": [
+      "guo-shang"
+     ],
+     "note": "秭归",
+     "extra": true
+    }
+   ]
+  },
+  {
+   "region": "川蜀",
+   "season": "spring",
+   "time": "night",
+   "weather": "rain",
+   "stops": [
+    {
+     "poemIds": [
+      "chun-ye-xi-yu",
+      "mao-wu-ge"
+     ],
+     "note": "成都草堂",
+     "extra": false
+    },
+    {
+     "poemIds": [
+      "shu-dao-nan",
+      "jianmen-dao-zhong"
+     ],
+     "note": "剑门关",
+     "extra": false
+    },
+    {
+     "poemIds": [
+      "you-jiazhou-longyan"
+     ],
+     "note": "嘉州",
+     "extra": true
+    },
+    {
+     "poemIds": [
+      "lv-ye-shu-huai"
+     ],
+     "note": "忠州江舟",
+     "extra": true
+    }
+   ]
+  },
+  {
+   "region": "边塞",
+   "season": "winter",
+   "time": "dusk",
+   "weather": "rain",
+   "stops": [
+    {
+     "poemIds": [
+      "baixue-ge",
+      "guan-shan-yue"
+     ],
+     "note": "轮台",
+     "extra": false
+    },
+    {
+     "poemIds": [
+      "liangzhou-ci-wangzhihuan",
+      "liangzhou-ci-wanghan"
+     ],
+     "note": "凉州",
+     "extra": false
+    },
+    {
+     "poemIds": [
+      "long-xi-xing",
+      "shi-wu-cong-jun-zheng"
+     ],
+     "note": "上郡",
+     "extra": true
+    },
+    {
+     "poemIds": [
+      "chi-le-ge",
+      "zheng-ren-yuan"
+     ],
+     "note": "敕勒川",
+     "extra": true
+    }
+   ]
+  }
+ ]
+}

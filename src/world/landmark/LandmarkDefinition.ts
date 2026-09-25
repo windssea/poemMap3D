@@ -1,0 +1,91 @@
+import type { BiomeId } from '../biome/BiomeId'
+import type { BuildingParams } from '../building/BuildingFactory'
+import type { BuildingId } from '../building/BuildingRegistry'
+import type { GeoPoint } from '../coordinate/GeoProjection'
+import type { TreeType } from '../biome/BiomeRegistry'
+import type { VegetationProfile } from '../vegetation/TreePlacementSystem'
+
+type XZ = readonly [number, number]
+
+/** 地形操作（局部坐标：方块，以地标中心为原点，x 向东、z 向南） */
+export type TerrainOp =
+  | { t: 'flatten'; x: number; z: number; r: number; square?: boolean; dy?: number; pave?: boolean; blend?: number; overWater?: boolean }
+  | { t: 'lake'; x: number; z: number; rx: number; rz: number; depth?: number; rot?: number }
+  | { t: 'hill'; x: number; z: number; r: number; h: number; sharp?: number }
+  | { t: 'causeway'; pts: readonly XZ[]; w: number; dy?: number }
+  | { t: 'canal'; pts: readonly XZ[]; w: number }
+  | { t: 'island'; x: number; z: number; r: number; dy?: number }
+  | { t: 'pave'; x0: number; z0: number; x1: number; z1: number }
+
+export interface StructureSpec {
+  b: BuildingId
+  p?: BuildingParams
+  x: number
+  z: number
+  /** 俯视顺时针 90° 的次数；0 = 正面朝南 */
+  rot?: number
+  /** 相对地面抬高 */
+  dy?: number
+  /** 以地标基准地面为准（桥、台）而不是当地地表 */
+  atLevel?: boolean
+}
+
+export interface CityWallSpec {
+  x: number
+  z: number
+  /** 半宽 / 半深（方块） */
+  hw: number
+  hd: number
+  height?: number
+  gates: ('n' | 's' | 'e' | 'w')[]
+}
+
+export interface TreeSpec {
+  type: TreeType
+  variant?: number
+  pts: readonly XZ[]
+  /** 沿折线等距栽 n 株 */
+  n?: number
+}
+
+export interface CameraPreset {
+  /** 相机相对目标的水平方位角（弧度，0 = 从南往北看） */
+  yaw: number
+  /** 俯角（弧度） */
+  pitch: number
+  distance: number
+}
+
+export interface LandmarkDefinition {
+  id: string
+  name: string
+  coordinate: GeoPoint
+  /** 地标中心相对经纬度坐标的偏移（方块），避让江河等 */
+  offset?: XZ
+  /** 影响半径（方块） */
+  radius: number
+  /** 基准地面相对当地地势的抬升 */
+  levelDy?: number
+  terrainModifier?: readonly TerrainOp[]
+  structures: readonly StructureSpec[]
+  walls?: readonly CityWallSpec[]
+  biomeOverride?: { biome: BiomeId; radius: number }
+  vegetationProfile?: VegetationProfile
+  trees?: readonly TreeSpec[]
+  cameraPreset?: CameraPreset
+  poetryPlaceId: string
+  /** 水面上的小舟、瀑布等特写元素 */
+  waterfall?: { x: number; z: number; top: number; width: number; dir: 'n' | 's' | 'e' | 'w' }
+  /** 是否为手工营造的名胜（全国视图显示体量代理） */
+  major?: boolean
+}
+
+/** 由诗词数据派生的地点锚点（World 只通过 placeId 与诗词关联） */
+export interface PlaceAnchor {
+  id: string
+  name: string
+  lng: number
+  lat: number
+  /** 诗作数量 */
+  weight: number
+}
