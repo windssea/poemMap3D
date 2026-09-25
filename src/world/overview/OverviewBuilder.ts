@@ -85,7 +85,8 @@ export function buildOverviewTile(ctx: WorldContext, grid: OverviewGrid, tx: num
       const bd = biomeDef(s.biome)
       let rgb: [number, number, number]
       let k: number = TintClass.None
-      const forest = s.waterY < 0 && bd.density[0] >= 4 && s.slope < 2.2 && ctx.trees.spaceClass(x, z, s.biome) === 0
+      const space = s.waterY < 0 && bd.density[0] >= 4 && s.slope < 2.2 ? ctx.trees.spaceClass(x, z, s.biome) : 2
+      const forest = space === 0
       if (forest) {
         const evergreen = s.biome === BiomeId.Mountain || s.biome === BiomeId.Plateau
         rgb = hexRgb(evergreen ? FoliageTokens.pine : FoliageTokens.broad)
@@ -96,6 +97,12 @@ export function buildOverviewTile(ctx: WorldContext, grid: OverviewGrid, tx: num
         rgb = hexRgb(ShanshuiZones[s.tintZone].grass)
         k = TintClass.Grass
       } else rgb = blockColor(s.topBlock, 'top')
+      /* 疏林处混一层林色；整体略压暗，与近景有树有影的明度一致 */
+      if (!forest && space === 1) {
+        const f = hexRgb(ShanshuiZones[s.tintZone].foliage)
+        rgb = [(rgb[0] * 3 + f[0] * 2) / 5, (rgb[1] * 3 + f[1] * 2) / 5, (rgb[2] * 3 + f[2] * 2) / 5]
+      }
+      rgb = [rgb[0] * 0.9, rgb[1] * 0.9, rgb[2] * 0.9]
       const o = (j * n + i) * 3
       color[o] = rgb[0]
       color[o + 1] = rgb[1]

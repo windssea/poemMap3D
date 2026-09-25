@@ -21,8 +21,8 @@ const cores = typeof navigator !== 'undefined' ? navigator.hardwareConcurrency |
 
 export const QUALITY_PRESETS: Record<Quality, QualityPreset> = {
   low: { label: '轻', pixelRatio: 1, chunkRadius: 7, shadows: false, shadowSize: 1024, particles: 0.35, clouds: true, workers: Math.max(1, Math.min(2, cores - 1)), anisotropy: 1, uploadsPerFrame: 2 },
-  mid: { label: '衡', pixelRatio: Math.min(dpr, 1.5), chunkRadius: 11, shadows: true, shadowSize: 2048, particles: 0.7, clouds: true, workers: Math.max(1, Math.min(3, cores - 1)), anisotropy: 4, uploadsPerFrame: 4 },
-  high: { label: '高', pixelRatio: Math.min(dpr, 2), chunkRadius: 15, shadows: true, shadowSize: 4096, particles: 1, clouds: true, workers: Math.max(1, Math.min(5, cores - 1)), anisotropy: 8, uploadsPerFrame: 6 },
+  mid: { label: '衡', pixelRatio: Math.min(dpr, 1.5), chunkRadius: 13, shadows: true, shadowSize: 2048, particles: 0.7, clouds: true, workers: Math.max(1, Math.min(3, cores - 1)), anisotropy: 4, uploadsPerFrame: 4 },
+  high: { label: '高', pixelRatio: Math.min(dpr, 2), chunkRadius: 17, shadows: true, shadowSize: 4096, particles: 1, clouds: true, workers: Math.max(1, Math.min(5, cores - 1)), anisotropy: 8, uploadsPerFrame: 6 },
 }
 
 /** 画质：按设备给默认值，可切换；变化时通知订阅者 */

@@ -8,6 +8,7 @@ import { resolveBiome } from '../biome/BiomeResolver'
 import { tintZoneOf } from '../biome/TintZone'
 import { SEA_LEVEL, WORLD_HEIGHT } from '../coordinate/constants'
 import { type FocusProjection, getProjection } from '../coordinate/GeoProjection'
+import { GORGES } from '../generation/geography/GeographyData'
 import { MacroKind, type MacroSampler } from '../generation/geography/MacroGeography'
 import type { LakeManager } from '../water/LakeManager'
 import { BANK_MAX, type RiverManager } from '../water/RiverManager'
@@ -97,7 +98,19 @@ export class TerrainManager {
     /* 江河：河心深、近岸浅；岸坡由滩地缓升，岸不低于水面 */
     const rv = this.rivers.query(x, z)
     if (rv) {
-      const hw = rv.halfWidth * (1 + 0.3 * this.nWidth(x / 70, z / 70) + 0.1 * this.nWidth(x / 18 + 50, z / 18))
+      /* 峡谷：江面收窄，两岸峭壁拔起 */
+      let gorge = 0
+      let gorgeWall = 0
+      for (const g of GORGES) {
+        if (this.rivers.rivers[rv.river].def.id !== g.river) continue
+        const lng = this.P.lngOf(x)
+        const f = smoothstep(g.lng0, g.lng0 + 0.25, lng) * (1 - smoothstep(g.lng1 - 0.25, g.lng1, lng))
+        if (f > gorge) {
+          gorge = f * g.narrow
+          gorgeWall = f * g.wall
+        }
+      }
+      const hw = rv.halfWidth * (1 - gorge) * (1 + 0.3 * this.nWidth(x / 70, z / 70) + 0.1 * this.nWidth(x / 18 + 50, z / 18))
       const L = rv.level
       const edge = rv.dist - hw
       if (edge < 0) {
@@ -118,6 +131,11 @@ export class TerrainManager {
         if (edge < col.waterDist) {
           col.waterDist = edge
           if (col.waterKind === WaterKind.None) col.waterKind = WaterKind.River
+        }
+        if (gorgeWall > 0 && edge < 70) {
+          const n = 0.75 + 0.5 * (0.5 + 0.5 * this.nWidth(x / 24 + 90, z / 24))
+          const wall = L + 2 + gorgeWall * n * smoothstep(0, 5, edge) * (1 - smoothstep(40, 70, edge))
+          col.height = Math.max(col.height, wall)
         }
       }
     }

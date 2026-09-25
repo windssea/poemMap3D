@@ -43,6 +43,20 @@ describe('Landmark', () => {
     for (let y = ground + 1; y < ground + 3; y++) expect(Blocks.get(vol.get(x, y, z) & 255).solid, `y=${y}`).toBe(false)
   })
 
+  it('城池不压江河：城墙范围内没有河湖水面', () => {
+    for (const lm of w.landmarks.landmarks) {
+      const wall = lm.def.walls?.[0]
+      if (!wall) continue
+      let wet = 0
+      for (let dz = -wall.hd; dz <= wall.hd; dz += 3)
+        for (let dx = -wall.hw; dx <= wall.hw; dx += 3) {
+          const c = w.terrain.column(lm.x + wall.x + dx, lm.z + wall.z + dz)
+          if (c.waterY > c.height && c.waterKind !== 4) wet++
+        }
+      expect(wet, lm.def.name).toBe(0)
+    }
+  })
+
   it('庐山有瀑布', () => {
     expect(w.landmarks.byPlaceId('lushan')!.waterfall).not.toBeNull()
   })
