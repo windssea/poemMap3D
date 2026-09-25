@@ -1,9 +1,4 @@
 /* 山河诗卷 · 界面样式。颜色一律来自 theme.ts 写入的 CSS 变量。 */
-@font-face {
-  font-family: 'ShanheBrushFallback';
-  src: local('KaiTi'), local('STKaiti');
-}
-
 :root {
   --kai: 'KaiTi', 'STKaiti', 'Kaiti SC', 'Kaiti TC', '楷体', '楷体_GB2312', 'AR PL UKai CN', 'TW-Kai', serif;
   --brush: 'ShanheBrush', 'ShanheBrushPoems', var(--kai);
