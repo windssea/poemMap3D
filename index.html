@@ -1335,7 +1335,7 @@ class Buf {
   }
 }
 const NO_UV = [[0.5, 0.5], [0.5, 0.5], [0.5, 0.5], [0.5, 0.5]], NO_RIM = [0, 0, 0, 0];
-function terrainExtra(sh, fine) {
+function terrainExtra(sh) {
   /* 体素描边：顶面露出的棱角提亮一线，精致而不成网格 */
   sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nattribute vec2 aEdge; attribute vec4 aRim; varying vec2 vEdge; varying vec4 vRim;")
     .replace("#include <begin_vertex>", "#include <begin_vertex>\nvEdge = aEdge; vRim = aRim;");
@@ -1346,10 +1346,9 @@ function terrainExtra(sh, fine) {
       vec4 rr = (1.0 - smoothstep(vec4(0.03), vec4(0.03) + aa, ed)) * vRim;
       float rim = max(max(rr.x, rr.y), max(rr.z, rr.w));
       diffuseColor.rgb *= 1.0 + rim * 0.22 * (1.0 - smoothstep(30.0, 90.0, length(vViewPosition)));`);
-  if (fine) { sh.uniforms.uFine = GU.uFine; sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nuniform vec4 uFine;").replace("#include <clipping_planes_fragment>", "#include <clipping_planes_fragment>\nif (vFogWorld.x > uFine.x && vFogWorld.x < uFine.z && vFogWorld.z > uFine.y && vFogWorld.z < uFine.w) discard;"); }   // 细地形窗口内丢弃粗地形
 }
-const terrainMat = withMist(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0 }), (sh) => terrainExtra(sh, true), 0);
-const patchMat = withMist(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0 }), (sh) => terrainExtra(sh, false), 0);   // 名胜微缩景：不受细地形窗口影响
+const terrainMat = withMist(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0 }), (sh) => terrainExtra(sh), 0);
+const patchMat = withMist(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0 }), (sh) => terrainExtra(sh), 0);   // 名胜微缩景：不受细地形窗口影响
 const terrainGroup = new THREE.Group(); scene.add(terrainGroup);
 function hAt(i, j) { return i < 0 || j < 0 || i >= W || j >= H ? -9 : TY[j * W + i]; }
 /* —— 两级细节：近处整格，远处 2×2 合一 —— */
@@ -1378,7 +1377,7 @@ function emitChunk(G, O, i0, j0, i1, j1) {
   const HB = (i, j) => {
     const h = H0(i, j); if (i >= i0 && i < i1 && j >= j0 && j < j1) return h;
     if (i < 0 || j < 0 || i >= G.w || j >= G.h) return -9;
-    if (G.f === 1) { const oi = Math.floor(i / O.f), oj = Math.floor(j / O.f); return Math.min(h, O.ty[oj * O.w + oi]); }
+    if (G.f === 1) return h;   // 相邻块同一网格：侧面只铺到邻格高度，不重叠
     return Math.min(h, G.min[j * G.w + i]);
   };
   for (let j = j0; j < j1; j++) for (let i = i0; i < i1; i++) {
@@ -1404,7 +1403,7 @@ function emitChunk(G, O, i0, j0, i1, j1) {
       blockSide(b, pa, pb, nrm, top, sideC, y, yb, i + j);
     }
   }
-  const mesh = new THREE.Mesh(b.geometry(), terrainMat); mesh.customDepthMaterial = chunkDepthMat;
+  const mesh = new THREE.Mesh(b.geometry(), terrainMat);
   mesh.castShadow = true; mesh.receiveShadow = true;
   return mesh;
 }
@@ -1434,14 +1433,12 @@ function blockSide(b, pa, pb, nrm, top, body, y, yb, seed, lip = LIP) {
 }
 const CHUNKS = [];
 function buildTerrainMesh() {
-  const CH = 48, G1 = makeGrid(1), G2 = makeGrid(2);
+  const CH = 48, G1 = makeGrid(1);
   for (let cj = 0; cj < H; cj += CH) for (let ci = 0; ci < W; ci += CH) {
-    const fine = emitChunk(G1, G2, ci, cj, Math.min(W, ci + CH), Math.min(H, cj + CH));
-    const coarse = emitChunk(G2, G1, ci / 2, cj / 2, Math.min(G2.w, (ci + CH) / 2), Math.min(G2.h, (cj + CH) / 2));
-    coarse.visible = false;
-    terrainGroup.add(fine, coarse);
+    const fine = emitChunk(G1, G1, ci, cj, Math.min(W, ci + CH), Math.min(H, cj + CH));
+    terrainGroup.add(fine);   // 统一体素：远近都是同一套方块，不再换 2×2 合并的粗网格
     const bb = fine.geometry.boundingBox;
-    CHUNKS.push({ fine, coarse, cx: (bb.min.x + bb.max.x) / 2, cz: (bb.min.z + bb.max.z) / 2, r: Math.hypot(bb.max.x - bb.min.x, bb.max.z - bb.min.z) / 2, coarseOn: false });
+    CHUNKS.push({ fine, cx: (bb.min.x + bb.max.x) / 2, cz: (bb.min.z + bb.max.z) / 2, r: Math.hypot(bb.max.x - bb.min.x, bb.max.z - bb.min.z) / 2, coarseOn: false });
   }
 }
 /** 远处换粗网格，草木只画到一定距离 */
@@ -1451,12 +1448,6 @@ function tickLOD() {
   if (lodFrame++ % 6) return;
   const [far, flora] = LOD[QUALITY], c = camera.position;
   const tp = trailPlaying();
-  for (const ch of CHUNKS) {
-    if (tp) break;   // 足迹播放中不切换远近两级（避免闪烁）
-    const d = Math.max(0, Math.hypot(ch.cx - c.x, ch.cz - c.z) - ch.r) + Math.max(0, c.y - 20) * 0.5;
-    const want = ch.coarseOn ? d > far * 0.9 : d > far;
-    if (want !== ch.coarseOn) { ch.coarseOn = want; ch.fine.visible = !want; ch.coarse.visible = want; shadowDirty = true; }
-  }
   for (const m of floraMeshes) {
     const d = Math.hypot(m.userData.cx - c.x, m.userData.cz - c.z) - (m.userData.half || 34);   // 减去分块内切半径：按块里离镜头最近处算远近
     const lim = tp ? Math.max(flora, 105) : flora, v = m.visible ? d < lim + 15 : d < lim; if (v !== m.visible) { m.visible = v; shadowDirty = true; }
@@ -3260,7 +3251,7 @@ function refreshNearFlora(center, radius) {
   cells.sort((a, b) => a[0] - b[0]);
   const cnt = {}; for (const k in nearFlora.meshes) cnt[k] = 0;
   const fullR = Math.min(8, radius * 0.4)   /* 完整细节只给最近一圈：新树近景块多，外圈用中景已足够 */, dcap = DECO_CAP[QUALITY]; let dcount = 0;
-  const decoAt = (k, x, y, z, R) => { const mk = "deco:" + k, m = nearFlora.meshes[mk]; if (!m || cnt[mk] >= 2500 || dcount >= dcap || inFine(x, z)) return; const L = landAt(x, z); if (L.water ? !(k === "reeds" || k === "pebble") : Math.abs(L.y - y) > 0.05) return; if (bldBlocked(x, z, 0.02)) return; if (L.water) y = L.y - 0.02; const sc = decoScale(k, R); _ne.set(0, R() * 6.28, 0); _nq.setFromEuler(_ne); _np.set(x, y + (k === "soil" ? 0.003 : 0), z); _ns.set(sc, sc, sc); m.setMatrixAt(cnt[mk], _nm.compose(_np, _nq, _ns)); m.setColorAt(cnt[mk], _nc.setRGB(1, 1, 1)); cnt[mk]++; dcount++; };
+  const decoAt = (k, x, y, z, R) => { const mk = "deco:" + k, m = nearFlora.meshes[mk]; if (!m || cnt[mk] >= 2500 || dcount >= dcap) return; const L = landAt(x, z); if (L.water ? !(k === "reeds" || k === "pebble") : Math.abs(L.y - y) > 0.05) return; if (bldBlocked(x, z, 0.02)) return; if (L.water) y = L.y - 0.02; const sc = decoScale(k, R); _ne.set(0, R() * 6.28, 0); _nq.setFromEuler(_ne); _np.set(x, y + (k === "soil" ? 0.003 : 0), z); _ns.set(sc, sc, sc); m.setMatrixAt(cnt[mk], _nm.compose(_np, _nq, _ns)); m.setColorAt(cnt[mk], _nc.setRGB(1, 1, 1)); cnt[mk]++; dcount++; };
   let total = 0;
   for (const [d2, i, j] of cells) {
     if (total >= cap) break;
@@ -3279,7 +3270,7 @@ function refreshNearFlora(center, radius) {
       const key = treeKey(pickTree(f, R), R, f.zone), sp = slotPos(f, R, taken); if (!sp) continue;
       const sc = plantScale(key, R) * (f.zone === "plateau" ? 0.8 : 1);
       taken |= 1 << sp[0]; if (bigCrown(key, sc)) taken |= SLOT_NEI[sp[0]]; const tx = sp[1], tz = sp[2];
-      if ((FLAT[idx(tx, tz)] && R() < 0.9) || inFine(tx, tz) || !plantOK(key, sc, tx, tz, R)) continue;
+      if ((FLAT[idx(tx, tz)] && R() < 0.9) || !plantOK(key, sc, tx, tz, R)) continue;
       const mk = key + "@" + (Math.hypot(tx - center.x, tz - center.z) < fullR ? 2 : 1), m = nearFlora.meshes[mk]; if (!m || cnt[mk] >= 3000) continue;
       const g = 0.88 + R() * 0.24;
       _ne.set(0, R() * 6.28, 0); _nq.setFromEuler(_ne); _np.set(tx, f.y, tz); _ns.set(sc, sc, sc);
@@ -3579,7 +3570,6 @@ function applyQuality() {
   reflector.visible = P.refl > 0; waterFlat.visible = !(P.refl > 0);
   if (P.refl > 0) reflector.getRenderTarget().setSize(Math.round(innerWidth * pr * P.refl), Math.round(innerHeight * pr * P.refl));
   floraMeshes.forEach((m) => (m.count = Math.round(m.userData.full * P.flora)));
-  if (typeof FINE !== "undefined" && FINE.on) { if (QUALITY === "low") dropFine(); else filterFloraForFine(); }
   if (P.reflFlora) reflector.camera.layers.enable(1); else reflector.camera.layers.disable(1);
   $("#bQual .q").textContent = P.name;
   $("#bQual").title = "画质：" + P.tip + "（点击切换）";
@@ -5206,7 +5196,7 @@ let frames = 0, perfAcc = 0, perfN = 0, perfChecked = false;
 function renderFrame(dt) {
   GU.uTime.value += REDUCED ? dt * 0.3 : dt;
   tickMood(dt); tickSeason(dt); tickWeather(dt); tickTour(dt); tickFly(dt); tickKeys(dt);
-  controls.update(); constrainCamera(); tickSun(); tickLOD(); tickBldLOD(); if (lodFrame % 6 === 3) tickNearFlora(); if (lodFrame % 3 === 1) tickFine(); tickWallLine(); tickDrift(dt); tickDetail(dt);
+  controls.update(); constrainCamera(); tickSun(); tickLOD(); tickBldLOD(); if (lodFrame % 6 === 3) tickNearFlora(); tickWallLine(); tickDrift(dt); tickDetail(dt);
   sky.position.copy(camera.position);
   if (boatMesh && !REDUCED && labelFrame % 2 === 0) {
     const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new THREE.Vector3(), s = new THREE.Vector3(1, 1, 1);
@@ -5463,7 +5453,7 @@ function landscapeMesh(T, dbg) {
     sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nvarying vec3 vWp; uniform float uTime;\nfloat h21(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }")
       .replace("#include <color_fragment>", "#include <color_fragment>\n{ vec2 q = floor(vWp.xz * 10.0); float w = h21(q + floor(uTime * 1.2 + h21(q) * 3.0)); diffuseColor.rgb *= 1.0 + (step(0.9, w) * 0.08 - step(w, 0.08) * 0.05); }");
   };
-  return { terrain: new THREE.Mesh(g, T.map ? fineTerrainMat : new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 })), water: new THREE.Mesh(wg, T.map ? fineWaterMat : wm), tris: P.length / 9 + WP.length / 9 };
+  return { terrain: new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 })), water: new THREE.Mesh(wg, wm), tris: P.length / 9 + WP.length / 9 };
 }
 /* ================================================================
    地形预览的植被（第四至六步）：只读 buildLandscape 的查询数据（高度、坡度、分区、离岸距离），与地形同一套高度，
@@ -5602,86 +5592,6 @@ function startTerrainLab() {
     get tris() { return M.tris; } };
   return LAB;
 }
-/* ================================================================
-   细地形窗口（接入全国地图）：镜头推近时，在视点周围约 14 单位见方的窗口里，用上面的高山与河岸规则
-   即时生成 5 倍细的地形与植被，替换窗口内的粗地形与草木；拉远、足迹播放、飞行中、轻量画质时不生成。
-   · 窗口按全国图格边对齐；粗地形在窗口内由着色器丢弃（阴影同样丢弃），全国图草木在 CPU 上剔出窗口，近景加密避开窗口；
-   · 楼阁与地标平台保持全国图高度，名胜微缩景照旧；全国图原有水面照旧，只补新开出的水；
-   · 窗口边一格内渐变到全国图高度，与窗外粗地形接上。
-   ================================================================ */
-const FINE = { on: false, T: null, M: null, FL: null, box: new THREE.Vector4(1, 1, -1, -1), group: new THREE.Group(), center: null, cool: 0 };
-GU.uFine = { value: FINE.box };
-scene.add(FINE.group);
-const fineTerrainMat = withMist(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 }), null, 0);
-const fineWaterMat = withMist(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0 }), (sh) => {
-  sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nuniform float uTimeF;\nfloat hf21(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }")
-    .replace("#include <color_fragment>", "#include <color_fragment>\n{ vec2 q = floor(vFogWorld.xz * 10.0); float w = hf21(q + floor(uTimeF * 1.2 + hf21(q) * 3.0)); diffuseColor.rgb *= 1.0 + (step(0.9, w) * 0.08 - step(w, 0.08) * 0.05); }");
-  sh.uniforms.uTimeF = GU.uTime;
-});
-/** 粗地形的阴影深度材质：窗口内同样丢弃 */
-const chunkDepthMat = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
-chunkDepthMat.onBeforeCompile = (sh) => {
-  sh.uniforms.uFine = GU.uFine;
-  sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nvarying vec2 vFW;").replace("#include <project_vertex>", "#include <project_vertex>\nvFW = (modelMatrix * vec4(transformed, 1.0)).xz;");
-  sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nvarying vec2 vFW; uniform vec4 uFine;").replace("#include <clipping_planes_fragment>", "#include <clipping_planes_fragment>\nif (vFW.x > uFine.x && vFW.x < uFine.z && vFW.y > uFine.y && vFW.y < uFine.w) discard;");
-};
-const inFine = (x, z) => FINE.on && x > FINE.box.x && x < FINE.box.z && z > FINE.box.y && z < FINE.box.w;
-/** 全国图草木：窗口内的实例剔出（保留原始矩阵，窗口移走后复原） */
-function filterFloraForFine() {
-  const b = FINE.box, M = new THREE.Matrix4(), P = new THREE.Vector3();
-  for (const m of floraMeshes) {
-    const half = m.userData.half || 34, hit = FINE.on && Math.abs(m.userData.cx - (b.x + b.z) / 2) < half + (b.z - b.x) / 2 && Math.abs(m.userData.cz - (b.y + b.w) / 2) < half + (b.w - b.y) / 2;
-    if (!hit && !m.userData.fineCut) continue;
-    if (!m.userData.orig) { m.userData.orig = m.instanceMatrix.array.slice(0, m.userData.full * 16); m.userData.origC = m.instanceColor ? m.instanceColor.array.slice(0, m.userData.full * 3) : null; }
-    const O = m.userData.orig, OC = m.userData.origC, want = Math.round(m.userData.full * QPRE[QUALITY].flora);
-    let n = 0;
-    for (let i = 0; i < want; i++) {
-      if (hit) { M.fromArray(O, i * 16); P.setFromMatrixPosition(M); if (P.x > b.x && P.x < b.z && P.z > b.y && P.z < b.w) continue; }
-      m.instanceMatrix.array.set(O.subarray(i * 16, i * 16 + 16), n * 16); if (OC) m.instanceColor.array.set(OC.subarray(i * 3, i * 3 + 3), n * 3); n++;
-    }
-    m.count = n; m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; m.userData.fineCut = hit;
-  }
-}
-function clearFine() {
-  if (FINE.T) { FINE.group.clear(); for (const o of [FINE.M && FINE.M.terrain, FINE.M && FINE.M.water]) if (o) o.geometry.dispose(); if (FINE.FL) { for (const k in FINE.FL.meshes) FINE.FL.meshes[k].dispose(); for (const k in FINE.FL.decoMeshes) { FINE.FL.decoMeshes[k].geometry.dispose(); FINE.FL.decoMeshes[k].dispose(); } } }
-  FINE.T = FINE.M = FINE.FL = null;
-}
-function buildFine(center) {
-  const t0 = performance.now(), HALF = 7;
-  const i0 = gi(center.x - HALF), i1 = gi(center.x + HALF), j0 = gj(center.z - HALF), j1 = gj(center.z + HALF);
-  const win = { x0: X0 + i0 * CS, x1: X0 + (i1 + 1) * CS, z0: Z0 + j0 * CS, z1: Z0 + (j1 + 1) * CS };
-  clearFine();
-  const T = buildLandscape(win, { map: true });
-  const M = landscapeMesh(T);
-  M.terrain.castShadow = M.terrain.receiveShadow = true; M.water.receiveShadow = true;
-  FINE.group.add(M.terrain, M.water);
-  const FL = buildLandscapeFlora(T, FINE.group, floraMat);
-  for (const k in FL.meshes) FL.meshes[k].layers.set(1);
-  for (const k in FL.decoMeshes) FL.decoMeshes[k].layers.set(1);
-  Object.assign(FINE, { on: true, T, M, FL, center: center.clone() });
-  FINE.box.set(win.x0, win.z0, win.x1, win.z1);
-  filterFloraForFine(); FL.update(camera, true);
-  nearFlora.center = null;   // 近景加密重排，避开窗口
-  shadowDirty = true;
-  FINE.ms = performance.now() - t0;
-}
-function dropFine() {
-  if (!FINE.on) return;
-  FINE.on = false; FINE.box.set(1, 1, -1, -1); clearFine(); filterFloraForFine(); nearFlora.center = null; shadowDirty = true;
-}
-function tickFine() {
-  if (FINE.cool > 0) { FINE.cool--; }
-  const d = camera.position.distanceTo(controls.target);
-  const want = QUALITY !== "low" && !QS.get("nofine") && d < 26 && !trailPlaying();
-  if (!want) { if (FINE.on && d > 30) dropFine(); return; }
-  if (fly) return;   // 飞行中不重建，落定再说
-  if (FINE.FL) FINE.FL.update(camera);
-  const c = controls.target;
-  if (FINE.on && Math.abs(c.x - FINE.center.x) < 3.5 && Math.abs(c.z - FINE.center.z) < 3.5) return;
-  if (FINE.cool > 0) return;
-  buildFine(c); FINE.cool = 20;
-}
-
 /* ===== 树木样板（TreePreview：tree-preview.html 或 ?lab=all / ?lab=willow,pine）：单独场景，拖动旋转、滚轮缩放，逐棵检查造型 =====
    每个树种一行：各变体的近景（LOD0/细节 2），右侧是变体 0 的中景与远景（细节 1、0） */
 let LAB = null;
@@ -5801,7 +5711,7 @@ document.addEventListener("visibilitychange", () => { if (audio) (document.hidde
     setTimeout(openFromHash, 400);
     setTimeout(loadTourFont, 600); setTimeout(loadDetail, 2500); setTimeout(loadPoemFont, 5000);
     addEventListener("hashchange", () => { if (!curPlace || !location.hash.includes(curPlace.poems[curPoem].id)) openFromHash(); });
-    window.__app = { THEMES, THEME, applyTheme, FINE, buildFine, dropFine, TLAB_WINS, dbgH: (lng, lat) => { const k = gj(wz(lat)) * W + gi(wx(lng)); return { TY: +TY[k].toFixed(2), mE: +m2y(E[k]).toFixed(2), E: E[k] | 0, patch: PATCH_OF[k], wy: WY[k] }; }, buildLandscape, get TLAB_VIEWS() { return (TLAB_WINS[QS.get("w")] || TLAB_WINS.sanxia).views; }, get grid() { return { W, H, X0, Z0, CS }; }, floraInfoAt: (x, z) => floraInfo(gi(x), gj(z)), get lab() { return LAB; }, startLab, THREE, scene, camera, get water() { return [reflector, waterFlat]; }, controls, renderer, PLACES, VIEWS, flyView, setMood, setSeason, setWeather, GU, FALLS, startTrail, closeTrail, get trail() { return trail; }, get TOUR() { return TOUR; }, TS, tourPlan, groundAt, nearFlora, PATCHES, bldGroup, VoxelTree, treeGeoKey, floraMat, landAt, wx, wz, y2m, get EXTRA() { return EXTRA_TREES; }, get flora() { return floraMeshes; }, tourAt(i) { startTour(); tourGo(i); }, startTour, stopTour, HOME, get autoFocus() { return autoFocus; }, openPlace, openPoem, closeAll, get listOpen() { return listOpen; }, get scrollOpen() { return scrollOpen; }, applyQuality, get quality() { return QUALITY; }, viewPose,
+    window.__app = { THEMES, THEME, applyTheme, TLAB_WINS, dbgH: (lng, lat) => { const k = gj(wz(lat)) * W + gi(wx(lng)); return { TY: +TY[k].toFixed(2), mE: +m2y(E[k]).toFixed(2), E: E[k] | 0, patch: PATCH_OF[k], wy: WY[k] }; }, buildLandscape, get TLAB_VIEWS() { return (TLAB_WINS[QS.get("w")] || TLAB_WINS.sanxia).views; }, get grid() { return { W, H, X0, Z0, CS }; }, floraInfoAt: (x, z) => floraInfo(gi(x), gj(z)), get lab() { return LAB; }, startLab, THREE, scene, camera, get water() { return [reflector, waterFlat]; }, controls, renderer, PLACES, VIEWS, flyView, setMood, setSeason, setWeather, GU, FALLS, startTrail, closeTrail, get trail() { return trail; }, get TOUR() { return TOUR; }, TS, tourPlan, groundAt, nearFlora, PATCHES, bldGroup, VoxelTree, treeGeoKey, floraMat, landAt, wx, wz, y2m, get EXTRA() { return EXTRA_TREES; }, get flora() { return floraMeshes; }, tourAt(i) { startTour(); tourGo(i); }, startTour, stopTour, HOME, get autoFocus() { return autoFocus; }, openPlace, openPoem, closeAll, get listOpen() { return listOpen; }, get scrollOpen() { return scrollOpen; }, applyQuality, get quality() { return QUALITY; }, viewPose,
       setView(v) { const { target, pos } = viewPose(v); controls.target.copy(target); camera.position.copy(pos); fly = null; controls.update(); },
       cell(lng, lat) { const k = idx(wx(lng), wz(lat)); return { y: TY[k], m: Math.round(y2m(TY[k])), kind: KIND[k], snow: SNOW[k], col: [...TOPC.slice(k * 3, k * 3 + 3)].map((v) => +v.toFixed(2)) }; },
       bench(n = 60) { const gl = renderer.getContext(); composer.render(); gl.finish(); const t = performance.now(); for (let i = 0; i < n; i++) { if (window.__benchShadow) renderer.shadowMap.needsUpdate = true; composer.render(); } gl.finish(); return +((performance.now() - t) / n).toFixed(2); },
