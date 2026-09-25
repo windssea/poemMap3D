@@ -94,6 +94,15 @@ export const B = {
   CLOTH_RED_SLAB: 78,
   CLOTH_BLUE_SLAB: 79,
   BARREL: 80,
+  LIMESTONE: 81,
+  WHEAT: 82,
+  RICE: 83,
+  FARMLAND: 84,
+  BLACK_EARTH: 85,
+  PURPLE_EARTH: 86,
+  BIRCH_LOG: 87,
+  PALM_LOG: 88,
+  LEAVES_PALM: 89,
 } as const
 export type BlockKey = keyof typeof B
 
@@ -247,6 +256,16 @@ export function createDefaultBlockRegistry(): BlockRegistry {
   r.register(slab(B.CLOTH_RED_SLAB, 'cloth_red_slab', 'cloth_red', { tags: ['building'] }))
   r.register(slab(B.CLOTH_BLUE_SLAB, 'cloth_blue_slab', 'cloth_blue', { tags: ['building'] }))
   r.register(custom(B.BARREL, 'barrel', { top: 'log_top', bottom: 'log_top', side: 'planks' }, [[3, 0, 3, 13, 12, 13]], { tags: ['building'] }))
+  /* 地域：喀斯特峰林的石灰岩、华北麦田、江南水稻、耕地、东北黑土、巴蜀紫色土、白桦、椰棕 */
+  r.register(cube(B.LIMESTONE, 'limestone', 'limestone', { tags: ['terrain', 'rock'] }))
+  r.register(cross(B.WHEAT, 'wheat', 'wheat'))
+  r.register(cross(B.RICE, 'rice', 'rice', { tint: TintClass.Grass }))
+  r.register(cube(B.FARMLAND, 'farmland', { top: 'farmland', side: 'dirt', bottom: 'dirt' }, { tags: ['terrain', 'soil'] }))
+  r.register(cube(B.BLACK_EARTH, 'black_earth', 'black_earth', { tags: ['terrain', 'soil'] }))
+  r.register(cube(B.PURPLE_EARTH, 'purple_earth', 'purple_earth', { tags: ['terrain', 'soil'] }))
+  r.register(cube(B.BIRCH_LOG, 'birch_log', { top: 'log_top', bottom: 'log_top', side: 'birch_log' }, { tags: ['wood'] }))
+  r.register(cube(B.PALM_LOG, 'palm_log', { top: 'log_top', bottom: 'log_top', side: 'palm_log' }, { tags: ['wood'] }))
+  r.register(leaves(B.LEAVES_PALM, 'leaves_palm', 'leaves_palm', TintClass.Evergreen))
   return r
 }
 

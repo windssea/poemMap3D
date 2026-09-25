@@ -40,6 +40,8 @@ export interface TerrainSample {
   waterDistance: number
   landmark: number
   paved: boolean
+  /** 农田：0 无，1 麦田，2 水田，3 休耕地 */
+  field: number
 }
 
 /** 地标地形修改器：在地形塑形流水线末端改写某一范围内的列 */

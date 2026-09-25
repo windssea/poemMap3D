@@ -3,6 +3,7 @@ import { BlockRenderLayer } from '../../world/block/BlockDefinition'
 import { GLSL_AO, GLSL_BAYER, GLSL_DESATURATE, GLSL_ENV_UNIFORMS, GLSL_HASH, GLSL_SEASON, GLSL_SNOW } from './ShaderLibrary'
 import type { SharedUniforms } from './SharedUniforms'
 import { createBlockTextureArray } from './TextureAtlas'
+import { GLSL_CLIMATE } from '../../world/climate/Climate'
 
 const WHITE = new THREE.Color(1, 1, 1)
 
@@ -130,7 +131,7 @@ export class MaterialLibrary {
           vec4 texel = texture(uBlockAtlas, vec3(vBlockUv.x, -vBlockUv.y, vBlockUv.z));
           float tclass = mod(vFlags, 8.0);
           ${kind === 'cutout' ? 'if (texel.a < 0.4) discard; float tintAmt = 1.0;' : kind === 'solid' ? 'float tintAmt = 1.0 - texel.a;' : 'float tintAmt = 0.0;'}
-          ${kind === 'cutout' ? 'if (uBare > 0.01 && tclass > 1.5 && tclass < 2.5 && hash13(floor(vBWorld * 16.0 + 0.01)) < uBare) discard; // 冬日落叶：阔叶按像素镂空，露出枝干' : ''}
+          ${kind === 'cutout' ? 'if (uBare > 0.01 && tclass > 1.5 && tclass < 2.5 && hash13(floor(vBWorld * 16.0 + 0.01)) < uBare * snowClimate(vBWorld)) discard; // 冬日落叶：阔叶按像素镂空，露出枝干（岭南常绿不落）' : ''}
           vec3 tint = seasonTint(vTint, tclass, vBWorld);
           vec3 col = texel.rgb * mix(vec3(1.0), tint, tintAmt);
           if (tclass > 3.5 && tclass < 4.5) {
@@ -141,7 +142,7 @@ export class MaterialLibrary {
             col = mix(leaf, texel.rgb, uBlossom);
           }
           col *= aoCurve(vAo);
-          col = applySnow(col, vBNormal, vBWorld, uSnowColor);
+          col = applySnow(col, vBNormal, vBWorld, uSnowColor, snowClimate(vBWorld));
           col *= mix(1.0, 0.78, uWet * step(0.5, vBNormal.y));
           diffuseColor.rgb *= col;
           ${kind === 'translucent' ? 'diffuseColor.a = texel.a;' : ''}
@@ -223,6 +224,7 @@ export class MaterialLibrary {
         ${GLSL_ENV_UNIFORMS}
         ${GLSL_HASH}
         ${GLSL_BAYER}
+        ${GLSL_CLIMATE}
         uniform vec3 uSunDir;
         uniform vec3 uSunColor;
         uniform vec3 uSkyColor;
@@ -270,10 +272,11 @@ export class MaterialLibrary {
             float stripe = hash12(vec2(floor(vWorld.x * 4.0 + vWorld.z * 4.0), floor(vWorld.y * 3.0 + uTime * 9.0)));
             col = mix(col, uWaterFoam, 0.35 + 0.35 * stripe);
           }
-          col = mix(col, uSnowColor * 0.9, uSnow * 0.15);
-          col = mix(col, uIceColor, falling ? 0.0 : uIce);
+          float clim = snowClimate(vWorld);
+          col = mix(col, uSnowColor * 0.9, uSnow * 0.15 * clim);
+          col = mix(col, uIceColor, falling ? 0.0 : uIce * clim);
           col *= mix(1.0, 0.45, uNight);
-          float alpha = falling ? 0.88 : mix(mix(0.64, 0.9, depth), 0.95, uIce);
+          float alpha = falling ? 0.88 : mix(mix(0.64, 0.9, depth), 0.95, uIce * clim);
           gl_FragColor = vec4(col, ${overview ? '1.0' : 'alpha'});
           #include <tonemapping_fragment>
           #include <colorspace_fragment>
@@ -328,7 +331,7 @@ export class MaterialLibrary {
         .replace(
           '#include <map_fragment>',
           `vec3 col = seasonTint(vOColor, vKind, vOWorld);
-           col = applySnow(col, vONormal, vOWorld * 0.125, uSnowColor);
+           col = applySnow(col, vONormal, vOWorld * 0.125, uSnowColor, snowClimate(vOWorld));
            diffuseColor.rgb *= col;`,
         )
         .replace('#include <opaque_fragment>', `outgoingLight = desaturate(outgoingLight, uSaturation);\n#include <opaque_fragment>`)

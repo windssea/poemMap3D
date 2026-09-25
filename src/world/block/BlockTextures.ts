@@ -99,6 +99,15 @@ export const TEXTURES = [
   { key: 'cloth_red', tokens: 'clothRed', pattern: 'cloth' },
   { key: 'cloth_blue', tokens: 'clothBlue', pattern: 'cloth' },
   { key: 'cloth_buff', tokens: 'clothBuff', pattern: 'cloth' },
+  { key: 'limestone', tokens: 'limestone', pattern: 'strata' },
+  { key: 'wheat', tokens: 'wheat', pattern: 'reed' },
+  { key: 'rice', tokens: 'rice', pattern: 'cross' },
+  { key: 'farmland', tokens: 'farmland', pattern: 'planks' },
+  { key: 'black_earth', tokens: 'blackEarth', pattern: 'noise' },
+  { key: 'purple_earth', tokens: 'purpleEarth', pattern: 'noise' },
+  { key: 'birch_log', tokens: 'birchLog', pattern: 'logSide' },
+  { key: 'palm_log', tokens: 'palmLog', pattern: 'logSide' },
+  { key: 'leaves_palm', tokens: 'leavesPalm', pattern: 'willowLeaves' },
 ] as const satisfies readonly TextureDef[]
 
 export type TextureKey = (typeof TEXTURES)[number]['key']

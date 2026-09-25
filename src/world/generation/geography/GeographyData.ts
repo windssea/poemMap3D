@@ -5,7 +5,7 @@
 
 export type GeoLine = readonly (readonly [number, number])[]
 
-export type RegionKind = 'steppe' | 'gobi' | 'loess' | 'plateau' | 'desert' | 'plain'
+export type RegionKind = 'steppe' | 'gobi' | 'loess' | 'plateau' | 'desert' | 'plain' | 'karst' | 'redbasin'
 
 export interface RegionDef {
   polygon: GeoLine
@@ -60,6 +60,10 @@ export const SEA_POLYGONS: readonly GeoLine[] = [
 ]
 
 export const REGIONS: readonly RegionDef[] = [
+  /* 地貌类型（只定类型，不改海拔）：桂林阳朔峰林、广西与黔南滇东喀斯特、四川紫色土盆地 */
+  { polygon: [[106.5,22.8],[108.5,22.5],[109.5,23.3],[110.3,24.2],[111.1,24.6],[110.9,25.8],[109.5,25.9],[107.3,25.4],[106.5,24.3]], elevation: null, blur: 0.25, relief: null, kind: 'karst' },
+  { polygon: [[103.5,24.3],[105.5,24.2],[106.5,24.4],[107.5,25.4],[108.3,26.8],[107.5,27.6],[105.5,27.3],[104.2,26.6],[103.4,25.4]], elevation: null, blur: 0.25, relief: null, kind: 'karst' },
+  { polygon: [[103.6,30.9],[104.4,31.6],[105.8,32.2],[107.4,31.6],[108.2,30.6],[107.6,29.3],[106.3,28.7],[104.9,28.9],[103.8,29.5]], elevation: null, blur: 0.25, relief: null, kind: 'redbasin' },
   { polygon: [[72,46],[85,49.5],[97,44.5],[104,42.2],[111,42.6],[116,44],[119,46],[121,49],[119,55],[72,55]], elevation: 1200, blur: 1.4, relief: 320, kind: 'steppe' },
   { polygon: [[90,42],[100,42.3],[108,42.4],[112,43.5],[112.5,45.5],[105,46.2],[97,45.6],[92,45.2]], elevation: 1150, blur: 0.8, relief: 150, kind: 'gobi' },
   { polygon: [[104,39.8],[107,41.4],[111,41.8],[115,42],[117,43],[119.5,44],[120,42.5],[117.5,41.8],[114.5,41],[111,40.4],[107,39.5]], elevation: 1150, blur: 0.8, relief: 260 },

@@ -98,7 +98,7 @@ export function buildOverviewTile(ctx: WorldContext, grid: OverviewGrid, tx: num
       const space = s.waterY < 0 && bd.density[0] >= 4 && s.slope < 2.2 ? ctx.trees.spaceClass(x, z, s.biome) : 2
       const forest = space === 0
       if (forest) {
-        const evergreen = s.biome === BiomeId.Mountain || s.biome === BiomeId.Plateau
+        const evergreen = s.biome === BiomeId.Mountain || s.biome === BiomeId.Plateau || s.biome === BiomeId.Taiga || s.biome === BiomeId.Tropical
         rgb = hexRgb(evergreen ? FoliageTokens.pine : FoliageTokens.broad)
         const bf = hexRgb(ShanshuiZones[s.tintZone].foliage)
         rgb = [(rgb[0] + bf[0]) >> 1, (rgb[1] + bf[1]) >> 1, (rgb[2] + bf[2]) >> 1]

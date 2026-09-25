@@ -97,6 +97,7 @@ export class TreePlacementSystem {
     const weights = { ...bd.trees, ...(profile?.weights ?? {}) }
     if (!Object.values(weights).some((w) => w && w > 0)) return null
     if (s.slope > (s.biome === BiomeId.Cliff ? 3 : 2)) return null
+    if (s.field) return null
 
     const space = this.spaceClass(x, z, s.biome)
     if (space === 2 && !profile) return null

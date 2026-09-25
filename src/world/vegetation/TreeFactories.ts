@@ -388,3 +388,78 @@ export function bambooGrove({ variant, seed, height }: TreeParams): VoxelStructu
   })
   return pruneFloating(b.build())
 }
+
+/* ================= 椰棕（岭南） ================= */
+
+export const PALM_VARIANTS = [{ name: '斜干椰' }, { name: '直干棕' }] as const
+
+/** 细长单干（斜干椰在中段、上段各偏一格），顶上八片羽叶向外伸出、末梢下垂 */
+export function palm({ variant, seed, height }: TreeParams): VoxelStructure {
+  const r = new Random(seed)
+  const b = new StructureBuilder('palm')
+  const H = Math.max(7, Math.round(height * 0.9))
+  const lean = variant === 0 ? r.sign() : 0
+  const alongX = r.chance(0.5)
+  let x = 0
+  let z = 0
+  for (let y = 0; y < H; y++) {
+    if (lean && (y === Math.round(H * 0.45) || y === Math.round(H * 0.78))) {
+      b.set(x, y, z, log(B.PALM_LOG, Axis.Y))
+      if (alongX) x += lean
+      else z += lean
+    }
+    b.set(x, y, z, log(B.PALM_LOG, Axis.Y))
+  }
+  const leaf = S(B.LEAVES_PALM)
+  b.set(x, H, z, leaf)
+  b.set(x, H + 1, z, leaf)
+  const dirs: [number, number][] = [
+    [1, 0],
+    [-1, 0],
+    [0, 1],
+    [0, -1],
+    [1, 1],
+    [-1, 1],
+    [1, -1],
+    [-1, -1],
+  ]
+  for (const [dx, dz] of dirs) {
+    const diag = dx !== 0 && dz !== 0
+    const len = diag ? 3 : 4
+    for (let i = 1; i <= len; i++) {
+      const droop = i === len ? 2 : i === len - 1 ? 1 : 0
+      const px = x + dx * i
+      const pz = z + dz * i
+      b.set(px, H - droop, pz, leaf)
+      if (droop) b.set(px, H - droop + 1, pz, leaf)
+      if (diag) b.set(px, H - droop, z + dz * (i - 1), leaf)
+    }
+  }
+  return pruneFloating(b.build())
+}
+
+/* ================= 白桦（东北林海） ================= */
+
+export const BIRCH_VARIANTS = [{ name: '白桦' }, { name: '双干白桦' }] as const
+
+/** 白干挺直、窄高的卵形冠，几根细枝斜出 */
+export function birch({ variant, seed, height }: TreeParams): VoxelStructure {
+  const r = new Random(seed)
+  const b = new StructureBuilder('birch')
+  const H = height
+  const leaf = S(B.LEAVES_BROAD)
+  branch(b, [0, 0, 0], [0, H - 1, 0], B.BIRCH_LOG)
+  if (variant === 1) {
+    b.set(1, 1, 0, log(B.BIRCH_LOG, Axis.X))
+    branch(b, [1, 1, 0], [1, Math.round(H * 0.75), 0], B.BIRCH_LOG)
+    crown(b, [1, Math.round(H * 0.72), 0], 1.8, 2.2, 1.8, leaf, seed + 5)
+  }
+  for (let i = 0; i < 3; i++) {
+    const y = r.int(Math.round(H * 0.45), H - 3)
+    const [dx, dz] = polar(r.range(0, Math.PI * 2), 2)
+    branch(b, [0, y, 0], [dx, y + 1, dz], B.BIRCH_LOG)
+  }
+  crown(b, [0, Math.round(H * 0.64), 0], 2.3, H * 0.3, 2.3, leaf, seed)
+  crown(b, [0, H - 1, 0], 1.5, 1.6, 1.5, leaf, seed + 3)
+  return pruneFloating(b.build())
+}

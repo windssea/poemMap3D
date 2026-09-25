@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { snowClimateAt } from '../../world/climate/Climate'
 import { WeatherTint, WinterTokens } from '../../config/palette'
 import type { SceneManager } from '../rendering/SceneManager'
 import type { ShadowManager } from '../rendering/ShadowManager'
@@ -117,7 +118,8 @@ export class EnvironmentManager {
     const top = L.top.clone().lerp(horizon, wet * 0.6).lerp(this.winterSky, 0.3 * winter * (1 - L.night))
     this.sky.update(camera, top, horizon)
     this.fog.update(distance, horizon, W.fog)
-    this.precipitation.update(elapsed, focus, distance, this.weather.rain, this.weather.snow, pixelRatio)
+    const clim = snowClimateAt(focus.y, focus.z)
+    this.precipitation.update(elapsed, focus, distance, Math.min(1, this.weather.rain + this.weather.snow * (1 - clim)), this.weather.snow * clim, pixelRatio)
     this.particles.update(elapsed, focus, distance, this.season.key, wet, pixelRatio)
   }
 

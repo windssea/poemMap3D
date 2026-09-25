@@ -55,6 +55,20 @@ export class ChunkGenerator {
           vol.data[y * stride + base] = depth === 0 ? top : depth <= s.soilDepth ? soil : y < 3 ? S(B.STONE) : rock
         }
         if (s.waterY > s.surfaceY) for (let y = s.surfaceY + 1; y <= s.waterY; y++) vol.data[y * stride + base] = S(B.WATER)
+        /* 田：麦田为耕地上一行行麦子；水田把表层换成水（与田埂齐平），稻秧隔格插在水上 */
+        if (s.field) {
+          const y = s.surfaceY
+          const wx = vol.ox + lx
+          const wz = vol.oz + lz
+          if (s.field === 2) {
+            vol.data[y * stride + base] = S(B.WATER)
+            if (y > 0) vol.data[(y - 1) * stride + base] = S(B.MUD)
+            if (!(wx & 1) && !(wz & 1)) vol.data[(y + 1) * stride + base] = S(B.RICE)
+          } else {
+            vol.data[y * stride + base] = S(B.FARMLAND)
+            if (s.field === 1 && ((wx % 3) + 3) % 3 !== 0) vol.data[(y + 1) * stride + base] = S(B.WHEAT)
+          }
+        }
       }
 
     /* 地标建筑 */

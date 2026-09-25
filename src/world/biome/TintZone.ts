@@ -29,6 +29,12 @@ export function tintZoneOf(biome: number, meters: number, lat: number, coarse: n
       return pick(smoothstep(3800, 5200, meters) * 0.6 + (coarse * 0.5 + 0.5) * 0.4, ['alp', 'alp2', 'alpAzure'])
     case BiomeId.Beach:
       return Z.shore
+    case BiomeId.Tropical:
+      return dither < 0.7 ? Z.tropic : Z.meadow
+    case BiomeId.Taiga:
+      return dither < 0.75 ? Z.taiga : Z.forest2
+    case BiomeId.Karst:
+      return meters > 1100 ? Z.malachite : dither < 0.7 ? Z.karst : Z.foothill
     case BiomeId.Riverside:
     case BiomeId.Wetland:
     case BiomeId.Garden:

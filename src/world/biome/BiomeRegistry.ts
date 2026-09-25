@@ -2,7 +2,7 @@ import { B } from '../block/Blocks'
 import type { BlockId } from '../block/BlockState'
 import { BIOME_KEYS, BiomeId, type BiomeKey } from './BiomeId'
 
-export type TreeType = 'broadleaf' | 'pine' | 'willow' | 'peach' | 'bamboo'
+export type TreeType = 'broadleaf' | 'pine' | 'willow' | 'peach' | 'bamboo' | 'palm' | 'birch'
 
 export interface BiomeDefinition {
   id: BiomeId
@@ -39,6 +39,9 @@ export const BIOMES: readonly BiomeDefinition[] = [
   def({ id: BiomeId.Gobi, surface: { top: B.GOBI, soil: B.GRAVEL, rock: B.STONE, soilDepth: 2 }, trees: {}, space: { dense: 0, sparse: 0, open: 1 }, density: [0, 0], ground: { grass: 0.01, flower: 0, pebble: 0.03, reed: 0 } }),
   def({ id: BiomeId.Cliff, surface: { top: B.ROCK, soil: B.ROCK, rock: B.ROCK, soilDepth: 0 }, trees: { pine: 1 }, space: { dense: 0, sparse: 0.25, open: 0.75 }, density: [0, 0.6], ground: { grass: 0.02, flower: 0, pebble: 0.01, reed: 0 } }),
   def({ id: BiomeId.Snow, surface: { top: B.SNOW_GRASS, soil: B.ROCK, rock: B.ROCK, soilDepth: 1 }, trees: {}, space: { dense: 0, sparse: 0, open: 1 }, density: [0, 0], ground: { grass: 0, flower: 0, pebble: 0, reed: 0 } }),
+  def({ id: BiomeId.Karst, surface: { top: B.GRASS, soil: B.RED_EARTH, rock: B.LIMESTONE, soilDepth: 2 }, trees: { broadleaf: 3, bamboo: 3, pine: 2 }, space: { dense: 0.35, sparse: 0.35, open: 0.3 }, density: [6, 1.4], ground: { grass: 0.15, flower: 0.012, pebble: 0.01, reed: 0 } }),
+  def({ id: BiomeId.Tropical, surface: { top: B.GRASS, soil: B.RED_EARTH, rock: B.STONE, soilDepth: 4 }, trees: { palm: 5, broadleaf: 4, bamboo: 2 }, space: { dense: 0.3, sparse: 0.4, open: 0.3 }, density: [6, 1.6], ground: { grass: 0.22, flower: 0.04, pebble: 0.003, reed: 0 } }),
+  def({ id: BiomeId.Taiga, surface: { top: B.GRASS, soil: B.BLACK_EARTH, rock: B.STONE, soilDepth: 3 }, trees: { pine: 6, birch: 5 }, space: { dense: 0.5, sparse: 0.3, open: 0.2 }, density: [7, 1.6], ground: { grass: 0.14, flower: 0.01, pebble: 0.004, reed: 0 } }),
 ]
 
 export const biomeDef = (id: number): BiomeDefinition => BIOMES[id]

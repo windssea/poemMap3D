@@ -38,12 +38,21 @@ export function resolveBiome(i: BiomeInput): BiomeId {
       return i.relief > 8 ? BiomeId.Hillside : BiomeId.Steppe
     case MacroKind.Plateau:
       return i.relief > 9 || i.slope > 1.6 ? BiomeId.Mountain : BiomeId.Plateau
+    case MacroKind.Loess:
+      // 黄土高原：塬、梁、峁上草木稀疏，只在深切的沟里和高处山地有林
+      return i.relief > 14 || m > 2000 ? BiomeId.Hillside : BiomeId.Steppe
+    case MacroKind.Karst:
+      // 峰林：峰顶与谷地都是喀斯特植被；临水仍是河岸（漓江两岸的竹与柳）
+      if (m < 1900) return i.waterDistance < 4 && i.slope < 1.6 ? BiomeId.Riverside : BiomeId.Karst
   }
   if (i.waterDistance < 7 && i.slope < 1.6) {
     if (i.waterDistance > 2 && i.lat < 33.5 && m < 250 && i.noise > 0.35) return BiomeId.Wetland
     return BiomeId.Riverside
   }
-  if (m > 1400 || i.relief > 10 || i.slope > 1.5) return BiomeId.Mountain
-  if (m > 380 || i.relief > 4.5 || i.slope > 0.75) return BiomeId.Hillside
-  return BiomeId.Plain
+  const b = m > 1400 || i.relief > 10 || i.slope > 1.5 ? BiomeId.Mountain : m > 380 || i.relief > 4.5 || i.slope > 0.75 ? BiomeId.Hillside : BiomeId.Plain
+  /* 岭南：北回归线附近以南的低山平地，常绿、椰棕 */
+  if (i.lat < 24.3 + i.noise * 0.5 && m < 900 && b !== BiomeId.Mountain && i.lng > 104) return BiomeId.Tropical
+  /* 东北：大小兴安岭、长白山一带的山地为针阔混交的林海 */
+  if (i.lat > 42.3 + i.noise * 0.6 && i.lng > 119.5 && b !== BiomeId.Plain) return BiomeId.Taiga
+  return b
 }

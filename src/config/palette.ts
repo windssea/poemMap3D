@@ -74,6 +74,16 @@ export const MaterialTokens = {
   clothBlue: ['#3b6f86', '#335f73', '#467e96', '#f2e4c4'],
   clothBuff: ['#d9c08a', '#cbb07a', '#e4cd9a', '#8a5a3a'],
   lotus: ['#4f8062', '#5f9070', '#e9a3b8', '#3f6f52'],
+  // 地域：喀斯特石灰岩（灰白带竖纹）、麦（金黄）、稻（染色的禾绿）、耕地、东北黑土、巴蜀紫色土、白桦、椰棕
+  limestone: ['#b9bcb4', '#a9ada5', '#c9ccc4', '#8f948c'],
+  wheat: ['#d9b44a', '#c9a13a', '#e8c866', '#8a7a3a'],
+  rice: ['#e4e4e4', '#cdcdcd', '#b6b6b6', '#f2f2f2'],
+  farmland: ['#6e5236', '#5d4530', '#7c5d3f', '#4e3a28'],
+  blackEarth: ['#4a3d33', '#3e332b', '#56483c', '#342a23'],
+  purpleEarth: ['#8a5048', '#7a443e', '#985c52', '#6a3a35'],
+  birchLog: ['#e8e4da', '#d8d3c6', '#2e2a26', '#f2efe6'],
+  palmLog: ['#8a7152', '#7a6246', '#9a8060', '#6a543c'],
+  leavesPalm: ['#e0e0e0', '#c6c6c6', '#aeaeae', '#f0f0f0'],
 } as const
 
 export type MaterialTokenKey = keyof typeof MaterialTokens
@@ -103,6 +113,10 @@ export const ShanshuiZones = [
   { key: 'gobi', grass: '#c6ae7e', foliage: '#7a8458' },
   { key: 'north', grass: '#8fa56c', foliage: '#4c7a58' },
   { key: 'shore', grass: '#a7b67f', foliage: '#6a9a5e' },
+  // 地域：岭南浓绿、东北林海深绿、峰林青翠
+  { key: 'tropic', grass: '#5e9e5a', foliage: '#2f7a48' },
+  { key: 'taiga', grass: '#6f9062', foliage: '#2e5a46' },
+  { key: 'karst', grass: '#6aa068', foliage: '#3c7d58' },
 ] as const
 export type ShanshuiZoneKey = (typeof ShanshuiZones)[number]['key']
 
@@ -113,6 +127,8 @@ export const FoliageTokens = {
   willow: '#8fbf5e',
   bamboo: '#5f9a4a',
   grassTuft: '#8fb46a',
+  rice: '#7fb84a',
+  palm: '#4f9a48',
 } as const
 
 /** 季节：[草色乘子, 阔叶乘子, 枯黄混合量, 地面积雪] */

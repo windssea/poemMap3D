@@ -77,6 +77,7 @@ export function downsample2(vol: VoxelVolume, reg: BlockRegistry = Blocks): Voxe
         let upper = 0
         let leaves = 0
         let liquid = 0
+        let liquidTop = 0
         let bestUpper = 0
         let bestUpperN = 0
         let bestLower = 0
@@ -107,12 +108,15 @@ export function downsample2(vol: VoxelVolume, reg: BlockRegistry = Blocks): Voxe
               } else if (isLeaves(id)) {
                 leaves++
                 bestLeaf = id
-              } else if (reg.liquid[id]) liquid++
+              } else if (reg.liquid[id]) {
+                liquid++
+                if (dy) liquidTop++
+              }
             }
         let st = 0
         if (solid >= 3) st = S(upper >= 2 ? bestUpper : bestLower || bestUpper)
         else if (solid + leaves >= 3 && leaves >= 2) st = S(bestLeaf)
-        else if (liquid >= 3) st = S(B.WATER)
+        else if (liquid >= 3 && liquidTop) st = S(B.WATER)
         else if (solid >= 2 && liquid >= 2) st = S(bestLower || bestUpper)
         if (st) out.data[(y * sz + z) * sx + x] = st
       }

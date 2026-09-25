@@ -21,6 +21,8 @@ const TILE_TINT: Record<string, { base: keyof typeof FoliageTokens | 'grass'; zo
   leaves_pine: { base: 'pine', zoneMix: 0.3 },
   leaves_willow: { base: 'willow', zoneMix: 0.25 },
   bamboo_leaves: { base: 'bamboo', zoneMix: 0.3 },
+  rice: { base: 'rice', zoneMix: 0.2 },
+  leaves_palm: { base: 'palm', zoneMix: 0.3 },
 }
 
 /**

@@ -6,9 +6,9 @@ import { WorldConfig, metersToY } from '../../WorldConfig'
 import { ELEVATION_ANCHORS, type GeoLine, PEAKS, RANGES, REGIONS, type RegionKind, SEA_POLYGONS } from './GeographyData'
 import type { LandMask } from './LandMask'
 
-export const MacroKind = { Normal: 0, Desert: 1, Loess: 2, Gobi: 3, Plateau: 4, Steppe: 5, Plain: 6 } as const
+export const MacroKind = { Normal: 0, Desert: 1, Loess: 2, Gobi: 3, Plateau: 4, Steppe: 5, Plain: 6, Karst: 7, RedBasin: 8 } as const
 export type MacroKind = (typeof MacroKind)[keyof typeof MacroKind]
-const KIND_OF: Record<RegionKind, MacroKind> = { desert: 1, loess: 2, gobi: 3, plateau: 4, steppe: 5, plain: 6 }
+const KIND_OF: Record<RegionKind, MacroKind> = { desert: 1, loess: 2, gobi: 3, plateau: 4, steppe: 5, plain: 6, karst: 7, redbasin: 8 }
 
 /** 可在 Worker 间传递的宏观地理网格 */
 export interface MacroGridData {

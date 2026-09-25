@@ -3,7 +3,7 @@ import type { TreeType } from '../biome/BiomeRegistry'
 import { pruneFloating } from '../structure/StructureAnalysis'
 import type { VoxelStructure } from '../structure/VoxelStructure'
 import type { TreeDefinition, TreeScale } from './TreeDefinition'
-import { BAMBOO_VARIANTS, BROADLEAF_VARIANTS, PEACH_VARIANTS, PINE_VARIANTS, WILLOW_VARIANTS, bambooGrove, broadleaf, peach, pine, willow } from './TreeFactories'
+import { BAMBOO_VARIANTS, BIRCH_VARIANTS, BROADLEAF_VARIANTS, PALM_VARIANTS, PEACH_VARIANTS, PINE_VARIANTS, WILLOW_VARIANTS, bambooGrove, birch, broadleaf, palm, peach, pine, willow } from './TreeFactories'
 
 /** 植物尺度规范（方块高）：以民居约 8 格为参照 */
 export const TREE_SCALE_HEIGHT: Record<TreeScale, [number, number]> = {
@@ -34,7 +34,7 @@ export const TREES: Record<TreeType, TreeDefinition> = {
     variantInfo: PINE_VARIANTS.map((v) => ({ name: v.name, scale: v.name === '横枝景观松' ? 'grand' : 'mature' })),
     minHeight: 8,
     maxHeight: 16,
-    allowedBiomes: [BiomeId.Mountain, BiomeId.Hillside, BiomeId.Cliff, BiomeId.Plateau, BiomeId.Garden, BiomeId.Plain],
+    allowedBiomes: [BiomeId.Mountain, BiomeId.Hillside, BiomeId.Cliff, BiomeId.Plateau, BiomeId.Garden, BiomeId.Plain, BiomeId.Karst, BiomeId.Taiga],
     minSpacing: 4,
     maxRadius: 10,
     factory: pine,
@@ -70,10 +70,34 @@ export const TREES: Record<TreeType, TreeDefinition> = {
     variantInfo: BAMBOO_VARIANTS.map((v) => ({ name: v.name, scale: 'garden' })),
     minHeight: 8,
     maxHeight: 14,
-    allowedBiomes: [BiomeId.Garden, BiomeId.Riverside, BiomeId.Hillside, BiomeId.Plain],
+    allowedBiomes: [BiomeId.Garden, BiomeId.Riverside, BiomeId.Hillside, BiomeId.Plain, BiomeId.Karst, BiomeId.Tropical],
     minSpacing: 5,
     maxRadius: 5,
     factory: bambooGrove,
+  },
+  palm: {
+    id: 'palm',
+    name: '椰棕',
+    variants: PALM_VARIANTS.length,
+    variantInfo: PALM_VARIANTS.map((v) => ({ name: v.name, scale: 'mature' })),
+    minHeight: 7,
+    maxHeight: 13,
+    allowedBiomes: [BiomeId.Tropical, BiomeId.Beach, BiomeId.Riverside],
+    minSpacing: 4,
+    maxRadius: 6,
+    factory: palm,
+  },
+  birch: {
+    id: 'birch',
+    name: '白桦',
+    variants: BIRCH_VARIANTS.length,
+    variantInfo: BIRCH_VARIANTS.map((v) => ({ name: v.name, scale: 'mature' })),
+    minHeight: 9,
+    maxHeight: 14,
+    allowedBiomes: [BiomeId.Taiga, BiomeId.Hillside, BiomeId.Mountain, BiomeId.Plain],
+    minSpacing: 3,
+    maxRadius: 5,
+    factory: birch,
   },
 }
 
