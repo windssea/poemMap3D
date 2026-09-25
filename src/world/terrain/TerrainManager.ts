@@ -189,7 +189,11 @@ export class TerrainManager {
       soilDepth = 6
       if (slope > 0.9 || n2 > 0.35) top = B.LOESS
     } else if (lat < 27.5 && (biome === BiomeId.Hillside || biome === BiomeId.Mountain)) soil = B.RED_EARTH
-    if (biome === BiomeId.Mountain && slope > 1.8) top = n2 > 0 ? B.ROCK : B.STONE
+    if ((biome === BiomeId.Mountain || biome === BiomeId.Hillside) && slope > 1.8) {
+      // 陡坡裸岩：土层也换成岩层，台阶侧面不出一道道土带
+      top = n2 > 0 ? B.ROCK : B.STONE
+      soil = rock
+    }
     if (biome === BiomeId.Plateau && n2 > 0.45) top = B.GRAVEL
     if (biome === BiomeId.Snow && slope > 2.2) top = B.ROCK
 
@@ -234,6 +238,25 @@ export class TerrainManager {
     const hW = this.column(x - 1, z).height
     const slope = Math.max(Math.abs(hN - c.height), Math.abs(hS - c.height), Math.abs(hE - c.height), Math.abs(hW - c.height))
     return this.finish(c, slope)
+  }
+
+  /**
+   * 稀疏格点取样（覆盖图用）：每 step 方块取一列，坡度由相邻格点差分估计。
+   * 返回 (n+2)² 个格点（含一圈外边），外边只用于侧面判断。
+   */
+  lattice(x0: number, z0: number, n: number, step: number): { cols: TerrainColumn[]; samples: TerrainSample[] } {
+    const W = n + 2
+    const cols: TerrainColumn[] = new Array(W * W)
+    for (let j = 0; j < W; j++) for (let i = 0; i < W; i++) cols[j * W + i] = this.column(x0 + (i - 1) * step + (step >> 1), z0 + (j - 1) * step + (step >> 1))
+    const samples: TerrainSample[] = new Array(n * n)
+    for (let j = 0; j < n; j++)
+      for (let i = 0; i < n; i++) {
+        const k = (j + 1) * W + (i + 1)
+        const y = cols[k].height
+        const slope = Math.max(Math.abs(cols[k - 1].height - y), Math.abs(cols[k + 1].height - y), Math.abs(cols[k - W].height - y), Math.abs(cols[k + W].height - y)) / step
+        samples[j * n + i] = this.finish(cols[k], slope)
+      }
+    return { cols, samples }
   }
 
   /** 一次取样整块区域（外扩 1 格求坡度） */

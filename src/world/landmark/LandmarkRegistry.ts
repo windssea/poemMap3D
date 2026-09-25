@@ -1,4 +1,5 @@
 import { clamp, hash2i, hashString, lerp, smoothstep } from '../../utils/math'
+import { createSimplex2D, fbm } from '../../utils/noise'
 import { segmentDistance } from '../../utils/geometry2d'
 import { B } from '../block/Blocks'
 import { S, packState } from '../block/BlockState'
@@ -89,6 +90,7 @@ export class LandmarkRegistry {
     const ops: readonly TerrainOp[] = def.terrainModifier ?? [{ t: 'flatten', x: 0, z: 0, r: Math.max(6, def.radius * 0.4), blend: 8 }]
     const R = def.radius + 16
     const bo = def.biomeOverride
+    const n = createSimplex2D(hashString(def.id))
     return {
       landmark: index,
       minX: cx - R,
@@ -137,7 +139,9 @@ export class LandmarkRegistry {
                 col.height = Math.min(col.height, level - 1 - Math.round((op.depth ?? 3) * Math.sqrt(1 - rr)))
                 col.waterKind = WaterKind.Lake
                 col.waterDist = 0
-              } else if (rr < 1.5) {
+              } else if (rr < 1.8) {
+                // 湖岸缓坡：不留峭壁
+                col.height = Math.min(col.height, lerp(level + 0.5, col.height, smoothstep(1, 1.8, rr)))
                 const dist = (rr - 1) * Math.min(op.rx, op.rz)
                 if (dist < col.waterDist) {
                   col.waterDist = dist
@@ -149,8 +153,13 @@ export class LandmarkRegistry {
             case 'hill': {
               const dist = Math.hypot(dx - op.x, dz - op.z)
               if (dist >= op.r || wet()) break
-              const f = op.sharp ? 1 - dist / op.r : 0.5 + 0.5 * Math.cos((Math.PI * dist) / op.r)
-              col.height += op.h * f
+              // 山形：噪声扭曲半径并调制高度，避免规整的锥形与台阶金字塔
+              const warp = 1 + 0.28 * fbm(n, col.x / 17, col.z / 17, 2)
+              const dd = Math.min(1, (dist / op.r) * warp)
+              const f = op.sharp ? Math.pow(1 - dd, 1.35) : 0.5 + 0.5 * Math.cos(Math.PI * dd)
+              // 临水处山势压低，不在湖岸江边起峭壁
+              const shore = col.waterDist < 1e8 ? smoothstep(0, 10, col.waterDist) : 1
+              col.height += op.h * f * shore * (0.78 + 0.35 * (0.5 + 0.5 * fbm(n, col.x / 11 + 40, col.z / 11, 3)))
               break
             }
             case 'causeway':

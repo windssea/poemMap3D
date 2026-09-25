@@ -1,0 +1,125 @@
+import * as THREE from 'three'
+import { WeatherTint } from '../../config/palette'
+import type { SceneManager } from '../rendering/SceneManager'
+import type { ShadowManager } from '../rendering/ShadowManager'
+import type { SharedUniforms } from '../rendering/SharedUniforms'
+import { CloudSystem } from './CloudSystem'
+import { FogSystem } from './FogSystem'
+import { ParticleSystem } from './ParticleSystem'
+import { PrecipitationSystem } from './PrecipitationSystem'
+import { SeasonSystem } from './SeasonSystem'
+import { SkySystem } from './SkySystem'
+import { TimeOfDaySystem } from './TimeOfDaySystem'
+import type { Season, TimeOfDay, Weather } from './types'
+import { WeatherSystem } from './WeatherSystem'
+
+/**
+ * 环境：时辰 × 季节 × 天气，统一驱动光照、天空、雾、水、植被染色、积雪、云与粒子。
+ * 只改共享 uniform 与少量场景对象，不重建任何网格。
+ */
+export class EnvironmentManager {
+  readonly time: TimeOfDaySystem
+  readonly season: SeasonSystem
+  readonly weather: WeatherSystem
+  readonly sky: SkySystem
+  readonly fog = new FogSystem()
+  readonly clouds = new CloudSystem()
+  readonly precipitation = new PrecipitationSystem()
+  readonly particles: ParticleSystem
+  private readonly hemi: THREE.HemisphereLight
+  private readonly tmpColor = new THREE.Color()
+  private readonly rainSky = new THREE.Color(WeatherTint.rainColor)
+
+  constructor(
+    private readonly shared: SharedUniforms,
+    scene: SceneManager,
+    private readonly shadows: ShadowManager,
+    private readonly renderer: THREE.WebGLRenderer,
+    initial: { time: TimeOfDay; season: Season; weather: Weather },
+    waterfalls: { x: number; y: number; z: number; width: number }[],
+  ) {
+    this.time = new TimeOfDaySystem(initial.time)
+    this.season = new SeasonSystem(initial.season)
+    this.weather = new WeatherSystem(initial.weather)
+    this.weather.setSeason(initial.season)
+    this.weather.set(initial.weather, true)
+    this.sky = new SkySystem(shared)
+    this.particles = new ParticleSystem(waterfalls)
+    this.hemi = new THREE.HemisphereLight(new THREE.Color(1, 1, 1), new THREE.Color(0.5, 0.45, 0.4), 1)
+    scene.scene.fog = this.fog.fog
+    scene.attach('environment', this.hemi)
+    for (const o of shadows.objects) scene.attach('environment', o)
+    scene.attach('environment', this.sky.mesh)
+    scene.attach('environment', this.clouds.mesh)
+    scene.attach('effects', this.precipitation.points)
+    scene.attach('effects', this.particles.group)
+  }
+
+  setTime(t: TimeOfDay, instant = false): void {
+    this.time.set(t, instant)
+  }
+  setSeason(s: Season, instant = false): void {
+    this.season.set(s, instant)
+    this.weather.setSeason(s)
+  }
+  setWeather(w: Weather, instant = false): void {
+    this.weather.set(w, instant)
+  }
+
+  update(dt: number, elapsed: number, camera: THREE.PerspectiveCamera, focus: THREE.Vector3, distance: number, pixelRatio: number): void {
+    this.time.update(dt)
+    this.season.update(dt)
+    this.weather.update(dt, this.season.cur.snow)
+    const L = this.time.cur
+    const S = this.season.cur
+    const W = this.weather.tint()
+    const wet = Math.max(this.weather.rain, this.weather.snow)
+    const u = this.shared
+
+    u.uTime.value = elapsed
+    u.uSunDir.value.copy(L.sunDir)
+    u.uSunColor.value.copy(L.sun)
+    u.uNight.value = L.night
+    u.uSkyColor.value.copy(L.top)
+    u.uHorizonColor.value.copy(L.horizon)
+    ;(u.uSeasonGrass.value as THREE.Color).copy(S.grass)
+    ;(u.uSeasonFoliage.value as THREE.Color).copy(S.foliage)
+    u.uAutumn.value = S.autumn
+    u.uBlossom.value = S.blossom
+    u.uSnow.value = this.weather.cover
+    u.uWet.value = this.weather.rain
+    u.uSaturation.value = W.saturation
+
+    /* 光照 */
+    this.shadows.light.color.copy(L.sun)
+    this.shadows.light.intensity = L.sunI * W.light
+    this.hemi.color.copy(L.ambientSky)
+    this.hemi.groundColor.copy(L.ambientGround)
+    this.hemi.intensity = L.ambientI * (0.75 + 0.25 * W.light)
+    this.renderer.toneMappingExposure = L.exposure
+    this.shadows.update(focus, L.sunDir, distance)
+
+    /* 天空、雾、云 */
+    const horizon = this.tmpColor.copy(L.horizon).lerp(L.fog, 0.5).lerp(this.rainSky, wet * 0.5)
+    const top = L.top.clone().lerp(horizon, wet * 0.6)
+    this.sky.update(camera, top, horizon)
+    this.fog.update(distance, horizon, W.fog)
+    this.clouds.update(dt, focus, L.cloud, wet)
+    this.precipitation.update(elapsed, focus, distance, this.weather.rain, this.weather.snow, pixelRatio)
+    this.particles.update(elapsed, focus, distance, this.season.key, wet, pixelRatio)
+  }
+
+  /** 画质：粒子数量、云 */
+  setQuality(particles: number, clouds: boolean): void {
+    this.precipitation.scale = particles
+    this.particles.scale = particles
+    this.clouds.enabled = clouds
+  }
+
+  dispose(): void {
+    this.sky.dispose()
+    this.clouds.dispose()
+    this.precipitation.dispose()
+    this.particles.dispose()
+  }
+}

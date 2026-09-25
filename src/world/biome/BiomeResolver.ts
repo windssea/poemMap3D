@@ -25,7 +25,7 @@ export function resolveBiome(i: BiomeInput): BiomeId {
   if (i.override >= 0) return i.override as BiomeId
   if (i.inWater) return BiomeId.Riverside
   const m = yToMeters(i.height)
-  const snowLine = 5300 - Math.max(0, i.lat - 28) * 115 + i.noise * 250
+  const snowLine = 5750 - Math.max(0, i.lat - 28) * 135 + i.noise * 300
   if (m > snowLine && i.slope < 4) return BiomeId.Snow
   if (i.slope >= 3.5) return BiomeId.Cliff
   if (i.waterKind === WaterKind.Sea && i.waterDistance < 8 && i.height <= SEA_LEVEL + 2) return BiomeId.Beach

@@ -1,4 +1,5 @@
 import type { PlaceAnchor } from '../landmark/LandmarkDefinition'
+import { GreatWallSystem } from '../landmark/GreatWallSystem'
 import { LandmarkRegistry } from '../landmark/LandmarkRegistry'
 import { TerrainManager } from '../terrain/TerrainManager'
 import { TreePlacementSystem } from '../vegetation/TreePlacementSystem'
@@ -25,6 +26,7 @@ export class WorldContext {
   readonly lakes: LakeManager
   readonly terrain: TerrainManager
   readonly landmarks: LandmarkRegistry
+  readonly greatWall: GreatWallSystem
   readonly trees: TreePlacementSystem
   readonly chunks: ChunkGenerator
 
@@ -37,7 +39,8 @@ export class WorldContext {
     this.landmarks = new LandmarkRegistry(init.anchors, base)
     this.terrain = new TerrainManager(this.macro, this.rivers, this.lakes, this.landmarks.modifiers, this.seed)
     this.landmarks.resolve(this.terrain)
+    this.greatWall = new GreatWallSystem(this.terrain, this.landmarks.occupancy)
     this.trees = new TreePlacementSystem((x, z) => this.terrain.sample(x, z), this.landmarks.occupancy, (i) => this.landmarks.profileOf(i), this.seed)
-    this.chunks = new ChunkGenerator(this.terrain, this.landmarks, this.trees, this.seed)
+    this.chunks = new ChunkGenerator(this.terrain, this.landmarks, this.greatWall, this.trees, this.seed)
   }
 }

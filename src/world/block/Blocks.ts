@@ -87,6 +87,7 @@ export const B = {
   DARK_POST: 71,
   PAVING_SLAB: 72,
   SHRUB: 73,
+  WILLOW_STRAND: 74,
 } as const
 export type BlockKey = keyof typeof B
 
@@ -224,6 +225,15 @@ export function createDefaultBlockRegistry(): BlockRegistry {
   r.register(base(B.DARK_POST, 'dark_post', BlockShape.POST, 'dark_planks', { tags: ['building', 'wood'] }))
   r.register(slab(B.PAVING_SLAB, 'paving_slab', 'paving', { tags: ['building'] }))
   r.register(leaves(B.SHRUB, 'shrub', 'leaves_broad', TintClass.Deciduous))
+  // 柳丝：十字交叉的薄片（2 像素厚），垂枝用它，比整块树叶轻盈
+  r.register(
+    custom(B.WILLOW_STRAND, 'willow_strand', 'leaves_willow', [[7, 0, 1, 9, 16, 15], [1, 0, 7, 15, 16, 9]], {
+      layer: BlockRenderLayer.Cutout,
+      tags: ['leaves', 'plant'],
+      tint: TintClass.Deciduous,
+      replaceable: false,
+    }),
+  )
   return r
 }
 

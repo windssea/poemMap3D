@@ -1,6 +1,7 @@
 import { B } from '../block/Blocks'
 import { S } from '../block/BlockState'
 import type { Chunk } from '../chunk/Chunk'
+import type { GreatWallSystem } from '../landmark/GreatWallSystem'
 import type { LandmarkRegistry } from '../landmark/LandmarkRegistry'
 import { placeStructure, PlaceMode, preparePlacement } from '../structure/StructurePlacer'
 import type { TerrainManager } from '../terrain/TerrainManager'
@@ -29,6 +30,7 @@ export class ChunkGenerator {
   constructor(
     private readonly terrain: TerrainManager,
     private readonly landmarks: LandmarkRegistry,
+    private readonly greatWall: GreatWallSystem,
     private readonly trees: TreePlacementSystem,
     private readonly seed: number = WorldConfig.seed,
   ) {}
@@ -61,6 +63,7 @@ export class ChunkGenerator {
     const z1 = vol.oz + vol.sz - 1
     const placements = this.landmarks.placementsNear(x0, z0, x1, z1)
     for (const p of placements) placeStructure(vol, p)
+    this.greatWall.apply(vol)
 
     /* 树：树根在外扩范围内的都要考虑（树冠可能伸进来） */
     const R = MAX_TREE_RADIUS

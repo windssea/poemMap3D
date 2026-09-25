@@ -86,7 +86,7 @@ describe('VoxelMesher', () => {
     const t = r.layers[BlockRenderLayer.Translucent]
     expect(t.vertexCount).toBeGreaterThan(0)
     let maxY = 0
-    for (let i = 1; i < t.positions.length; i += 3) maxY = Math.max(maxY, t.positions[i])
+    for (let i = 1; i < t.positions.length; i += 3) maxY = Math.max(maxY, t.positions[i] / 16)
     expect(maxY).toBeCloseTo(11 + 14 / 16)
   })
 

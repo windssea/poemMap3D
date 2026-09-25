@@ -212,6 +212,7 @@ export function willow({ variant, seed, height }: TreeParams): VoxelStructure {
   const b = new StructureBuilder('willow')
   const H = Math.round(height)
   const leaf = S(B.LEAVES_WILLOW)
+  const strand = S(B.WILLOW_STRAND)
   const trunkH = Math.max(3, Math.round(H * r.range(0.36, 0.44)))
   if (H >= 9) roots(b, r, B.LOG, r.int(2, 3))
 
@@ -242,13 +243,15 @@ export function willow({ variant, seed, height }: TreeParams): VoxelStructure {
     const [d2x, d2z] = polar(ang2, l2)
     const tip: P3 = [mid[0] + d2x, mid[1] + r.int(0, 2), mid[2] + d2z]
     branch(b, mid, tip)
-    clusters.push({ c: tip, rx: r.range(1.7, 2.5), ry: r.range(1.1, 1.5) })
-    if (r.chance(0.5)) clusters.push({ c: mid, rx: r.range(1.4, 1.9), ry: 1.1 })
+    clusters.push({ c: [tip[0], tip[1] + 1, tip[2]], rx: r.range(1.5, 2.1), ry: r.range(0.85, 1.1) })
+    if (r.chance(0.45)) clusters.push({ c: mid, rx: r.range(1.1, 1.5), ry: 0.85 })
   }
   /* 冠心团 */
-  clusters.push({ c: [top[0], trunkH + r.int(2, 3), top[2]], rx: r.range(2, 2.6), ry: 1.6 })
+  clusters.push({ c: [top[0], trunkH + r.int(2, 3), top[2]], rx: r.range(1.5, 2), ry: 1.2 })
   branch(b, top, [top[0], trunkH + 2, top[2]])
-  for (const { c, rx, ry } of clusters) crown(b, c, rx, ry, rx * r.range(0.8, 1.1), leaf, seed, 0.65, 0.6)
+  /* 伞形主冠：扁而宽，把各枝端团连成一顶，边缘仍按团簇起伏 */
+  crown(b, [top[0], trunkH + 3, top[2]], reach * 0.75, 1.5, reach * 0.75, leaf, seed + 9, 0.55, 0.45)
+  for (const { c, rx, ry } of clusters) crown(b, c, rx, ry, rx * r.range(0.8, 1.1), leaf, seed, 0.55, 0.55)
 
   /* 垂枝：取每列冠团下缘为起点 */
   const bottom = new Map<number, P3>()
@@ -262,19 +265,22 @@ export function willow({ variant, seed, height }: TreeParams): VoxelStructure {
   }
   for (const [x, y, z] of bottom.values()) {
     if (b.s.has(x, y - 1, z)) continue
+    // 垂枝彼此不贴：四邻已有垂枝就跳过，避免连成一堵叶墙
     const dist = Math.hypot(x - top[0], z - top[2])
-    if (dist < 1.5) continue
+    if (dist < 1.5 || dist < maxDist * 0.45) continue
     const outer = dist / maxDist
-    if (hashUnit(hash3i(x, y, z, seed + 31)) > 0.22 + outer * 0.5) continue
-    const lenMax = Math.min(y - 1, Math.round(2 + outer * H * 0.42 + r.range(-1, 1.5)))
+    if (hashUnit(hash3i(x, y, z, seed + 31)) > 0.35 + outer * 0.55) continue
+    // 外围长、内侧短；垂到离地约三成树高为止，不拖地
+    const floor = Math.max(2, Math.round(H * 0.28))
+    const lenMax = Math.min(y - floor, Math.round(1 + Math.pow(outer, 1.4) * H * 0.4 + r.range(-1, 1.5)))
     let cx = x
     let cz = z
     let cy = y - 1
     let len = 0
     const [ox, oz] = [Math.sign(x - top[0]), Math.sign(z - top[2])]
-    while (len < lenMax && cy >= 1) {
+    while (len < lenMax && cy >= floor) {
       if (b.s.has(cx, cy, cz)) break
-      b.set(cx, cy, cz, leaf)
+      b.set(cx, cy, cz, strand)
       len++
       /* 折线：偶尔向外错一格（先横再下，保持面相连） */
       if (len > 1 && hashUnit(hash3i(cx, cy, cz, seed + 5)) < 0.2) {
@@ -283,7 +289,7 @@ export function willow({ variant, seed, height }: TreeParams): VoxelStructure {
         if ((nx !== cx || nz !== cz) && !b.s.has(nx, cy, nz)) {
           cx = nx
           cz = nz
-          b.set(cx, cy, cz, leaf)
+          b.set(cx, cy, cz, strand)
         }
       }
       cy--

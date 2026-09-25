@@ -36,14 +36,15 @@ describe('Tree', () => {
   it('柳：垂枝依附冠团，长短不一', () => {
     for (let seed = 1; seed < 6; seed++) {
       const s = TREES.willow.factory({ variant: 0, seed, height: 12 })
-      const leaves = s.blocks.filter((b) => (b.state & 255) === B.LEAVES_WILLOW)
+      const isWillow = (st: number) => (st & 255) === B.LEAVES_WILLOW || (st & 255) === B.WILLOW_STRAND
+      const leaves = s.blocks.filter((b) => isWillow(b.state))
       // 找出垂枝：下方与上方都是柳叶、且处在冠团下缘以下的竖直链
       const chains = new Map<string, number>()
       for (const l of leaves) {
-        if (s.get(l.x, l.y + 1, l.z) !== 0 && (s.get(l.x, l.y + 1, l.z) & 255) === B.LEAVES_WILLOW) continue
+        if (isWillow(s.get(l.x, l.y + 1, l.z)) && (s.get(l.x, l.y + 1, l.z) & 255) !== B.LEAVES_WILLOW) continue
         let len = 0
         let y = l.y - 1
-        while ((s.get(l.x, y, l.z) & 255) === B.LEAVES_WILLOW) {
+        while ((s.get(l.x, y, l.z) & 255) === B.WILLOW_STRAND) {
           len++
           y--
         }

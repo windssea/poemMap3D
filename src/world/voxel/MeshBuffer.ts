@@ -1,8 +1,13 @@
-/** 一层网格的顶点数据（可转移给主线程，直接做成 BufferGeometry） */
+/**
+ * 一层网格的顶点数据（可转移给主线程，直接做成 BufferGeometry）。
+ * 位置与贴图坐标以 1/16 方块为单位存成 Int16（网格整体缩放 1/16 还原），省显存。
+ */
+export const POSITION_SCALE = 16
+
 export interface MeshLayerData {
-  positions: Float32Array
+  positions: Int16Array
   normals: Int8Array
-  uvs: Float32Array
+  uvs: Int16Array
   tiles: Uint8Array
   ao: Uint8Array
   colors: Uint8Array
@@ -21,9 +26,9 @@ export const VertexFlag = {
 
 /** 可增长的顶点缓冲；四边形为基本单位 */
 export class MeshBuffer {
-  private pos = new Float32Array(4096 * 3)
+  private pos = new Int16Array(4096 * 3)
   private nrm = new Int8Array(4096 * 3)
-  private uv = new Float32Array(4096 * 2)
+  private uv = new Int16Array(4096 * 2)
   private tile = new Uint8Array(4096)
   private ao = new Uint8Array(4096)
   private col = new Uint8Array(4096 * 3)
@@ -35,7 +40,7 @@ export class MeshBuffer {
   private grow(nv: number): void {
     if (this.vcount + nv <= this.tile.length) return
     const cap = Math.max(this.tile.length * 2, this.vcount + nv)
-    const g = <T extends Float32Array | Int8Array | Uint8Array | Uint32Array>(a: T, per: number): T => {
+    const g = <T extends Int16Array | Int8Array | Uint8Array | Uint32Array>(a: T, per: number): T => {
       const b = new (a.constructor as new (n: number) => T)(cap * per)
       b.set(a)
       return b
@@ -69,17 +74,17 @@ export class MeshBuffer {
     const v = this.vcount
     for (let i = 0; i < 4; i++) {
       const o = (v + i) * 3
-      this.pos[o] = c[i * 3]
-      this.pos[o + 1] = c[i * 3 + 1]
-      this.pos[o + 2] = c[i * 3 + 2]
+      this.pos[o] = Math.round(c[i * 3] * POSITION_SCALE)
+      this.pos[o + 1] = Math.round(c[i * 3 + 1] * POSITION_SCALE)
+      this.pos[o + 2] = Math.round(c[i * 3 + 2] * POSITION_SCALE)
       this.nrm[o] = nx * 127
       this.nrm[o + 1] = ny * 127
       this.nrm[o + 2] = nz * 127
       this.col[o] = (rgb >> 16) & 255
       this.col[o + 1] = (rgb >> 8) & 255
       this.col[o + 2] = rgb & 255
-      this.uv[(v + i) * 2] = uvs[i * 2]
-      this.uv[(v + i) * 2 + 1] = uvs[i * 2 + 1]
+      this.uv[(v + i) * 2] = Math.round(uvs[i * 2] * POSITION_SCALE)
+      this.uv[(v + i) * 2 + 1] = Math.round(uvs[i * 2 + 1] * POSITION_SCALE)
       this.tile[v + i] = tile
       this.ao[v + i] = ao[i]
       this.flg[v + i] = flags
