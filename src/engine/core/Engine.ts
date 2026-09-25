@@ -5,6 +5,7 @@ import { CameraController } from '../camera/CameraController'
 import { type CameraLevel, type CameraPose, poseToPosition } from '../camera/CameraPose'
 import type { FlightOptions } from '../camera/FlightController'
 import { NightLanterns } from '../effects/NightLanterns'
+import { LifeSystem } from '../effects/LifeSystem'
 import { type BuiltTrail, TrailRenderer } from '../effects/TrailRenderer'
 import { EnvironmentManager } from '../environment/EnvironmentManager'
 import type { Season, TimeOfDay, Weather } from '../environment/types'
@@ -57,6 +58,7 @@ export class Engine {
   readonly trail = new TrailRenderer()
   hover!: HoverSystem
   lanterns!: NightLanterns
+  life!: LifeSystem
   world!: WorldManager
   camera!: CameraController
   env!: EnvironmentManager
@@ -115,6 +117,8 @@ export class Engine {
       },
     )
     this.scene.attach('effects', this.lanterns.group)
+    this.life = new LifeSystem(this.world.ctx)
+    this.scene.attach('effects', this.life.group)
     this.selection = new SelectionSystem(this.world.ctx.landmarks)
     this.input = new InputController(this.renderer.canvas, {
       onStart: () => {
@@ -164,6 +168,7 @@ export class Engine {
     this.env.update(dt, time, cam, pose.target, pose.distance, this.renderer.renderer.getPixelRatio())
     this.trail.update(time)
     this.lanterns.update(dt, time, pose.target, pose.distance, this.shared.uNight.value)
+    this.life.update(dt, time, pose.target, pose.distance, this.shared.uNight.value, Math.min(1, Math.max(0, this.shared.uSunDir.value.y * 2)))
     if (this.hoverPending && this.loop.frame % 3 === 0) {
       const h = this.hoverPending
       this.hoverPending = null
@@ -180,6 +185,7 @@ export class Engine {
   focusPlace(placeId: string, opts?: FlightOptions & { shot?: number }): Promise<void> {
     const v = this.world.landmarkView(placeId)
     if (!v) return Promise.resolve()
+    this.life.setPlace(placeId)
     return this.camera.focusLandmark(v, opts)
   }
 

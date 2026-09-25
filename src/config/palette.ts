@@ -129,6 +129,30 @@ export const WinterTokens = { fog: '#dfe6ec', sky: '#c9d4de', sun: '#f2f4ff', ic
 /** 夜：窗纸透出的暖光 */
 export const NightTokens = { window: '#ffb865', lanternGlow: '#ffc070', skyLantern: '#ff9848', riverLantern: '#ff7f96', riverCandle: '#fff1b8' } as const
 
+/** 市井生机：行人衣色（取千里江山图的石青、石绿、赭、月白）、船木、帆、炊烟 */
+export const LifeTokens = {
+  robes: ['#3f6f86', '#4f8a6a', '#a8663e', '#d9d2bd', '#6b5a8a', '#8c3a2e', '#2f4a5c', '#b99a5a'],
+  skin: '#e2b98f',
+  hair: '#1d1a17',
+  hat: '#3a352c',
+  straw: '#c9a560',
+  trousers: '#2e2a26',
+  hull: '#5b3b24',
+  hullDark: '#3a2616',
+  deck: '#8c6844',
+  lacquer: '#9e2f24',
+  gold: '#d8a93c',
+  awning: '#2d2b27',
+  thatch: '#a88a52',
+  sailRust: '#a4482f',
+  sailTan: '#c8a46c',
+  batten: '#3a2a1c',
+  mast: '#4a3322',
+  flag: '#c23a2c',
+  smoke: '#e8e4dc',
+  bird: '#26231f',
+} as const
+
 /** 秋叶：阔叶在秋季混向这组暖色 */
 export const AutumnTokens = { maple: '#c8562e', gold: '#d9a23a', rust: '#a8482a' } as const
 
