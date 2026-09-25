@@ -70,6 +70,21 @@ export class LandmarkRegistry {
       this.byPlace.set(def.poetryPlaceId, lm)
       this.modifiers.push(this.makeModifier(lm))
     })
+    /* 太近而没有另建聚落的地点：借用最近的地标（点它也能飞过去、读到诗） */
+    for (const a of anchors) {
+      if (this.byPlace.has(a.id)) continue
+      const p = P.project(a.lng, a.lat)
+      let best: ResolvedLandmark | null = null
+      let bd = Infinity
+      for (const lm of this.landmarks) {
+        const d = Math.hypot(lm.x - p.x, lm.z - p.z) - lm.def.radius
+        if (d < bd) {
+          bd = d
+          best = lm
+        }
+      }
+      if (best && bd < 60) this.byPlace.set(a.id, best)
+    }
   }
 
   /**

@@ -9,6 +9,10 @@ export class ShadowManager {
   private readonly target = new THREE.Object3D()
   private enabled = true
   private extent = 120
+  private readonly v0 = new THREE.Vector3()
+  private readonly v1 = new THREE.Vector3()
+  private readonly v2 = new THREE.Vector3()
+  private readonly v3 = new THREE.Vector3()
 
   constructor(
     private readonly renderer: THREE.WebGLRenderer,
@@ -56,11 +60,18 @@ export class ShadowManager {
       c.bottom = -ext
       c.updateProjectionMatrix()
     }
+    /* 在光源空间里按阴影贴图像素对齐（斜射的日月光也不会让阴影边缘爬动闪烁） */
     const texel = (this.extent * 2) / this.light.shadow.mapSize.x
-    const fx = Math.round(focus.x / texel) * texel
-    const fz = Math.round(focus.z / texel) * texel
-    this.target.position.set(fx, focus.y, fz)
-    this.light.position.set(fx + sunDir.x * 500, focus.y + sunDir.y * 500, fz + sunDir.z * 500)
+    const fwd = this.v0.copy(sunDir).normalize().negate()
+    const right = this.v1.set(0, 1, 0).cross(fwd)
+    if (right.lengthSq() < 1e-6) right.set(1, 0, 0)
+    right.normalize()
+    const up = this.v2.copy(fwd).cross(right).normalize()
+    const u = focus.dot(right)
+    const v = focus.dot(up)
+    const snapped = this.v3.copy(focus).addScaledVector(right, Math.round(u / texel) * texel - u).addScaledVector(up, Math.round(v / texel) * texel - v)
+    this.target.position.copy(snapped)
+    this.light.position.set(snapped.x + sunDir.x * 500, snapped.y + sunDir.y * 500, snapped.z + sunDir.z * 500)
     this.target.updateMatrixWorld()
   }
 }

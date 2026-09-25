@@ -27,7 +27,8 @@ const FULL_OF: Record<number, number> = {
   [B.PILLAR]: B.LACQUER,
   [B.DARK_POST]: B.DARK_PLANKS,
   [B.RIDGE_END]: B.ROOF_GRAY,
-  [B.LATTICE_WINDOW]: B.LATTICE_WINDOW,
+  // 窗远看只是漆墙：不让远景整块发光（近远切换时灯光忽大忽小地闪）
+  [B.LATTICE_WINDOW]: B.LACQUER,
   [B.BAMBOO]: B.BAMBOO_LEAVES,
   [B.WILLOW_STRAND]: B.LEAVES_WILLOW,
 }

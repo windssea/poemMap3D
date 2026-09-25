@@ -9,6 +9,7 @@ import { ChunkManager } from './chunk/ChunkManager'
 import type { MacroGridData } from './generation/geography/MacroGeography'
 import { WorldContext } from './generation/WorldContext'
 import type { CameraPreset, PlaceAnchor } from './landmark/LandmarkDefinition'
+import { designCamera, type DesignedView } from './landmark/CameraDesigner'
 import { buildFogMap, type FogMap, fogBounds } from './overview/EdgeFog'
 import { type OverviewGrid, overviewGrid } from './overview/OverviewBuilder'
 import { OverviewRenderer } from './overview/OverviewRenderer'
@@ -46,6 +47,8 @@ export class WorldManager {
   private readonly last = new THREE.Vector3(Number.NaN, 0, 0)
   /** 当前近景半径（带回差：变化够两圈才换，缩放时不来回重排） */
   private curR = -1
+  /** 设计好的地点机位（按地标下标缓存） */
+  private readonly designed = new Map<number, DesignedView>()
 
   private constructor(
     ctx: WorldContext,
@@ -158,10 +161,19 @@ export class WorldManager {
     this.overview.update(distance, camera.position, { data: this.chunks.maskData, width: this.chunks.mask.image.width })
   }
 
+  /**
+   * 地点取景：手工营造的名胜用定稿的机位；其余地点由 CameraDesigner 按地形、树冠、水面与朝向设计（算一次缓存）。
+   */
   landmarkView(placeId: string): LandmarkView | null {
     const lm = this.ctx.landmarks.byPlaceId(placeId)
     if (!lm) return null
-    return { target: new THREE.Vector3(lm.x, lm.level + 1, lm.z), preset: lm.camera, name: lm.def.name, radius: lm.def.radius }
+    if (lm.def.cameraPreset && !lm.def.id.startsWith('place-')) return { target: new THREE.Vector3(lm.x, lm.level + 1, lm.z), preset: lm.camera, name: lm.def.name, radius: lm.def.radius }
+    let d = this.designed.get(lm.index)
+    if (!d) {
+      d = designCamera(lm, this.ctx.terrain, this.ctx.trees, this.fog)
+      this.designed.set(lm.index, d)
+    }
+    return { target: new THREE.Vector3(lm.x, d.targetY, lm.z), preset: d.preset, name: lm.def.name, radius: lm.def.radius }
   }
 
   /** 名胜瀑布（粒子水雾用） */

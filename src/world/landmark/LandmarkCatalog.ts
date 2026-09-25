@@ -145,7 +145,6 @@ const CHANGAN: LandmarkDefinition = {
     { type: 'broadleaf', variant: 4, pts: [[33, 14], [44, 16]], n: 3 },
   ],
   vegetationProfile: { weights: { broadleaf: 3, willow: 2, peach: 0.5 }, density: 0.6 },
-  cameraPreset: { yaw: -0.75, pitch: 0.6, distance: 100 },
 }
 
 export const LANDMARK_CATALOG: readonly LandmarkDefinition[] = [HANGZHOU, LUSHAN, CHANGAN]

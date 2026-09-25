@@ -105,6 +105,9 @@ export class Engine {
     this.camera.setAspect(this.renderer.width / this.renderer.height)
     this.renderer.onResize((w, h) => this.camera.setAspect(w / h))
     this.pipeline = new RenderPipeline(this.renderer.renderer, this.scene.scene, this.camera.camera)
+    this.pipeline.setBloom(this.quality.quality !== 'low')
+    this.renderer.renderer.shadowMap.type = this.quality.quality === 'high' ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap
+    this.renderer.onResize((w, h) => this.pipeline.setSize(w, h))
     this.env = new EnvironmentManager(this.shared, this.scene, this.shadows, this.renderer.renderer, { time: this.opts.time, season: this.opts.season, weather: this.opts.weather }, this.world.waterfalls())
     this.env.setQuality(q.particles)
     this.raycast = new RaycastSystem(this.world.world, this.world.sampler)
@@ -135,8 +138,11 @@ export class Engine {
       },
       hover: (x, y) => (this.hoverPending = { x, y }),
     })
-    this.quality.onChange((_q, p) => {
+    this.quality.onChange((q, p) => {
       this.renderer.setPixelRatio(p.pixelRatio)
+      this.pipeline.setBloom(q !== 'low')
+      this.pipeline.setSize(this.renderer.width, this.renderer.height)
+      this.renderer.renderer.shadowMap.type = q === 'high' ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap
       this.shadows.setEnabled(p.shadows, p.shadowSize)
       this.world.setQuality(p)
       this.env.setQuality(p.particles)
@@ -169,6 +175,7 @@ export class Engine {
     this.env.update(dt, time, cam, pose.target, pose.distance, this.renderer.renderer.getPixelRatio())
     this.trail.update(time)
     this.lanterns.update(dt, time, pose.target, pose.distance, this.shared.uNight.value)
+    this.pipeline.setNight(this.shared.uNight.value)
     this.life.update(dt, time, pose.target, pose.distance, this.shared.uNight.value, Math.min(1, Math.max(0, this.shared.uSunDir.value.y * 2)))
     if (this.hoverPending && this.loop.frame % 3 === 0) {
       const h = this.hoverPending
