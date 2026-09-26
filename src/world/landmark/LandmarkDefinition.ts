@@ -72,6 +72,8 @@ export interface LandmarkDefinition {
   radius: number
   /** 基准地面相对当地地势的抬升 */
   levelDy?: number
+  /** 基准面的真实海拔（米）：宏观网格把平原城市抬到了山上时（山阴旁是会稽山），直接按实测定台面 */
+  levelMeters?: number
   /** 基准面取法：默认周围中位；summit 取中心一小圈的最高处（山巅亭台） */
   levelMode?: 'summit'
   terrainModifier?: readonly TerrainOp[]

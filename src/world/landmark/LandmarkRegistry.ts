@@ -1,4 +1,5 @@
 import { clamp, hash2i, hashString, lerp, smoothstep } from '../../utils/math'
+import { metersToY } from '../WorldConfig'
 import { createSimplex2D, fbm } from '../../utils/noise'
 import { segmentDistance } from '../../utils/geometry2d'
 import { B } from '../block/Blocks'
@@ -55,7 +56,12 @@ export class LandmarkRegistry {
       const c = P.project(def.coordinate.lng, def.coordinate.lat)
       let [x, z] = this.clearOfCities(def, ...this.clearOfWater(def, ...this.clearOfRivers(def, Math.round(c.x + (def.offset?.[0] ?? 0)), Math.round(c.z + (def.offset?.[1] ?? 0)), baseTerrain), baseTerrain))
       if (def.levelMode === 'summit') [x, z] = this.findSummit(baseTerrain, x, z)
-      const level = (def.levelMode === 'summit' ? this.summitLevel(baseTerrain, x, z) : this.baseLevel(baseTerrain, x, z, !def.terrainModifier?.some((o) => o.t === 'hill'))) + (def.levelDy ?? 0)
+      const level =
+        (def.levelMeters !== undefined
+          ? Math.floor(metersToY(def.levelMeters))
+          : def.levelMode === 'summit'
+            ? this.summitLevel(baseTerrain, x, z)
+            : this.baseLevel(baseTerrain, x, z, !def.terrainModifier?.some((o) => o.t === 'hill'))) + (def.levelDy ?? 0)
       const lm: ResolvedLandmark = {
         index,
         def,
@@ -340,6 +346,8 @@ export class LandmarkRegistry {
                   col.waterKind = WaterKind.Lake
                 }
               } else if (best < op.w) {
+                // 河渠汇入江河湖：已经是天然水面的地方不动（否则两种水位并排，出现一级级的水墙）
+                if (col.waterY >= 0 && col.height < col.waterY && col.waterKind !== WaterKind.Pond) break
                 if (col.height < level - 1.5) {
                   // 渠道流出营造区、地势低下去：水面随地面降下（下游一级级跌水），不悬空
                   col.waterY = Math.floor(col.height)

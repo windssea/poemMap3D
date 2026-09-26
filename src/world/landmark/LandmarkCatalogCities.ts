@@ -100,17 +100,19 @@ const DUOJINGLOU: LandmarkDefinition = {
   name: '多景楼',
   // 北固山在大江南岸（图上江面宽，坐标落到南岸山脚）
   coordinate: { lng: 119.46, lat: 32.14 },
+  // 山体整个落在南岸：北坡临江成崖，不把楼台的石基砌进江里
+  offset: [-10, 20],
   radius: 32,
   major: true,
   poetryPlaceId: 'p030',
   terrainModifier: [
-    { t: 'hill', x: 0, z: 4, r: 22, h: 16 },
-    { t: 'flatten', x: 0, z: 2, r: 15, dy: 14, blend: 5 },
+    { t: 'hill', x: 0, z: 2, r: 24, h: 16 },
+    { t: 'flatten', x: 0, z: 2, r: 11, dy: 14, blend: 5 },
   ],
   structures: [
-    { b: 'grandTower', x: 0, z: -4, rot: 2, atLevel: true, dy: 14, p: { levels: 2, width: 9, tile: 'gray', terrace: 2 } },
-    { b: 'hall', x: -2, z: 12, atLevel: true, dy: 14, p: { width: 9, depth: 5, tile: 'gray', terrace: 1, lanterns: true } },
-    { b: 'pagoda', x: 11, z: 10, atLevel: true, dy: 14, p: { levels: 5, width: 5 } },
+    { b: 'grandTower', x: 0, z: 0, rot: 2, atLevel: true, dy: 14, p: { levels: 2, width: 9, tile: 'gray', terrace: 2 } },
+    { b: 'hall', x: -4, z: 20, p: { width: 9, depth: 5, tile: 'gray', terrace: 1, lanterns: true } },
+    { b: 'pagoda', x: 14, z: 14, p: { levels: 5, width: 5 } },
   ],
   trees: [
     { type: 'pine', variant: 2, pts: [[-22, -12], [-22, 16]], n: 4 },
@@ -335,7 +337,7 @@ const YANGZHOU: LandmarkDefinition = {
   poetryPlaceId: 'yangzhou',
   terrainModifier: [
     { t: 'flatten', x: 0, z: 0, r: 42, blend: 6 },
-    { t: 'canal', pts: [[-40, -30], [-24, -18], [-14, -4], [-18, 10], [-8, 22], [8, 26], [24, 38]], w: 4 },
+    { t: 'canal', pts: [[-40, -30], [-24, -18], [-14, -4], [-18, 10], [-8, 22], [6, 26], [14, 30]], w: 4 },
     { t: 'lake', x: -14, z: -2, rx: 9, rz: 6, depth: 2 },
     { t: 'hill', x: -40, z: -38, r: 14, h: 10 },
     { t: 'flatten', x: -40, z: -38, r: 6, dy: 9, blend: 3 },
@@ -403,41 +405,46 @@ const BIANJING: LandmarkDefinition = {
   vegetationProfile: { weights: { broadleaf: 3, willow: 3 }, density: 0.6 },
 }
 
-/** 山阴：水乡人家枕河；沈园（池、水榭、游廊、假山、题壁的亭）；城外兰亭（曲水流觞、鹅池、兰亭碑亭） */
+/**
+ * 山阴（绍兴）：钱塘江南岸、会稽山北麓的平原水乡，海拔不到十米——台面按实测定，城南山地自然高起。
+ * 水巷一横一纵，枕河人家；城西北沈园（池、水榭、游廊、假山、重檐亭）；城南兰亭（曲水、鹅池、碑亭）。
+ * 杭州在它西北约五十格，两处不再重叠。
+ */
 const SHANYIN: LandmarkDefinition = {
   id: 'shanyin',
   name: '山阴',
   coordinate: { lng: 120.58, lat: 30.0 },
-  radius: 50,
+  offset: [10, 12],
+  levelMeters: 8,
+  radius: 36,
   major: true,
   poetryPlaceId: 'shanyin',
   terrainModifier: [
-    { t: 'flatten', x: 0, z: 0, r: 36, blend: 6 },
-    { t: 'canal', pts: [[-40, 4], [40, 2]], w: 2 },
-    { t: 'canal', pts: [[10, -36], [8, 36]], w: 2 },
-    { t: 'lake', x: -22, z: -18, rx: 7, rz: 5, depth: 2 },
-    { t: 'canal', pts: [[26, 22], [30, 26], [26, 30], [32, 34]], w: 1 },
-    { t: 'lake', x: 36, z: 22, rx: 3, rz: 3, depth: 1 },
+    { t: 'flatten', x: 0, z: 0, r: 28, blend: 10 },
+    { t: 'canal', pts: [[-30, 2], [30, 2]], w: 2 },
+    { t: 'canal', pts: [[6, -28], [6, 28]], w: 2 },
+    { t: 'lake', x: -16, z: -14, rx: 6, rz: 4, depth: 2 },
+    { t: 'canal', pts: [[16, 16], [20, 20], [16, 24], [22, 27]], w: 1 },
+    { t: 'lake', x: 24, z: 18, rx: 3, rz: 3, depth: 1 },
   ],
   structures: [
-    ...houseRow([-30, -20, 20, 30], -3, 0, 501),
-    ...houseRow([-30, -20, 20, 30], 11, 2, 511),
-    ...houseRow([-2, 18], 20, 3, 521),
-    { b: 'bridge', x: 9, z: 3, rot: 1, atLevel: true, p: { length: 7 } },
-    { b: 'bridge', x: -8, z: 3, rot: 1, atLevel: true, p: { length: 7 } },
-    { b: 'waterPavilion', x: -22, z: -12, rot: 2, atLevel: true, overWater: true, p: { width: 7, depth: 5 } },
-    { b: 'corridor', x: -22, z: -28, p: { length: 11 } },
-    { b: 'pavilion', x: -32, z: -20, p: { width: 5, double: true } },
-    { b: 'rockery', x: -12, z: -22, p: { seed: 7 } },
-    { b: 'pavilion', x: 28, z: 28, p: { width: 5, tile: 'green' } },
-    { b: 'pavilion', x: 38, z: 30, p: { width: 3 } },
-    ...lamps([4], [-10, 16]),
+    ...houseRow([-24, -14, 16, 26], -5, 0, 501),
+    ...houseRow([-24, -14, 16, 26], 9, 2, 511),
+    { b: 'bridge', x: 6, z: 2, rot: 1, atLevel: true, p: { length: 7 } },
+    { b: 'bridge', x: -6, z: 2, rot: 1, atLevel: true, p: { length: 7 } },
+    { b: 'waterPavilion', x: -16, z: -9, rot: 2, atLevel: true, overWater: true, p: { width: 7, depth: 5 } },
+    { b: 'corridor', x: -16, z: -22, p: { length: 11 } },
+    { b: 'pavilion', x: -26, z: -16, p: { width: 5, double: true } },
+    { b: 'rockery', x: -7, z: -18, p: { seed: 7 } },
+    { b: 'pavilion', x: 18, z: 22, p: { width: 5, tile: 'green' } },
+    { b: 'pavilion', x: 27, z: 24, p: { width: 3 } },
+    ...lamps([2], [-10, 14]),
   ],
   trees: [
-    { type: 'bamboo', pts: [[20, 36], [40, 38]], n: 4 },
-    { type: 'willow', variant: 2, pts: [[-30, -12], [-14, -12]], n: 3 },
-    { type: 'peach', pts: [[-28, -26], [-18, -30]], n: 2 },
-    { type: 'willow', variant: 0, pts: [[-40, 0], [-26, 0]], n: 2 },
+    { type: 'bamboo', pts: [[12, 28], [30, 30]], n: 3 },
+    { type: 'willow', variant: 2, pts: [[-24, -8], [-8, -8]], n: 3 },
+    { type: 'peach', pts: [[-22, -22], [-12, -24]], n: 2 },
+    { type: 'willow', variant: 0, pts: [[-30, -1], [-20, -1]], n: 2 },
   ],
   vegetationProfile: { weights: { willow: 3, bamboo: 2, broadleaf: 2 }, density: 0.8 },
 }

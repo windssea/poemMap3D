@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { LifeTokens as T } from '../../config/palette'
 import { SEA_LEVEL } from '../../world/coordinate/constants'
+import { getProjection } from '../../world/coordinate/GeoProjection'
 import type { WorldContext } from '../../world/generation/WorldContext'
 import type { ResolvedLandmark } from '../../world/landmark/LandmarkRegistry'
 import { Occupancy } from '../../world/structure/OccupancyMap'
@@ -122,6 +123,7 @@ export class LifeSystem {
   private waterCenter: THREE.Vector3 | null = null
   private checkT = 0
   private rnd = new Random(11)
+  private readonly P = getProjection()
   private readonly m = new THREE.Matrix4()
   private readonly q = new THREE.Quaternion()
   private readonly e = new THREE.Euler()
@@ -530,7 +532,14 @@ export class LifeSystem {
     }
   }
 
+  /**
+   * 真正的海（渤海、黄海、东海、南海）：地图西、北边缘外与国境外的「海」只是图外空白，不走船——
+   * 要求在图内、经度 107° 以东、纬度 41.5° 以南
+   */
   private deepSea(x: number, z: number): boolean {
+    if (!this.ctx.macro.inBounds(x, z)) return false
+    const g = this.P.unproject(x, z)
+    if (g.lng < 107 || g.lat > 41.5) return false
     const c = this.ctx.terrain.column(Math.floor(x), Math.floor(z))
     return c.waterKind === WaterKind.Sea && c.waterY - c.height >= 3
   }
