@@ -433,6 +433,8 @@ export class LifeSystem {
 
   /* ———— 船 ———— */
 
+  private readonly waterCache = new Map<number, number>()
+
   private clearBoats(): void {
     for (const b of this.boats) this.group.remove(b.mesh)
     this.boats = []
@@ -651,7 +653,7 @@ export class LifeSystem {
         // 横向：垂直于河道，在河宽之内
         b.x = x0 + tx * f + (-tz / tl) * b.lane * hw
         b.z = z0 + tz * f + (tx / tl) * b.lane * hw
-        b.y = (f < 0.5 ? r.level[i] : r.level[i + 1]) + 1
+        if (b.y <= 0) b.y = (f < 0.5 ? r.level[i] : r.level[i + 1]) + 1 // 初值；之后随脚下真实水面（floatOnWater）
         const heading = Math.atan2(tz, tx) + (b.dir < 0 ? Math.PI : 0)
         let da = heading - b.a
         while (da > Math.PI) da -= Math.PI * 2
@@ -668,6 +670,7 @@ export class LifeSystem {
         } else b.a += (b.kind === 'ship' ? 0.6 : 1.0) * dt * 4
         if (b.kind === 'fishing') b.a += Math.sin(time * 0.2 + b.phase) * dt * 0.2
       }
+      if (b.kind !== 'ship' && b.kind !== 'seaFisher') this.floatOnWater(b, dt)
       const roll = Math.sin(time * 1.3 + b.phase) * (b.kind === 'ship' ? 0.025 : b.kind === 'cargo' ? 0.03 : 0.05)
       const pitch = Math.sin(time * 0.9 + b.phase * 2) * 0.02
       const bob = Math.sin(time * 1.7 + b.phase) * 0.06
@@ -676,6 +679,37 @@ export class LifeSystem {
       b.mesh.matrix.compose(this.v.set(b.x, b.y - (b.kind === 'ship' ? 1.3 : b.kind === 'seaFisher' ? 0.8 : b.kind === 'cargo' ? 0.55 : 0.4) + bob, b.z), this.q, this.s.set(1, 1, 1))
       b.mesh.matrixWorldNeedsUpdate = true
     }
+  }
+
+  /**
+   * 船浮在脚下真实的水面上：取船头、船腰、船尾三处水面的最高者（跨在水位台阶上时宁可浮在低的那侧水面之上，
+   * 也不沉进高的那侧水下）。江河穿湖处的水面是湖面、河渠出城后一级级跌落——都不能只用河道的标称水位。
+   */
+  private floatOnWater(b: Boat, dt: number): void {
+    const half = b.kind === 'fishing' ? 2.4 : b.kind === 'passenger' ? 4.4 : 5.4
+    const ca = Math.cos(b.a)
+    const sa = Math.sin(b.a)
+    let top = -1
+    for (let k = -1; k <= 1; k++) top = Math.max(top, this.waterTop(b.x + ca * half * k, b.z + sa * half * k))
+    if (top < 0) return
+    // 水面抬高（驶上高一级的水面）立刻浮上来，绝不沉在水下；降低时缓缓落下
+    if (b.y <= 0 || top > b.y || b.y - top > 3) b.y = top
+    else b.y += (top - b.y) * Math.min(1, dt * 4)
+  }
+
+  /** 某格的水面高度（水顶面 y），不是水返回 -1；按格缓存 */
+  private waterTop(x: number, z: number): number {
+    const ix = Math.floor(x)
+    const iz = Math.floor(z)
+    const key = ix * 65536 + iz
+    let v = this.waterCache.get(key)
+    if (v === undefined) {
+      const c = this.ctx.terrain.column(ix, iz)
+      v = c.waterY >= 0 && c.height < c.waterY ? c.waterY + 1 : -1
+      if (this.waterCache.size > 20000) this.waterCache.clear()
+      this.waterCache.set(key, v)
+    }
+    return v
   }
 
   private lakeAt(x: number, z: number): boolean {
