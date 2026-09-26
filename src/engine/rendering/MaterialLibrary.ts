@@ -179,7 +179,7 @@ export class MaterialLibrary {
           if (mod(floor(vFlags / 8.0), 2.0) > 0.5 && mod(floor(vFlags / 32.0), 2.0) > 0.5) texel.rgb = mix(texel.rgb, vec3(0.42, 0.35, 0.24), smoothstep(12.0, 36.0, distance(vBWorld, cameraPosition)));
           ${kind === 'cutout' ? 'if (texel.a < 0.4) discard; float tintAmt = 1.0;' : kind === 'solid' ? 'float tintAmt = 1.0 - texel.a;' : 'float tintAmt = 0.0;'}
           ${kind === 'cutout' ? 'if (uBare > 0.01 && tclass > 1.5 && tclass < 2.5 && hash13(floor(vBWorld * 16.0 + 0.01)) < uBare * snowClimate(vBWorld)) discard; // 冬日落叶：阔叶按像素镂空，露出枝干（岭南常绿不落）' : ''}
-          if (tclass > 5.5 && tclass < 6.5 && hash13(floor(vBWorld * 1.0) + 0.37) > uLotus) discard; // 荷：夏满、春秋稀、冬无
+          if (tclass > 5.5 && tclass < 6.5 && hash12(floor(vBWorld.xz) + 0.37) > uLotus) discard; // 荷：夏满、春秋稀、冬无（按所在那一格取舍——只看 xz：荷叶底面正落在整数高度上，按三维取整会逐像素在上下两格间跳，叶面被裁、底面留下，成了闪烁的黑斑纹）
           vec3 tint = seasonTint(vTint, tclass, vBWorld);
           vec3 col = texel.rgb * mix(vec3(1.0), tint, tintAmt);
           if (tclass > 3.5 && tclass < 4.5) {

@@ -548,7 +548,9 @@ export function meshVolume(vol: VoxelVolume, opts: MesherOptions = {}): MeshResu
           case BlockShape.CUSTOM_VOXEL: {
             const def = reg.get(id)
             const f = stateFacing(st)
-            for (const b of def.boxes!) emitBox(x, y, z, rotBox(b, f), id, st, buf)
+            // 浮在水面上的薄片（荷叶）：底面贴着水面、永远看不见，不出（双面材质下它从上面看是背面，与叶面只差 1/16 格）
+            const onWater = T.isPlant[id] && reg.liquid[at(x, y - 1, z) & 255] ? 1 << 3 : 0
+            for (const b of def.boxes!) emitBox(x, y, z, rotBox(b, f), id, st, buf, b[1] === 0 ? onWater : 0)
             if (def.glow) {
               const g = def.glow * 16
               const c = 8

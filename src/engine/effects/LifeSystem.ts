@@ -535,17 +535,20 @@ export class LifeSystem {
     for (const lk of this.ctx.lakes.lakes) {
       if (Math.hypot(lk.x - focus.x, lk.z - focus.z) > RANGE + Math.max(lk.rx, lk.rz)) continue
       const area = Math.PI * lk.rx * lk.rz
+      if (area < 400) continue // 小湖小塘不放船
       // 每个湖至多三条小渔舟（小湖一条）、大湖（太湖、洞庭、鄱阳）至多一条客船
       const nF = area > 2500 ? 3 : area > 800 ? 2 : 1
       for (let i = 0; i < nF && lake < MAX_LAKE_BOATS; i++) placeInLake(lk.x, lk.z, lk.rx, lk.rz, lk.cos, lk.sin, 'fishing')
       if (area > 2500) placeInLake(lk.x, lk.z, lk.rx * 0.6, lk.rz * 0.6, lk.cos, lk.sin, 'passenger')
     }
-    /* 名胜里营造的湖（西湖……）：同样按面积 */
+    /* 名胜里营造的湖（西湖……）：同样按面积；瀑下潭、园中池这类小水景不放 */
     for (const lm of this.ctx.landmarks.landmarks) {
       if (Math.hypot(lm.x - focus.x, lm.z - focus.z) > RANGE) continue
       for (const op of lm.def.terrainModifier ?? []) {
         if (op.t !== 'lake') continue
         const area = Math.PI * op.rx * op.rz
+        // 瀑下深潭、园林小池这样的小水景不放船
+        if (area < 300) continue
         const c = Math.cos(op.rot ?? 0)
         const sn = Math.sin(op.rot ?? 0)
         const nF = area > 300 ? 3 : area > 100 ? 2 : 1
