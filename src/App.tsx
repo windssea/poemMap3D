@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { AppServices } from './app/bootstrap'
-import { useApp } from './app/AppStore'
+import { closedPops, useApp } from './app/AppStore'
 import { DebugPanel } from './devtools/DebugPanel'
 import { AmbienceControls } from './ui/AmbienceControls'
 import { Brand } from './ui/Brand'
@@ -44,6 +44,18 @@ export function App() {
   const time = useApp((s) => s.time)
   const [dockFolded, toggleDock] = useFold('sh-dock')
   const [headFolded, toggleHead] = useFold('sh-head')
+
+  useEffect(() => {
+    if (!services) return
+    const onDown = (e: PointerEvent) => {
+      const el = e.target as Element | null
+      if (el?.closest('[data-pop], [data-pop-toggle]')) return
+      const ui = services.store.get().ui
+      if (ui.ambienceOpen || ui.tourSettingsOpen || ui.soundOpen) services.store.set((s) => ({ ui: closedPops(s.ui) }))
+    }
+    window.addEventListener('pointerdown', onDown, true)
+    return () => window.removeEventListener('pointerdown', onDown, true)
+  }, [services])
 
   useEffect(() => {
     document.body.classList.toggle('ui-hidden', hidden)

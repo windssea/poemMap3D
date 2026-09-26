@@ -19,7 +19,7 @@ function SettingsPop() {
   const { tour } = useServices()
   const ts = useApp((s) => s.tourState)
   return (
-    <div className="panel settings-pop" onClick={(e) => e.stopPropagation()}>
+    <div className="panel settings-pop" data-pop onClick={(e) => e.stopPropagation()}>
       <div className="tp-h">巡游设置</div>
       {OPTIONS.map((o) => (
         <div key={o.key} className="amb-row">
@@ -45,7 +45,7 @@ export function TourControls() {
       <button className={`ico ${ts.active ? 'on' : ''}`} title={ts.active ? '停止巡游' : '开始巡游'} onClick={() => (ts.active ? facade.stopTour() : facade.startTour())}>
         <Icon name={ts.active ? 'stop' : 'play'} />
       </button>
-      <button className={`ico ${open ? 'on' : ''}`} title="巡游设置" onClick={() => store.set((s) => ({ ui: { ...s.ui, tourSettingsOpen: !s.ui.tourSettingsOpen } }))}>
+      <button className={`ico ${open ? 'on' : ''}`} title="巡游设置" data-pop-toggle onClick={() => store.set((s) => ({ ui: { ...s.ui, tourSettingsOpen: !s.ui.tourSettingsOpen } }))}>
         <Icon name="gear" />
       </button>
       {open && !ts.active && <SettingsPop />}
@@ -74,7 +74,7 @@ export function TourCaption() {
           巡游中 · {ts.region}
           {placeName && ` · ${placeName}`}
         </span>
-        <button title="巡游设置" onClick={() => store.set((s) => ({ ui: { ...s.ui, tourSettingsOpen: !s.ui.tourSettingsOpen } }))}>
+        <button title="巡游设置" data-pop-toggle onClick={() => store.set((s) => ({ ui: { ...s.ui, tourSettingsOpen: !s.ui.tourSettingsOpen } }))}>
           设置
         </button>
         <button className="stop" onClick={() => facade.stopTour()}>

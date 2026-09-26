@@ -123,44 +123,57 @@ const DUOJINGLOU: LandmarkDefinition = {
 
 /* ================= 名城 ================= */
 
-/** 金陵：秦淮河穿城，文德桥与夫子庙，河北岸酒楼、南岸铺面；城北衙署、乌衣巷；城西北凤凰台；城外东北钟山、城南大报恩寺琉璃塔 */
+/** 金陵：大江东南岸的大城。秦淮河穿城，文德桥与夫子庙，北岸酒楼、南岸铺面摊贩；城北宫城衙署、城中钟楼与乌衣巷；城西凤凰台；城南大报恩寺琉璃塔；钟山在城东北（地形自带） */
 const JINLING: LandmarkDefinition = {
   id: 'jinling',
   name: '金陵',
   coordinate: { lng: 118.78, lat: 32.04 },
-  radius: 58,
+  // 城在大江东南岸（坐标正落在江面上）：挪到南岸平地，钟山在城东北；滁州留在江北西北方
+  offset: [42, 40],
+  radius: 66,
   major: true,
   poetryPlaceId: 'jinling',
   terrainModifier: [
-    { t: 'flatten', x: 0, z: 2, r: 32, rz: 24, square: true, blend: 6 },
-    { t: 'canal', pts: [[-42, 10], [-12, 12], [10, 9], [42, 11]], w: 2.5 },
-    { t: 'pave', x0: -2, z0: -19, x1: 2, z1: 42 },
-    { t: 'hill', x: 44, z: -30, r: 22, h: 30 },
-    { t: 'flatten', x: 0, z: 37, r: 10, blend: 5 },
+    { t: 'flatten', x: 0, z: 2, r: 38, rz: 29, square: true, blend: 6 },
+    { t: 'canal', pts: [[-48, 12], [-14, 14], [12, 11], [48, 13]], w: 2.5 },
+    { t: 'pave', x0: -2, z0: -24, x1: 2, z1: 46 },
+    { t: 'pave', x0: -32, z0: -2, x1: 32, z1: 2 },
+    { t: 'flatten', x: 0, z: 42, r: 10, blend: 5 },
   ],
-  walls: [{ x: 0, z: 0, hw: 28, hd: 20, height: 8, gates: ['n', 's', 'e', 'w'] }],
+  walls: [{ x: 0, z: 0, hw: 34, hd: 25, height: 9, gates: ['n', 's', 'e', 'w'] }],
   structures: [
-    { b: 'hall', x: 0, z: -12, p: { width: 13, depth: 7, tile: 'gray', double: true, lanterns: true, terrace: 2 } },
-    { b: 'courtyard', x: -19, z: -11, p: { width: 11, seed: 31 } },
-    { b: 'courtyard', x: 19, z: -11, p: { width: 11, seed: 32 } },
-    { b: 'hall', x: -14, z: 2, p: { width: 9, depth: 5, tile: 'gray', terrace: 1, lanterns: true } },
-    { b: 'bridge', x: 0, z: 11, rot: 1, atLevel: true, p: { length: 7 } },
-    { b: 'archway', x: 0, z: 16, p: { tile: 'gray' } },
-    { b: 'loft', x: 10, z: 4, p: { width: 7, depth: 5, seed: 33, lanterns: true } },
-    { b: 'loft', x: 19, z: 4, p: { width: 7, depth: 5, seed: 34, lanterns: true } },
-    ...[-20, -11, 11, 20].map((x, i) => ({ b: 'shop' as const, x, z: 17, rot: 2, p: { seed: 40 + i } })),
-    { b: 'terrace', x: -23, z: 3, p: { width: 7, depth: 7, height: 2 } },
-    { b: 'pavilion', x: -23, z: 2, dy: 2, p: { width: 5, double: true, tile: 'gray' } },
-    ...lamps([-4, 4], [-6, 26, 32]),
-    { b: 'pagoda', x: 0, z: 40, p: { levels: 9, width: 7, tile: 'green' } },
-    { b: 'hall', x: -12, z: 37, p: { width: 9, depth: 5, tile: 'yellow', terrace: 1 } },
-    { b: 'pavilion', x: 44, z: -30, p: { width: 5 } },
+    /* 城北：宫城与衙署 */
+    { b: 'hall', x: 0, z: -16, p: { width: 15, depth: 7, tile: 'gray', double: true, lanterns: true, terrace: 2 } },
+    { b: 'hall', x: -14, z: -15, rot: 3, p: { width: 7, depth: 5, tile: 'gray', terrace: 1 } },
+    { b: 'hall', x: 14, z: -15, rot: 1, p: { width: 7, depth: 5, tile: 'gray', terrace: 1 } },
+    { b: 'courtyard', x: -25, z: -14, p: { width: 11, seed: 31 } },
+    { b: 'courtyard', x: 25, z: -14, p: { width: 11, seed: 32 } },
+    /* 城中：钟楼、乌衣巷的人家 */
+    { b: 'bellTower', x: 0, z: 0, p: { width: 9 } },
+    { b: 'courtyard', x: -24, z: 0, p: { width: 11, seed: 35 } },
+    { b: 'house', x: -12, z: -4, p: { seed: 36, lanterns: true } },
+    { b: 'house', x: 12, z: -4, p: { seed: 37, lanterns: true } },
+    /* 秦淮河两岸：北岸酒楼，南岸铺面与摊，夫子庙与文德桥 */
+    { b: 'bridge', x: 0, z: 13, rot: 1, atLevel: true, p: { length: 7 } },
+    { b: 'loft', x: 11, z: 6, p: { width: 7, depth: 5, seed: 33, lanterns: true } },
+    { b: 'loft', x: 20, z: 6, p: { width: 7, depth: 5, seed: 34, lanterns: true } },
+    { b: 'loft', x: 29, z: 6, p: { width: 7, depth: 5, seed: 38, lanterns: true } },
+    { b: 'hall', x: -16, z: 6, p: { width: 9, depth: 5, tile: 'gray', terrace: 1, lanterns: true } },
+    ...[-26, -17, 11, 20, 29].map((x, i) => ({ b: 'shop' as const, x, z: 20, rot: 2, p: { seed: 40 + i } })),
+    ...[-6, 6].map((x, i) => ({ b: 'stall' as const, x, z: 18, p: { seed: 50 + i } })),
+    { b: 'archway', x: 0, z: 19, p: { tile: 'gray' } },
+    /* 城西凤凰台 */
+    { b: 'terrace', x: -28, z: -2, p: { width: 7, depth: 7, height: 2 } },
+    { b: 'pavilion', x: -28, z: -3, dy: 2, p: { width: 5, double: true, tile: 'gray' } },
+    ...lamps([-4, 4], [-8, 30, 36]),
+    /* 城南：大报恩寺与琉璃塔 */
+    { b: 'pagoda', x: 0, z: 45, p: { levels: 9, width: 7, tile: 'green' } },
+    { b: 'hall', x: -13, z: 42, p: { width: 9, depth: 5, tile: 'yellow', terrace: 1 } },
   ],
   trees: [
-    { type: 'willow', variant: 0, pts: [[-38, 7], [-26, 7]], n: 3 },
-    { type: 'willow', variant: 0, pts: [[26, 15], [38, 15]], n: 3 },
-    { type: 'pine', variant: 2, pts: [[32, -40], [56, -22]], n: 6 },
-    { type: 'peach', pts: [[-27, -2], [-19, -2]], n: 2 },
+    { type: 'willow', variant: 0, pts: [[-44, 9], [-30, 9]], n: 3 },
+    { type: 'willow', variant: 0, pts: [[34, 17], [44, 17]], n: 2 },
+    { type: 'peach', pts: [[-32, -4], [-24, -4]], n: 2 },
   ],
   vegetationProfile: { weights: { broadleaf: 3, willow: 2, pine: 2, peach: 0.5 }, density: 0.8 },
 }

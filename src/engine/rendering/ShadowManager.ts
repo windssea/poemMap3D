@@ -77,8 +77,9 @@ export class ShadowManager {
     csm.fade = true
     for (const l of csm.lights) {
       l.castShadow = this.enabled
-      l.shadow.normalBias = 0.35
-      l.shadow.radius = this.cascades >= 3 ? 2.5 : 1.8 // PCF 模糊：阴影边缘有柔和的半影
+      l.shadow.normalBias = 0.5
+      // PCF 取样半径只取一格：three 的 PCF 以逐像素噪声旋转五个取样点，半径一大半影就成了颗粒，镜头一动颗粒跟着爬（夜里窗格一闪一闪）
+      l.shadow.radius = 1
     }
     this.csm = csm
     /* 已登记过的材质要重新登记到新的 CSM 上 */

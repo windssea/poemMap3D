@@ -18,6 +18,9 @@ export interface Poem {
   story?: string
   notes?: { term: string; gloss: string }[]
   tags: string[]
+  /** 写作年份（公元，前为负）；yearApprox 为约数（按作者行迹推定） */
+  year?: number
+  yearApprox?: boolean
   /** 名句：起句下标、名气（1–5，≥4 为名篇）、句数 */
   fame?: { line: number; score: number; count: number }
 }

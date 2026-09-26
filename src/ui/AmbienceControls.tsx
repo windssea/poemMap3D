@@ -14,14 +14,14 @@ export function AmbienceControls() {
   return (
     <div className="panel grp" style={{ position: 'relative' }}>
       <span className="lab">意境</span>
-      <button className="chip" onClick={() => store.set((s) => ({ ui: { ...s.ui, ambienceOpen: !s.ui.ambienceOpen } }))}>
+      <button className="chip" data-pop-toggle onClick={() => store.set((s) => ({ ui: { ...s.ui, ambienceOpen: !s.ui.ambienceOpen } }))}>
         {SEASON_NAMES[season]} · {TIME_NAMES[time]} · {WEATHER_NAMES[weather]}
         <span style={{ display: 'inline-block', transform: open ? 'none' : 'rotate(180deg)', marginLeft: 4, verticalAlign: -3 }}>
           <Icon name="chevron" size={14} />
         </span>
       </button>
       {open && (
-        <div className="panel amb-pop">
+        <div className="panel amb-pop" data-pop>
           <div className="amb-row">
             <span className="lab">时辰</span>
             {TIMES.map((t) => (

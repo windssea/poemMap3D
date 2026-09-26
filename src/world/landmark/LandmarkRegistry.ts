@@ -348,6 +348,8 @@ export class LandmarkRegistry {
               } else if (best < op.w) {
                 // 河渠汇入江河湖：已经是天然水面的地方不动（否则两种水位并排，出现一级级的水墙）
                 if (col.waterY >= 0 && col.height < col.waterY && col.waterKind !== WaterKind.Pond) break
+                // 贴着天然江湖海的岸（两格半内）不开渠、留一道堤：两边水位不同，否则岸边立起一条高出湖面的水带，侧面的水墙把湖上的船罩住
+                if (col.waterDist <= 2.5 && col.waterKind !== WaterKind.Pond && col.waterKind !== WaterKind.None) break
                 if (col.height < level - 1.5) {
                   // 渠道流出营造区、地势低下去：水面随地面降下（下游一级级跌水），不悬空
                   col.waterY = Math.floor(col.height)

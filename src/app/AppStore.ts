@@ -89,6 +89,12 @@ function initial(): AppState {
 
 type Listener = () => void
 
+/** 按钮组的弹出层（意境、巡游设置、背景音） */
+const POPS = ['ambienceOpen', 'tourSettingsOpen', 'soundOpen'] as const
+
+/** 关掉所有弹出层 */
+export const closedPops = (ui: AppState['ui']): AppState['ui'] => ({ ...ui, ambienceOpen: false, tourSettingsOpen: false, soundOpen: false })
+
 /** 极简外部 store：React 用 useSyncExternalStore 订阅 */
 export class AppStore {
   private state: AppState = initial()
@@ -98,6 +104,12 @@ export class AppStore {
 
   set = (patch: Partial<AppState> | ((s: AppState) => Partial<AppState>)): void => {
     const p = typeof patch === 'function' ? patch(this.state) : patch
+    /* 按钮组的弹出层互斥：这次新打开了哪一个，其余的一并关上 */
+    if (p.ui) {
+      const prev = this.state.ui
+      const opened = POPS.find((k) => p.ui![k] && !prev[k])
+      if (opened) p.ui = { ...p.ui, ...Object.fromEntries(POPS.filter((k) => k !== opened).map((k) => [k, false])) }
+    }
     this.state = { ...this.state, ...p }
     this.persist(p)
     for (const l of this.listeners) l()

@@ -451,7 +451,7 @@ export class LifeSystem {
    *  - 大江（半宽 ≥ 4.5，长江、黄河下游……）：运货的漕船与客船为主，少量渔舟；
    *  - 中小河：渔舟为主，间有小一号的漕船；
    *  - 运河（大运河、江南运河）与城中河渠：漕船、客船；
-   *  - 湖：只有渔舟（按湖面积定数目，一到十条），大湖（太湖、洞庭、鄱阳）再有一两条客船；不进大船；
+   *  - 湖：每湖至多三条小渔舟（按面积一到三条），大湖（太湖、洞庭、鄱阳）至多一条客船；不进大船；
    *  - 海（真实海域）：明代福船为主，一两条海上渔船。
    */
   private populateWater(focus: THREE.Vector3): void {
@@ -533,10 +533,10 @@ export class LifeSystem {
     for (const lk of this.ctx.lakes.lakes) {
       if (Math.hypot(lk.x - focus.x, lk.z - focus.z) > RANGE + Math.max(lk.rx, lk.rz)) continue
       const area = Math.PI * lk.rx * lk.rz
-      const nF = Math.max(1, Math.min(10, Math.round(area / 350)))
+      // 每个湖至多三条小渔舟（小湖一条）、大湖（太湖、洞庭、鄱阳）至多一条客船
+      const nF = area > 2500 ? 3 : area > 800 ? 2 : 1
       for (let i = 0; i < nF && lake < MAX_LAKE_BOATS; i++) placeInLake(lk.x, lk.z, lk.rx, lk.rz, lk.cos, lk.sin, 'fishing')
-      const nP = area > 6000 ? 2 : area > 2500 ? 1 : 0
-      for (let i = 0; i < nP; i++) placeInLake(lk.x, lk.z, lk.rx * 0.6, lk.rz * 0.6, lk.cos, lk.sin, 'passenger')
+      if (area > 2500) placeInLake(lk.x, lk.z, lk.rx * 0.6, lk.rz * 0.6, lk.cos, lk.sin, 'passenger')
     }
     /* 名胜里营造的湖（西湖……）：同样按面积 */
     for (const lm of this.ctx.landmarks.landmarks) {
@@ -546,9 +546,9 @@ export class LifeSystem {
         const area = Math.PI * op.rx * op.rz
         const c = Math.cos(op.rot ?? 0)
         const sn = Math.sin(op.rot ?? 0)
-        const nF = Math.max(1, Math.min(6, Math.round(area / 150)))
+        const nF = area > 300 ? 3 : area > 100 ? 2 : 1
         for (let i = 0; i < nF && lake < MAX_LAKE_BOATS; i++) placeInLake(lm.x + op.x, lm.z + op.z, op.rx, op.rz, c, sn, 'fishing', lm.level + 1)
-        if (area > 500) placeInLake(lm.x + op.x, lm.z + op.z, op.rx * 0.5, op.rz * 0.5, c, sn, 'passenger', lm.level + 1)
+        if (area > 400) placeInLake(lm.x + op.x, lm.z + op.z, op.rx * 0.5, op.rz * 0.5, c, sn, 'passenger', lm.level + 1)
       }
     }
     /* 海：真实海域里沿岸而行——大船为主，一两条海上渔船 */

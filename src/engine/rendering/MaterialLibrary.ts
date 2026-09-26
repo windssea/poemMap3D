@@ -175,6 +175,8 @@ export class MaterialLibrary {
           /* glsl */ `
           vec4 texel = texture(uBlockAtlas, vec3(vBlockUv.x, -vBlockUv.y, vBlockUv.z));
           float tclass = mod(vFlags, 8.0);
+          // 亮窗（暖色发光）的窗格：离远了平均成一片纸色，不让三像素一道的木棂在远处闪出摩尔纹
+          if (mod(floor(vFlags / 8.0), 2.0) > 0.5 && mod(floor(vFlags / 32.0), 2.0) > 0.5) texel.rgb = mix(texel.rgb, vec3(0.42, 0.35, 0.24), smoothstep(12.0, 36.0, distance(vBWorld, cameraPosition)));
           ${kind === 'cutout' ? 'if (texel.a < 0.4) discard; float tintAmt = 1.0;' : kind === 'solid' ? 'float tintAmt = 1.0 - texel.a;' : 'float tintAmt = 0.0;'}
           ${kind === 'cutout' ? 'if (uBare > 0.01 && tclass > 1.5 && tclass < 2.5 && hash13(floor(vBWorld * 16.0 + 0.01)) < uBare * snowClimate(vBWorld)) discard; // 冬日落叶：阔叶按像素镂空，露出枝干（岭南常绿不落）' : ''}
           if (tclass > 5.5 && tclass < 6.5 && hash13(floor(vBWorld * 1.0) + 0.37) > uLotus) discard; // 荷：夏满、春秋稀、冬无
@@ -332,6 +334,17 @@ export class MaterialLibrary {
           col = mix(col, uSnowColor * 0.9, uSnow * 0.15 * clim);
           col = mix(col, uIceColor, falling ? 0.0 : uIce * clim);
           col *= mix(1.0, 0.45, uNight);
+          if (uNight > 0.05 && !falling) {
+            // 月光落在水上：随波碎成一片银鳞；水里倒映几点星
+            float moon = pow(max(dot(reflect(-uSunDir, n), v), 0.0), 60.0);
+            col += uSunColor * moon * 0.42 * uNight * (1.0 - uWet * 0.8) * (1.0 - uIce * clim);
+            vec3 rd = reflect(-v, normalize(vec3(0.0, 1.0, 0.0) + (n - vWNormal) * 2.5));
+            if (rd.y > 0.05) {
+              vec3 g = floor(rd * 150.0);
+              float st = step(0.9965, hash13(g)) * (0.55 + 0.45 * sin(uTime * 2.0 + hash13(g + 7.0) * 40.0));
+              col += vec3(0.8, 0.85, 1.0) * st * 0.55 * uNight * (1.0 - uWet) * (1.0 - uIce * clim);
+            }
+          }
           float alpha = falling ? 0.88 : mix(mix(0.64, 0.9, depth), 0.95, uIce * clim);
           gl_FragColor = vec4(col, ${overview ? '1.0' : 'alpha'});
           #include <tonemapping_fragment>

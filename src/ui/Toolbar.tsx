@@ -48,11 +48,11 @@ export function Toolbar() {
         <Icon name="frame" />
       </button>
       <div style={{ position: 'relative' }}>
-        <button className={`ico ${sound !== 'off' ? 'on' : ''}`} title={`背景音：${SOUND_NAMES[sound]}`} onClick={() => store.set((s) => ({ ui: { ...s.ui, soundOpen: !s.ui.soundOpen } }))}>
+        <button data-pop-toggle className={`ico ${sound !== 'off' ? 'on' : ''}`} title={`背景音：${SOUND_NAMES[sound]}`} onClick={() => store.set((s) => ({ ui: { ...s.ui, soundOpen: !s.ui.soundOpen } }))}>
           <Icon name={sound === 'off' ? 'mute' : 'sound'} />
         </button>
         {soundOpen && (
-          <div className="panel amb-pop sound-pop">
+          <div className="panel amb-pop sound-pop" data-pop>
             {([['自然', NATURE_MODES], ['古乐', MUSIC_MODES]] as const).map(([lab, modes]) => (
               <div className="amb-row" key={lab}>
                 <span className="lab">{lab}</span>

@@ -3,11 +3,16 @@ import { NightTokens } from '../../config/palette'
 import { Random } from '../../utils/math'
 import { VoxelModelBuilder } from './LifeModels'
 
-const SKY_N = 12
+const SKY_N = 10
 const RIVER_N = 20
+/** 只在近景出现：镜头拉到这么远开始淡出、再远就全收起（远景留给星月） */
+const NEAR_FULL = 170
+const NEAR_OFF = 280
+/** 孔明灯升到这么高就渐渐隐去（不飘成满天的远灯） */
+const RISE = 70
 /** 离焦点多远的灯就回收，挪到焦点附近重新放（逐盏回收，不整批重撒——整批重撒在镜头移动时会一闪一闪） */
-const SKY_RANGE = 120
-const RIVER_RANGE = 150
+const SKY_RANGE = 75
+const RIVER_RANGE = 110
 
 interface SkyLantern {
   x: number
@@ -82,7 +87,7 @@ function lotusGeometry(): THREE.BufferGeometry {
 
 /**
  * 夜色近景：孔明灯从地面缓缓升空，河湖上漂着莲花河灯。
- * 只在夜里、镜头推近时出现；数目不多，围着镜头焦点——走远了的逐盏收回、在焦点附近重新放出（由小渐大），不会整批闪。
+ * 只在夜里、镜头推近时出现（拉远渐渐淡去，远景只见星月）；数目不多，围着镜头焦点——走远了的逐盏收回、在焦点附近重新放出（由小渐大），不会整批闪。
  */
 export class NightLanterns {
   readonly group = new THREE.Group()
@@ -139,13 +144,14 @@ export class NightLanterns {
   }
 
   update(dt: number, time: number, focus: THREE.Vector3, distance: number, night: number): void {
-    const on = night > 0.5 && distance < 520
+    const on = night > 0.5 && distance < NEAR_OFF
+    const near = 1 - Math.min(1, Math.max(0, (distance - NEAR_FULL) / (NEAR_OFF - NEAR_FULL)))
     this.group.visible = on
     if (!on) return
     /* 补足、逐盏回收 */
     while (this.skyL.length < SKY_N) {
       const L = this.spawnSky(focus)
-      L.t = this.rnd.range(0, 40)
+      L.t = this.rnd.range(0, 25)
       L.born = 1
       this.skyL.push(L)
     }
@@ -159,7 +165,7 @@ export class NightLanterns {
       L.t += dt
       L.born = Math.min(1, L.born + dt / 1.5)
       const h = L.t * L.speed
-      if (h > 120 || Math.hypot(L.x - focus.x, L.z - focus.z) > SKY_RANGE) {
+      if (h > RISE || Math.hypot(L.x - focus.x, L.z - focus.z) > SKY_RANGE) {
         this.spawnSky(focus, L)
         continue
       }
@@ -167,7 +173,7 @@ export class NightLanterns {
       const z = L.z + Math.cos(time * 0.3 + L.sway) * 1.5
       const y = L.y0 + h
       // 缓缓自转、微微摇晃；刚升起由小渐大，升高后渐渐缩小隐去
-      const sc = Math.min(1, L.t / 2) * (1 - Math.max(0, (h - 100) / 20)) * L.born
+      const sc = Math.min(1, L.t / 2) * (1 - Math.max(0, (h - RISE + 20) / 20)) * L.born * near
       this.q.setFromAxisAngle(this.s.set(Math.sin(time + L.sway) * 0.08, 1, Math.cos(time * 0.8 + L.sway) * 0.08).normalize(), time * 0.15 + L.sway)
       this.m.compose(this.p.set(x, y, z), this.q, this.s.setScalar(Math.max(0.01, sc)))
       this.sky.setMatrixAt(n, this.m)
@@ -188,9 +194,9 @@ export class NightLanterns {
       }
       const y = L.y + Math.sin(time * 1.3 + L.phase) * 0.08
       this.q.setFromAxisAngle(this.s.set(0, 1, 0), L.phase + time * 0.1)
-      this.m.compose(this.p.set(L.x, y, L.z), this.q, this.s.setScalar(Math.max(0.01, L.born)))
+      this.m.compose(this.p.set(L.x, y, L.z), this.q, this.s.setScalar(Math.max(0.01, L.born * near)))
       this.river.setMatrixAt(r++, this.m)
-      this.m.compose(this.p.set(L.x, y + 0.7, L.z), this.q, this.s.setScalar(0.45 * L.born))
+      this.m.compose(this.p.set(L.x, y + 0.7, L.z), this.q, this.s.setScalar(0.45 * L.born * near))
       this.glow.setMatrixAt(g++, this.m)
     }
     this.river.count = r

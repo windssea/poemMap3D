@@ -146,7 +146,7 @@ export function fishingBoatGeometry(): THREE.BufferGeometry {
   b.box(-2.2, 0, -0.6, 2.2, 0.35, 0.6, T.hullDark)
   b.box(-2.5, 0.3, -0.8, 2.3, 0.7, 0.8, T.hull)
   b.box(2.3, 0.5, -0.5, 2.8, 0.85, 0.5, T.hull) // 翘起的船头
-  b.box(-2.3, 0.62, -0.62, 2.2, 0.7, 0.62, T.deck)
+  b.box(-2.3, 0.62, -0.62, 2.2, 0.74, 0.62, T.deck) // 甲板面略高出船帮顶面，两面不共面（远看不闪）
   // 乌篷：拱形由三层渐窄的块叠成
   b.box(-1.9, 0.7, -0.75, -0.3, 1.3, 0.75, T.awning)
   b.box(-1.9, 1.3, -0.55, -0.3, 1.5, 0.55, T.awning, 0.9)
@@ -184,9 +184,9 @@ export function passengerBoatGeometry(): THREE.BufferGeometry {
   b.box(-4.5, 0.35, -1.35, 4.3, 0.9, 1.35, T.hull)
   b.box(4.2, 0.6, -0.9, 5, 1.1, 0.9, T.hull)
   b.box(-4.8, 0.7, -1, -4.3, 1.4, 1, T.hull)
-  b.box(-4.3, 0.82, -1.2, 4.2, 0.9, 1.2, T.deck)
-  // 船舱：红漆柱、木格窗，乌篷顶
-  b.box(-2.6, 0.9, -1.15, 1.6, 2.2, 1.15, T.deck, 0.85)
+  b.box(-4.3, 0.82, -1.2, 4.2, 0.94, 1.2, T.deck)
+  // 船舱：红漆柱、木格窗，乌篷顶（舱壁缩进柱面，前后不共面）
+  b.box(-2.55, 0.9, -1.15, 1.55, 2.2, 1.15, T.deck, 0.85)
   for (const x of [-2.6, -1.2, 0.2, 1.5]) b.box(x, 0.9, -1.2, x + 0.12, 2.2, 1.2, T.lacquer)
   b.box(-2.9, 2.2, -1.35, 1.9, 2.5, 1.35, T.awning)
   b.box(-2.9, 2.5, -1.0, 1.9, 2.75, 1.0, T.awning, 0.9)
@@ -230,7 +230,7 @@ export function cargoBoatGeometry(): THREE.BufferGeometry {
   b.box(-5.9, 0.8, -1.3, -5.4, 1.5, 1.3, T.hull)
   b.box(-5.5, 1.0, -1.72, 5.3, 1.08, -1.62, T.hullDark)
   b.box(-5.5, 1.0, 1.62, 5.3, 1.08, 1.72, T.hullDark)
-  b.box(-5.3, 0.95, -1.55, 5.1, 1.02, 1.55, T.deck)
+  b.box(-5.3, 0.95, -1.55, 5.1, 1.09, 1.55, T.deck)
   // 货堆：苇席盖顶的拱（三层渐窄），前后露出麻包与酒坛
   b.box(-2.6, 1.0, -1.35, 2.2, 1.9, 1.35, T.thatch)
   b.box(-2.6, 1.9, -1.0, 2.2, 2.35, 1.0, T.thatch, 0.92)
@@ -245,7 +245,7 @@ export function cargoBoatGeometry(): THREE.BufferGeometry {
   b.box(-0.9, 3.0, -0.05, 2.6, 7.6, 0.05, T.sailTan)
   for (let y = 3.6; y < 7.6; y += 0.8) b.box(-0.95, y, -0.1, 2.65, y + 0.12, 0.1, T.batten)
   // 船尾小篷、大橹、艄公；船头撑篙的两人
-  b.box(-5.3, 1.0, -1.2, -3.8, 2.0, 1.2, T.awning)
+  b.box(-5.25, 1.0, -1.2, -3.8, 2.0, 1.2, T.awning)
   b.box(-5.3, 2.0, -0.8, -3.8, 2.25, 0.8, T.awning, 0.88)
   b.box(-7.4, 0.8, -0.08, -5.6, 0.95, 0.08, T.mast)
   boatman(b, -4.4, 2.0, 0.6, '#5a6a78', false)
@@ -292,7 +292,7 @@ export function mingShipGeometry(): THREE.BufferGeometry {
   b.box(-7, 0, -1, 7, 0.6, 1, T.hullDark)
   b.box(-8, 0.6, -2, 8, 1.4, 2, T.hullDark, 1.1)
   b.box(-8.6, 1.4, -2.6, 8.6, 2.6, 2.6, T.hull)
-  b.box(-8.6, 2.2, -2.7, 8.6, 2.5, 2.7, T.lacquer) // 舷边朱漆一道
+  b.box(-8.65, 2.2, -2.7, 8.65, 2.5, 2.7, T.lacquer) // 舷边朱漆一道
   b.box(8.6, 1.8, -1.9, 10, 3.2, 1.9, T.hull) // 船首
   b.box(10, 2.6, -1.2, 10.8, 3.6, 1.2, T.hull, 0.9)
   b.box(9.2, 2.2, -2.0, 9.6, 2.9, 2.0, '#f2eee6') // 船眼（白底）
@@ -300,7 +300,7 @@ export function mingShipGeometry(): THREE.BufferGeometry {
   b.box(-8.4, 2.6, -2.4, 8.4, 2.7, 2.4, T.deck)
   // 艉楼：两层，朱漆栏、青瓦顶，艉板彩绘金纹
   b.box(-8.8, 2.6, -2.6, -4.6, 5.2, 2.6, T.hull, 1.05)
-  b.box(-8.8, 3.6, -2.7, -4.6, 3.8, 2.7, T.lacquer)
+  b.box(-8.85, 3.6, -2.7, -4.55, 3.8, 2.7, T.lacquer)
   b.box(-8.5, 5.2, -2.3, -5.2, 6.8, 2.3, T.lacquer, 0.9)
   b.box(-8.9, 6.8, -2.6, -4.8, 7.2, 2.6, '#3c4448')
   b.box(-9.1, 2.8, -2.2, -8.8, 6.4, 2.2, T.lacquer, 1.1)
@@ -311,17 +311,17 @@ export function mingShipGeometry(): THREE.BufferGeometry {
   // 舵
   b.box(-10, 0.4, -0.2, -9.1, 3, 0.2, T.hullDark)
   // 三桅：主桅居中偏后最高，前桅次之，后桅最矮；硬帆顺船身，横竹骨
-  const mast = (x: number, h: number, w: number, sail: string) => {
+  const mast = (x: number, h: number, w: number, sail: string, t = 0.06) => {
     b.box(x - 0.18, 2.7, -0.18, x + 0.18, 2.7 + h, 0.18, T.mast)
     const y0 = 2.7 + h * 0.3
     const y1 = 2.7 + h * 0.95
-    b.box(x - w * 0.62, y0, -0.06, x + w * 0.38, y1, 0.06, sail)
+    b.box(x - w * 0.62, y0, -t, x + w * 0.38, y1, t, sail)
     for (let y = y0 + 0.9; y < y1; y += 1.1) b.box(x - w * 0.64, y, -0.12, x + w * 0.4, y + 0.16, 0.12, T.batten)
     b.box(x - 0.05, 2.7 + h, -0.05, x + 1.4, 2.7 + h + 0.7, 0.05, T.flag)
   }
   mast(-0.8, 14, 7.5, T.sailRust)
   mast(4.6, 11, 5.6, T.sailRust)
-  mast(-6.6, 7.5, 3.6, T.sailTan)
+  mast(-6.6, 7.5, 3.6, T.sailTan, 0.09) // 后帆与主帆有一截前后相叠：厚度错开
   // 主桅瞭望斗
   b.box(-1.3, 13.2, -0.5, -0.3, 13.9, 0.5, T.hull)
   // 缆索：桅顶斜拉到首尾

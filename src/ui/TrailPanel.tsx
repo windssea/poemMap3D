@@ -184,7 +184,7 @@ function TrailOverlay() {
           <span className="nt">{cap.note}</span>
         </div>
       )}
-      {verse && vStop && poetry.get(verse.id) && <VerseScroll key={`${verse.id}-${state.verseIdx}`} poem={verse} place={`${vStop.year}年 · ${vStop.place}`} />}
+      {verse && vStop && poetry.get(verse.id) && <VerseScroll key={`${verse.id}-${state.verseIdx}`} poem={verse} place={`${verse.year === undefined ? vStop.year + '年' : (verse.yearApprox ? '约' : '') + (verse.year < 0 ? '前' + -verse.year : verse.year) + '年作'} · ${vStop.place}`} />}
     </>
   )
 }

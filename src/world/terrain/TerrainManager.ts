@@ -190,6 +190,10 @@ export class TerrainManager {
         col.waterY = L
         col.waterKind = WaterKind.Lake
         col.waterDist = 0
+      } else if (rr < 1.45 && col.waterKind === WaterKind.River && col.waterY >= 0 && col.height < col.waterY) {
+        // 贴湖而过（或入湖前一段）的江河：水面与湖面齐平——否则沿岸一高一低，湖面的侧壁像一道水墙立在河上、把河里的船罩住
+        col.waterY = L
+        col.height = Math.min(col.height, L - 2)
       } else if (rr < 1.45 && col.waterY < 0) {
         // 湖岸只收一圈窄边：庐山这样临湖拔起的山不被压平
         const target = L + 1 + (col.height - L - 1) * smoothstep(1, 1.45, rr)

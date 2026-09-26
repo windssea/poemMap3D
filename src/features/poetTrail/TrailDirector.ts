@@ -66,7 +66,7 @@ export class TrailDirector {
     private readonly port: TrailPort,
   ) {}
 
-  /** 各站配诗：说明里点名的那首优先；其余取此人在该站附近（地名入题者优先）名气最高、尚未用过的一首 */
+  /** 各站配诗：说明里点名的那首优先；其余取此人在该站附近（地名入题者优先）、写作年份落在此站行迹之内、名气最高且尚未用过的一首 */
   private versesFor(t: PoetTrail): (Poem | null)[] {
     const names = [...new Set(t.stops.map((s) => s.place))]
     const pos = new Map(t.stops.map((s) => [s.place, s]))
@@ -100,17 +100,30 @@ export class TrailDirector {
       }
       return null
     })
-    const seen = new Map<string, number>()
-    return t.stops.map((s, i) => {
-      if (named[i]) return named[i]
-      const list = pool.get(s.place)!
-      let k = seen.get(s.place) ?? 0
-      while (k < list.length && used.has(list[k].id)) k++
-      seen.set(s.place, k + 1)
-      const q = list[k] ?? null
-      if (q) used.add(q.id)
-      return q
+    /* 其余各站：按写作年份配诗——此站起（本站年份）至下一站之间写成的最合适；
+       确知年份的诗须落在此站行迹之内（免得人还没到就写了、或早已离开还在此处题诗），约数的放宽到六年 */
+    const win = t.stops.map((s, i) => {
+      const y = Number(s.year)
+      const nx = i + 1 < t.stops.length ? Number(t.stops[i + 1].year) : y + 3
+      return [y, Math.max(y, nx)] as const
     })
+    const pairs: { i: number; q: Poem; score: number }[] = []
+    t.stops.forEach((s, i) => {
+      if (named[i]) return
+      for (const q of pool.get(s.place)!) {
+        const gap = q.year === undefined ? 4 : Math.max(0, win[i][0] - q.year, q.year - win[i][1])
+        if (gap > (q.year === undefined || q.yearApprox ? 6 : 0)) continue
+        pairs.push({ i, q, score: gap * 1.5 - fameOf(q) })
+      }
+    })
+    pairs.sort((a, b) => a.score - b.score)
+    const out = named.slice()
+    for (const p of pairs) {
+      if (out[p.i] || used.has(p.q.id)) continue
+      out[p.i] = p.q
+      used.add(p.q.id)
+    }
+    return out
   }
 
   start(poet: string): void {

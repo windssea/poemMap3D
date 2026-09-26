@@ -87,6 +87,8 @@ export class Engine {
     this.shadows = new ShadowManager(this.renderer.renderer, q.shadowSize)
     this.shadows.setEnabled(q.shadows, q.shadowSize, q.shadowCascades)
     this.scene.attach('effects', this.trail.group)
+    this.trail.setResolution(this.renderer.width * this.renderer.renderer.getPixelRatio(), this.renderer.height * this.renderer.renderer.getPixelRatio())
+    this.renderer.onResize((w, h) => this.trail.setResolution(w * this.renderer.renderer.getPixelRatio(), h * this.renderer.renderer.getPixelRatio()))
     this.loop = new RenderLoop(() => this.ready && this.pipeline.render())
     this.loop.add((dt, t) => this.tick(dt, t))
   }
