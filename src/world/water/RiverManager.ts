@@ -39,8 +39,30 @@ export class RiverManager {
 
   constructor(macro: MacroSampler) {
     const P = getProjection()
-    RIVERS.forEach((def) => {
-      const raw = projectLine(P, def.line)
+    /* 支流接上干流：数据里支流的末点常落在干流旁边几十格（没画到江心），中间留一道土梁把支流堵死。
+       内陆收尾、离别的河不到 70 格的，末尾补一点到那条河中心线上最近处，真正汇进去 */
+    const raws = RIVERS.map((d) => projectLine(P, d.line))
+    const joined = raws.map((raw, i) => {
+      const [ex, ez] = raw[raw.length - 1]
+      if (!macro.land(ex, ez)) return raw
+      let best: Vec2 | null = null
+      let bd = 70
+      raws.forEach((other, j) => {
+        if (j === i) return
+        for (let k = 1; k < other.length; k++) {
+          const [ax, az] = other[k - 1]
+          const [bx, bz] = other[k]
+          const h = segmentDistance(ex, ez, ax, az, bx, bz)
+          if (h.dist < bd && h.dist > 1.5) {
+            bd = h.dist
+            best = [ax + (bx - ax) * h.t, az + (bz - az) * h.t]
+          }
+        }
+      })
+      return best ? [...raw, best] : raw
+    })
+    RIVERS.forEach((def, ri0) => {
+      const raw = joined[ri0]
       const pts = resamplePolyline(raw, STEP)
       const n = pts.length
       const halfWidth = new Float32Array(n)
