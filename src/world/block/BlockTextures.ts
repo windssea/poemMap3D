@@ -108,6 +108,8 @@ export const TEXTURES = [
   { key: 'birch_log', tokens: 'birchLog', pattern: 'logSide' },
   { key: 'palm_log', tokens: 'palmLog', pattern: 'logSide' },
   { key: 'leaves_palm', tokens: 'leavesPalm', pattern: 'willowLeaves' },
+  { key: 'lotus_pad', tokens: 'lotusPad', pattern: 'leaves' },
+  { key: 'lotus_flower', tokens: 'lotusFlower', pattern: 'flower' },
 ] as const satisfies readonly TextureDef[]
 
 export type TextureKey = (typeof TEXTURES)[number]['key']

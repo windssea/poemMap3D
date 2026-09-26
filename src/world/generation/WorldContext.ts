@@ -40,7 +40,16 @@ export class WorldContext {
     this.terrain = new TerrainManager(this.macro, this.rivers, this.lakes, this.landmarks.modifiers, this.seed)
     this.landmarks.resolve(this.terrain)
     this.greatWall = new GreatWallSystem(this.terrain, this.landmarks.occupancy)
-    this.trees = new TreePlacementSystem((x, z) => this.terrain.sample(x, z), this.landmarks.occupancy, (i) => this.landmarks.profileOf(i), this.seed)
+    this.trees = new TreePlacementSystem(
+      (x, z) => this.terrain.sample(x, z),
+      this.landmarks.occupancy,
+      (i) => this.landmarks.profileOf(i),
+      this.seed,
+      (i, x, z) => {
+        const l = this.landmarks.landmarks[i]
+        return l ? Math.hypot(x - l.x, z - l.z) / Math.max(8, l.def.radius) : 2
+      },
+    )
     this.chunks = new ChunkGenerator(this.terrain, this.landmarks, this.greatWall, this.trees, this.seed)
   }
 }

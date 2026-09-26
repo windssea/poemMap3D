@@ -103,6 +103,16 @@ export class TerrainManager {
     const bump = this.nBump(x / 14, z / 14)
     h += d * amp + r * amp * 0.9 * smoothstep(3, 10, relief) + bump * (0.6 + 0.08 * amp)
     h = this.regional(x, z, h, relief)
+    /* 山体退让：起伏大的山地按 5 格一级做出台层（缓坡的平台 + 短陡坎），高崖不再一整面直上直下；
+       平台位置随低频噪声错开，不成一圈圈等高线 */
+    if (relief > 5) {
+      const w = 0.3 * smoothstep(6, 14, relief)
+      const off = 3 * this.nMisc(x / 40 + 71, z / 40)
+      const q = (h + off) / 7
+      const fr = q - Math.floor(q)
+      const stepped = (Math.floor(q) + smoothstep(0.45, 1, fr)) * 7 - off
+      h = lerp(h, stepped, w)
+    }
 
     /* 海岸：柔化陆地比例 + 噪声 → 方块级弯曲海岸线；近海成滩 */
     const ls = M.landSoft(x, z) + 0.13 * fbm(this.nCoast, x / 30, z / 30, 2)
@@ -316,10 +326,14 @@ export class TerrainManager {
       soilDepth = 6
       if (slope > 0.9 || n2 > 0.35) top = B.LOESS
     } else if (lat < 27.5 && (biome === BiomeId.Hillside || biome === BiomeId.Mountain)) soil = B.RED_EARTH
-    if ((biome === BiomeId.Mountain || biome === BiomeId.Hillside) && slope > 2.6) {
-      // 陡坡裸岩：土层也换成岩层，台阶侧面不出一道道土带
-      top = n2 > 0 ? B.ROCK : B.STONE
-      soil = rock
+    if (biome === BiomeId.Mountain || biome === BiomeId.Hillside) {
+      /* 大块岩面：按低频噪声分出成片的「岩区」，岩区里中等坡度就露岩，岩区外只有很陡处才露岩——
+         不再草、土、岩一层层横着交替（千层糕） */
+      const rockZone = this.nMisc(c.x / 110 + 13, c.z / 110 - 7) > 0.12 && this.macro.relief(c.x, c.z) > 7
+      if (slope > (rockZone ? 1.3 : 3.2)) {
+        top = rockZone || n2 > 0 ? B.ROCK : B.STONE
+        soil = rock
+      } else if (slope > 1.1) soil = rock // 缓坡的台阶侧面：土层换岩，不露一道道褐土
     }
     if (macroKind === MacroKind.Karst) {
       // 峰林是灰白石灰岩：陡处露岩，平处红壤
@@ -337,14 +351,29 @@ export class TerrainManager {
     if (biome === BiomeId.Plateau && n2 > 0.45) top = B.GRAVEL
     if (biome === BiomeId.Snow && slope > 2.2) top = B.ROCK
 
+    let shore = 0
     if (inWater) {
       const depth = c.waterY - surfaceY
       if (c.waterKind === WaterKind.Sea) top = depth > 6 ? B.GRAVEL : B.SAND
       else top = n2 > 0.25 ? B.GRAVEL : depth > 3 ? B.MUD : lat < 30 && n2 < -0.3 ? B.MUD : B.SAND
       soil = top === B.MUD ? B.MUD : B.SAND
       soilDepth = 2
-    } else if (c.waterDist < 1.6 && c.waterKind !== WaterKind.None && biome !== BiomeId.Cliff) {
-      top = c.waterKind === WaterKind.Sea ? B.SAND : n2 > 0.3 ? B.GRAVEL : B.SAND
+    } else if (c.waterKind !== WaterKind.None && c.waterKind !== WaterKind.Sea && c.waterDist < 3.2 && biome !== BiomeId.Cliff) {
+      /* 江河湖岸四种岸型，按沿岸低频噪声成段变化：草岸（照旧草地）、浅滩（沙与卵石缓入水）、岩岸（岩石临水）、湿地（泥、芦苇） */
+      const t = this.nWidth(c.x / 55 + 300, c.z / 55)
+      shore = t < -0.25 ? 3 : t < 0.05 ? 1 : t < 0.35 ? 2 : 4
+      if (shore === 2 && c.waterDist < 2.6) {
+        top = n2 > 0.35 ? B.GRAVEL : B.SAND
+        soil = B.SAND
+      } else if (shore === 3 && c.waterDist < 2.2) {
+        top = n2 > 0 ? B.ROCK : B.STONE
+        soil = rock
+      } else if (shore === 4 && c.waterDist < 2.4) {
+        top = n2 > 0.1 ? B.MUD : B.GRASS
+        soil = B.MUD
+      }
+    } else if (c.waterDist < 1.6 && c.waterKind === WaterKind.Sea && biome !== BiomeId.Cliff) {
+      top = B.SAND
       soil = B.SAND
     } else if (c.waterKind === WaterKind.Sea && surfaceY <= SEA_LEVEL + 1) {
       top = B.SAND
@@ -366,6 +395,7 @@ export class TerrainManager {
       field = this.fieldAt(c.x, c.z, lat, macroKind)
     return {
       field,
+      shore,
       surfaceY,
       waterY: inWater ? c.waterY : -1,
       waterKind: c.waterKind,

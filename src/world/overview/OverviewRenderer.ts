@@ -303,8 +303,14 @@ export class OverviewRenderer {
     }
   }
 
-  update(distance: number, camera?: THREE.Vector3, mask?: { data: Uint8Array; width: number }): void {
-    if (mask && this.tick++ % 20 === 0) this.cull(mask.data, mask.width)
+  private maskSeen = -1
+
+  update(distance: number, camera?: THREE.Vector3, mask?: { data: Uint8Array; width: number; version?: number }): void {
+    // 掩膜一变就重判遮盖（从近景拉到全国时，近景一撤，覆盖图同一帧就补上，不闪白）；另每 20 帧兜底
+    if (mask && (mask.version !== this.maskSeen || this.tick++ % 20 === 0)) {
+      this.maskSeen = mask.version ?? -1
+      this.cull(mask.data, mask.width)
+    }
     /* 远处的图块换粗网格（带回差） */
     if (camera)
       for (const t of this.tiles.values()) {

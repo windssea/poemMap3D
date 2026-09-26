@@ -6,6 +6,7 @@ import type { SceneManager } from '../engine/rendering/SceneManager'
 import type { SharedUniforms } from '../engine/rendering/SharedUniforms'
 import type { WorkerResponse } from '../workers/protocol'
 import { ChunkManager } from './chunk/ChunkManager'
+import { ChunkWarmer } from './ChunkWarmer'
 import type { MacroGridData } from './generation/geography/MacroGeography'
 import { WorldContext } from './generation/WorldContext'
 import type { CameraPreset, PlaceAnchor } from './landmark/LandmarkDefinition'
@@ -43,6 +44,8 @@ export class WorldManager {
   readonly fogTexture: THREE.DataTexture
   private quality: QualityPreset
   private readonly shared: SharedUniforms
+  /** 空闲时把名胜周围的区块预先生成进浏览器缓存 */
+  private readonly warmer: ChunkWarmer
   /** 焦点移动速度（方块/秒，平滑）与上一帧焦点：按速度预读前方 */
   private readonly vel = new THREE.Vector2()
   private readonly last = new THREE.Vector3(Number.NaN, 0, 0)
@@ -63,6 +66,7 @@ export class WorldManager {
     this.ctx = ctx
     this.quality = quality
     this.shared = shared
+    this.warmer = new ChunkWarmer(ctx, generators)
     this.sampler = new WorldSampler(ctx, this.world)
     this.grid = overviewGrid(ctx)
     this.fog = buildFogMap(ctx.macro)
@@ -137,6 +141,7 @@ export class WorldManager {
    */
   update(dt: number, camera: THREE.Camera, focus: THREE.Vector3, distance: number, dest?: { target: THREE.Vector3; distance: number } | null): void {
     this.shared.uLitFar.value = Math.max(80, distance + Math.max(1, this.curR) * 16 * 0.85)
+    this.warmer.update(dt)
     /* 近景半径按镜头视距定，带回差 */
     const want = this.radiusFor(distance)
     if (this.curR < 0 || (want === 0) !== (this.curR === 0) || Math.abs(want - this.curR) >= 2) this.curR = want
@@ -161,7 +166,7 @@ export class WorldManager {
     if (dest && dr > 0 && dest.target.distanceTo(focus) > r * 16) this.chunks.prefetch(dest.target.x, dest.target.z, Math.min(8, Math.ceil(dr * 0.6)))
     else this.chunks.prefetch(null)
     this.chunks.update(dt)
-    this.overview.update(distance, camera.position, { data: this.chunks.maskData, width: this.chunks.mask.image.width })
+    this.overview.update(distance, camera.position, { data: this.chunks.maskData, width: this.chunks.mask.image.width, version: this.chunks.maskVersion })
   }
 
   /**

@@ -325,7 +325,7 @@ const HUANGZHOU: LandmarkDefinition = {
   vegetationProfile: { weights: { broadleaf: 3, bamboo: 2, pine: 1 }, density: 0.8 },
 }
 
-/** 扬州：瘦西湖曲折如带，五亭桥（桥上五亭）、二十四桥、白塔；湖东城里楼阁酒肆；湖西北蜀冈上平山堂 */
+/** 扬州：瘦西湖曲折如带，湖上石桥（桥自动跨水）、二十四桥、白塔、湖畔重檐亭；湖东城里楼阁酒肆；湖西北蜀冈上平山堂 */
 const YANGZHOU: LandmarkDefinition = {
   id: 'yangzhou',
   name: '扬州',
@@ -343,7 +343,7 @@ const YANGZHOU: LandmarkDefinition = {
   ],
   structures: [
     { b: 'bridge', x: -14, z: 1, rot: 0, atLevel: true, span: true, p: { length: 9 } },
-    ...[-4, 0, 4].map((dx, i) => ({ b: 'pavilion' as const, x: -14 + dx, z: 1, atLevel: true, dy: 3, overWater: true, p: { width: 3, tile: i === 1 ? 'yellow' : 'green' } as const })),
+    { b: 'pavilion', x: -4, z: -8, p: { width: 5, double: true, tile: 'green' } },
     { b: 'bridge', x: -8, z: 22, rot: 1, atLevel: true, span: true, p: { length: 9 } },
     { b: 'stupa', x: -26, z: -2 },
     { b: 'waterPavilion', x: -24, z: -18, rot: 1, atLevel: true, overWater: true, p: { width: 7, depth: 5 } },
@@ -465,4 +465,138 @@ const MIZHOU: LandmarkDefinition = {
   vegetationProfile: { weights: { broadleaf: 3, pine: 1 }, density: 0.5 },
 }
 
-export const CITY_CATALOG: readonly LandmarkDefinition[] = [HUANGHELOU, YUEYANGLOU, TENGWANGGE, GUANQUELOU, DUOJINGLOU, JINLING, LUOYANG, CHENGDU, SUZHOU, HUANGZHOU, YANGZHOU, BIANJING, SHANYIN, MIZHOU]
+
+/* ================= 第三批：滁州、襄阳、洞庭君山、彭城、惠州 ================= */
+
+/** 滁州：琅琊山谷中醉翁亭（依山临溪），溪上小桥，山门琅琊寺；「环滁皆山也」——四面山围 */
+const CHUZHOU: LandmarkDefinition = {
+  id: 'chuzhou',
+  name: '滁州',
+  coordinate: { lng: 118.28, lat: 32.28 },
+  radius: 40,
+  major: true,
+  poetryPlaceId: 'chuzhou',
+  terrainModifier: [
+    { t: 'hill', x: -22, z: -14, r: 20, h: 22 },
+    { t: 'hill', x: 22, z: -18, r: 18, h: 18 },
+    { t: 'hill', x: 0, z: -30, r: 18, h: 24 },
+    { t: 'flatten', x: 0, z: 0, r: 12, blend: 8 },
+    { t: 'canal', pts: [[-30, 14], [-8, 8], [10, 12], [30, 22]], w: 1.5 },
+  ],
+  structures: [
+    { b: 'pavilion', x: -3, z: -2, p: { width: 7, double: true, tile: 'gray', lanterns: true } },
+    { b: 'bridge', x: -2, z: 9, rot: 1, atLevel: true, p: { length: 7 } },
+    { b: 'hall', x: 8, z: -6, p: { width: 9, depth: 5, tile: 'gray', terrace: 1 } },
+    { b: 'archway', x: 4, z: 18, p: { tile: 'gray' } },
+  ],
+  trees: [
+    { type: 'pine', variant: 2, pts: [[-14, -12], [14, -14]], n: 4 },
+    { type: 'broadleaf', variant: 1, pts: [[-24, 4], [-14, 16]], n: 3 },
+  ],
+  vegetationProfile: { weights: { pine: 3, broadleaf: 4, bamboo: 1 }, density: 1.1 },
+}
+
+/** 襄阳：汉水南岸古城（城楼、夫子庙），城南往岘山去的路口有羊祜碑亭（堕泪碑） */
+const XIANGYANG: LandmarkDefinition = {
+  id: 'xiangyang',
+  name: '襄阳',
+  coordinate: { lng: 112.14, lat: 32.0 },
+  // 城在汉水南岸的河谷里，汉水为北城壕：允许江水擦着北墙（水门），不把城挪上山
+  offset: [0, 6],
+  allowRivers: ['han'],
+  radius: 46,
+  major: true,
+  poetryPlaceId: 'xiangyang',
+  terrainModifier: [
+    { t: 'flatten', x: 0, z: 0, r: 18, rz: 13, square: true, blend: 6 },
+    { t: 'pave', x0: -2, z0: -10, x1: 2, z1: 14 },
+  ],
+  walls: [{ x: 0, z: 0, hw: 14, hd: 9, height: 7, gates: ['n', 's', 'e', 'w'] }],
+  structures: [
+    { b: 'hall', x: 0, z: -4, p: { width: 11, depth: 5, tile: 'gray', terrace: 1, lanterns: true } },
+    { b: 'house', x: -10, z: 5, rot: 1, p: { seed: 701, lanterns: true } },
+    { b: 'house', x: 10, z: 5, rot: 3, p: { seed: 702 } },
+    { b: 'shop', x: -10, z: -5, rot: 1, p: { seed: 703 } },
+    { b: 'shop', x: 10, z: -5, rot: 3, p: { seed: 704 } },
+    ...lamps([-4, 4], [2, 8]),
+    { b: 'pavilion', x: 12, z: 30, p: { width: 5, double: true } },
+  ],
+  trees: [{ type: 'pine', variant: 2, pts: [[2, 28], [18, 42]], n: 4 }],
+}
+
+/** 洞庭君山：湖中一岛，岛上湘妃祠、二妃墓亭，竹林（湘妃竹） */
+const JUNSHAN: LandmarkDefinition = {
+  id: 'junshan',
+  name: '洞庭湖',
+  coordinate: { lng: 112.97, lat: 29.38 },
+  radius: 30,
+  major: true,
+  poetryPlaceId: 'dongtinghu',
+  terrainModifier: [
+    { t: 'island', x: 0, z: 0, r: 16, dy: 2 },
+    { t: 'hill', x: 2, z: -2, r: 14, h: 10 },
+    { t: 'flatten', x: -2, z: 4, r: 6, dy: 4, blend: 3 },
+  ],
+  structures: [
+    { b: 'hall', x: -2, z: 4, atLevel: true, dy: 4, p: { width: 7, depth: 5, tile: 'green', terrace: 1, lanterns: true } },
+    { b: 'pavilion', x: 6, z: -6, p: { width: 5 } },
+  ],
+  trees: [{ type: 'bamboo', pts: [[-10, -8], [10, -10]], n: 4 }],
+  vegetationProfile: { weights: { bamboo: 4, broadleaf: 2 }, density: 1.2 },
+}
+
+/** 彭城：徐州城，城中燕子楼（二层小楼），城东黄楼；城外泗水 */
+const PENGCHENG: LandmarkDefinition = {
+  id: 'pengcheng',
+  name: '彭城',
+  coordinate: { lng: 117.19, lat: 34.27 },
+  radius: 42,
+  major: true,
+  poetryPlaceId: 'pengcheng',
+  terrainModifier: [
+    { t: 'flatten', x: 0, z: 0, r: 22, rz: 17, square: true, blend: 6 },
+    { t: 'pave', x0: -2, z0: -13, x1: 2, z1: 17 },
+  ],
+  walls: [{ x: 0, z: 0, hw: 18, hd: 13, height: 7, gates: ['n', 's', 'e', 'w'] }],
+  // 大运河从城边流过：允许穿城，城墙留水门
+  allowRivers: ['grand-canal'],
+  structures: [
+    { b: 'grandTower', x: -8, z: -4, p: { levels: 2, width: 7, tile: 'gray', terrace: 2 } },
+    { b: 'grandTower', x: 10, z: -4, p: { levels: 2, width: 7, tile: 'yellow', top: 'wudian', terrace: 2 } },
+    { b: 'house', x: -10, z: 8, rot: 1, p: { seed: 801, lanterns: true } },
+    { b: 'shop', x: 10, z: 8, rot: 3, p: { seed: 802 } },
+    ...lamps([-4, 4], [4, 10]),
+  ],
+  trees: [{ type: 'willow', variant: 0, pts: [[-26, -16], [-26, 16]], n: 3 }],
+}
+
+/** 惠州：西湖（丰湖）湖堤、泗洲塔、湖心亭，城中东坡居所白鹤峰 */
+const HUIZHOU: LandmarkDefinition = {
+  id: 'huizhou',
+  name: '惠州',
+  coordinate: { lng: 114.4, lat: 23.09 },
+  radius: 44,
+  major: true,
+  poetryPlaceId: 'p128',
+  terrainModifier: [
+    { t: 'flatten', x: 0, z: 0, r: 34, blend: 6 },
+    { t: 'lake', x: -10, z: 0, rx: 16, rz: 11, depth: 3 },
+    { t: 'causeway', pts: [[-26, 2], [6, -2]], w: 1.5, dy: 0 },
+    { t: 'island', x: -12, z: 6, r: 3, dy: 0 },
+    { t: 'hill', x: 20, z: -18, r: 12, h: 9 },
+  ],
+  structures: [
+    { b: 'pavilion', x: -12, z: 6, atLevel: true, overWater: true, p: { width: 5, tile: 'green' } },
+    { b: 'pagoda', x: -4, z: -16, p: { levels: 7, width: 5 } },
+    { b: 'house', x: 20, z: -16, p: { seed: 901, lanterns: true } },
+    { b: 'house', x: 18, z: 10, rot: 3, p: { seed: 902 } },
+    { b: 'shop', x: 24, z: 2, rot: 3, p: { seed: 903 } },
+  ],
+  trees: [
+    { type: 'palm', pts: [[-24, 16], [0, 16]], n: 4 },
+    { type: 'willow', variant: 0, pts: [[-22, -2], [2, -2]], n: 3 },
+  ],
+  vegetationProfile: { weights: { palm: 3, broadleaf: 3, bamboo: 1 }, density: 0.8 },
+}
+
+export const CITY_CATALOG: readonly LandmarkDefinition[] = [HUANGHELOU, YUEYANGLOU, TENGWANGGE, GUANQUELOU, DUOJINGLOU, JINLING, LUOYANG, CHENGDU, SUZHOU, HUANGZHOU, YANGZHOU, BIANJING, SHANYIN, MIZHOU, CHUZHOU, XIANGYANG, JUNSHAN, PENGCHENG, HUIZHOU]

@@ -92,6 +92,8 @@ export class EnvironmentManager {
     u.uAutumn.value = S.autumn
     u.uBlossom.value = S.blossom
     u.uSnow.value = this.weather.cover
+    const lotusWant = this.season.key === 'summer' ? 1 : this.season.key === 'spring' ? 0.3 : this.season.key === 'autumn' ? 0.4 : 0
+    u.uLotus.value += (lotusWant - u.uLotus.value) * Math.min(1, dt * 1.2)
     /* 山岚：晨起最浓，暮色次之，白天淡；雨雪加浓 */
     const mistBase = this.time.key === 'dawn' ? 0.34 : this.time.key === 'dusk' ? 0.2 : this.time.key === 'night' ? 0.16 : 0.08
     const mistWant = Math.min(0.75, mistBase + wet * 0.3)
@@ -102,7 +104,8 @@ export class EnvironmentManager {
     /* 冬：画面偏冷、略褪色；阔叶落尽，水面结冰 */
     const winter = S.snow
     u.uSaturation.value = W.saturation * (1 - 0.16 * winter)
-    u.uBare.value = 0.62 * winter
+    // 冬：北方落叶树的叶子几乎落尽（着色器里再乘积雪气候系数，岭南常绿不落）
+    u.uBare.value = 0.96 * winter
     u.uIce.value = 0.6 * winter
 
     /* 光照 */

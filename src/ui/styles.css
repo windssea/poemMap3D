@@ -10,7 +10,8 @@
   --ink3: var(--c-mo-qing);
   --line: rgb(var(--rgb-mo) / 0.14);
   --shadow: 0 10px 34px rgb(var(--rgb-mo) / 0.18), 0 2px 6px rgb(var(--rgb-mo) / 0.08);
-  --r: 14px;
+  /* 方正一些：体素世界 + 卷轴装裱，不用现代圆角胶囊 */
+  --r: 5px;
   --safe-b: env(safe-area-inset-bottom, 0px);
 }
 
@@ -126,7 +127,7 @@ button {
   gap: 8px;
   height: 40px;
   padding: 0 8px 0 14px;
-  border-radius: 20px;
+  border-radius: 4px;
 }
 .search input {
   flex: 1;
@@ -192,7 +193,7 @@ button {
   align-items: center;
   gap: 2px;
   padding: 4px;
-  border-radius: 22px;
+  border-radius: 4px;
 }
 .grp .lab {
   font-size: 11px;
@@ -206,7 +207,7 @@ button {
   height: 32px;
   min-width: 40px;
   padding: 0 10px;
-  border-radius: 16px;
+  border-radius: 3px;
   cursor: pointer;
   font-size: 14px;
   letter-spacing: 1px;
@@ -228,7 +229,7 @@ button {
   background: transparent;
   width: 36px;
   height: 32px;
-  border-radius: 16px;
+  border-radius: 3px;
   display: grid;
   place-items: center;
   cursor: pointer;
@@ -403,7 +404,7 @@ button {
   align-items: center;
   gap: 10px;
   padding: 6px 8px 6px 16px;
-  border-radius: 22px;
+  border-radius: 4px;
 }
 .tour-bar .where {
   font-size: 14px;
@@ -873,7 +874,7 @@ button {
   right: 12px;
   width: 34px;
   height: 34px;
-  border-radius: 17px;
+  border-radius: 4px;
   border: 1px solid rgb(var(--rgb-mo) / 0.15);
   background: rgb(var(--rgb-xuanzhi) / 0.86);
   color: var(--ink2);
@@ -922,4 +923,10 @@ textarea,
   right: 0;
   left: auto;
   white-space: nowrap;
+}
+
+/* 按钮组、搜索框加一道细内框（像装裱的边线），与方块世界的方正一致 */
+.grp,
+.search .box {
+  box-shadow: inset 0 0 0 1px rgb(var(--rgb-mo) / 0.14), 0 2px 10px rgb(var(--rgb-mo) / 0.12);
 }

@@ -17,10 +17,10 @@ const TILE_TINT: Record<string, { base: keyof typeof FoliageTokens | 'grass'; zo
   grass_top: { base: 'grass', zoneMix: 1 },
   grass_side: { base: 'grass', zoneMix: 1 },
   tall_grass: { base: 'grass', zoneMix: 1 },
-  leaves_broad: { base: 'broad', zoneMix: 0.55 },
-  leaves_pine: { base: 'pine', zoneMix: 0.3 },
-  leaves_willow: { base: 'willow', zoneMix: 0.25 },
-  bamboo_leaves: { base: 'bamboo', zoneMix: 0.3 },
+  leaves_broad: { base: 'broad', zoneMix: 0.3 },
+  leaves_pine: { base: 'pine', zoneMix: 0.12 },
+  leaves_willow: { base: 'willow', zoneMix: 0.12 },
+  bamboo_leaves: { base: 'bamboo', zoneMix: 0.15 },
   rice: { base: 'rice', zoneMix: 0.2 },
   leaves_palm: { base: 'palm', zoneMix: 0.3 },
 }
@@ -36,7 +36,8 @@ export function buildTintTable(): Uint32Array {
     if (!spec) return
     for (let z = 0; z < ZONE_COUNT; z++) {
       const zone = ShanshuiZones[z]
-      const rgb = spec.base === 'grass' ? hexToRgb(zone.grass) : mix(hexToRgb(FoliageTokens[spec.base]), hexToRgb(zone.foliage), spec.zoneMix)
+      // 草色往灰黄绿里压三成五：树冠从地面上分得出来
+      const rgb = spec.base === 'grass' ? mix(hexToRgb(zone.grass), hexToRgb(FoliageTokens.grassMute), 0.35) : mix(hexToRgb(FoliageTokens[spec.base]), hexToRgb(zone.foliage), spec.zoneMix)
       t[ti * ZONE_COUNT + z] = (rgb[0] << 16) | (rgb[1] << 8) | rgb[2]
     }
   })

@@ -103,6 +103,8 @@ export const B = {
   BIRCH_LOG: 87,
   PALM_LOG: 88,
   LEAVES_PALM: 89,
+  LOTUS_PAD: 90,
+  LOTUS_FLOWER: 91,
 } as const
 export type BlockKey = keyof typeof B
 
@@ -266,6 +268,9 @@ export function createDefaultBlockRegistry(): BlockRegistry {
   r.register(cube(B.BIRCH_LOG, 'birch_log', { top: 'log_top', bottom: 'log_top', side: 'birch_log' }, { tags: ['wood'] }))
   r.register(cube(B.PALM_LOG, 'palm_log', { top: 'log_top', bottom: 'log_top', side: 'palm_log' }, { tags: ['wood'] }))
   r.register(leaves(B.LEAVES_PALM, 'leaves_palm', 'leaves_palm', TintClass.Evergreen))
+  /* 荷叶贴着水面（1/16 厚的镂空圆叶），荷花立在水上 */
+  r.register(custom(B.LOTUS_PAD, 'lotus_pad', 'lotus_pad', [[1, 0, 1, 15, 1, 15]], { layer: BlockRenderLayer.Cutout, tags: ['plant'], tint: TintClass.Lotus, replaceable: true }))
+  r.register(cross(B.LOTUS_FLOWER, 'lotus_flower', 'lotus_flower', { tint: TintClass.Lotus }))
   return r
 }
 

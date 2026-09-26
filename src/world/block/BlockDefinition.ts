@@ -43,6 +43,8 @@ export const TintClass = {
   Evergreen: 3,
   Blossom: 4,
   Water: 5,
+  /** 荷：夏季满塘，春秋稀，冬季无（着色器按季节镂空） */
+  Lotus: 6,
 } as const
 export type TintClass = (typeof TintClass)[keyof typeof TintClass]
 

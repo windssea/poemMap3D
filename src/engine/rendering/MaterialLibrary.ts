@@ -27,7 +27,15 @@ varying vec3 vBNormal;
 `
 
 /** 雾之后再按边缘雾图混向雾色：地图四边、远海、海南以南渐隐 */
-const EDGE_FOG_FRAGMENT = (v: string) => `#include <fog_fragment>
+const EDGE_FOG_FRAGMENT = (v: string) => `#ifdef USE_FOG
+ { // 空气透视：远处褪色、减反差、偏向蓝灰雾色——远山像山水画里的远山，不是还数得清的一棵棵树
+   float apD = length(${v} - cameraPosition);
+   float ap = smoothstep(uMistNear * 1.3, uMistNear * 4.0 + 260.0, apD) * 0.6;
+   vec3 grey = vec3(dot(gl_FragColor.rgb, vec3(0.3, 0.59, 0.11)));
+   gl_FragColor.rgb = mix(gl_FragColor.rgb, mix(grey, fogColor, 0.45), ap);
+ }
+#endif
+#include <fog_fragment>
 #ifdef USE_FOG
  gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, max(edgeFog(${v}), valleyMist(${v})));
 #endif`
@@ -52,6 +60,7 @@ uniform vec3 uSnowColor;
 uniform vec3 uWindow;
 uniform float uBare;
 uniform float uLitFar;
+uniform float uLotus;
 varying vec3 vBlockUv;
 varying float vAo;
 varying vec3 vTint;
@@ -156,6 +165,7 @@ export class MaterialLibrary {
           float tclass = mod(vFlags, 8.0);
           ${kind === 'cutout' ? 'if (texel.a < 0.4) discard; float tintAmt = 1.0;' : kind === 'solid' ? 'float tintAmt = 1.0 - texel.a;' : 'float tintAmt = 0.0;'}
           ${kind === 'cutout' ? 'if (uBare > 0.01 && tclass > 1.5 && tclass < 2.5 && hash13(floor(vBWorld * 16.0 + 0.01)) < uBare * snowClimate(vBWorld)) discard; // 冬日落叶：阔叶按像素镂空，露出枝干（岭南常绿不落）' : ''}
+          if (tclass > 5.5 && tclass < 6.5 && hash13(floor(vBWorld * 1.0) + 0.37) > uLotus) discard; // 荷：夏满、春秋稀、冬无
           vec3 tint = seasonTint(vTint, tclass, vBWorld);
           vec3 col = texel.rgb * mix(vec3(1.0), tint, tintAmt);
           if (tclass > 3.5 && tclass < 4.5) {

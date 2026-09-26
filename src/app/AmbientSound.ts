@@ -1,11 +1,14 @@
 import type { Season, TimeOfDay, Weather } from '../engine/environment/types'
 
 /** 背景音：关、随境（配合季节时辰天气自动调配），或固定一套 */
-export type SoundMode = 'off' | 'auto' | 'pine' | 'rain' | 'stream' | 'cicada' | 'cricket'
-export const SOUND_MODES: readonly SoundMode[] = ['off', 'auto', 'pine', 'rain', 'stream', 'cicada', 'cricket']
-export const SOUND_NAMES: Record<SoundMode, string> = { off: '静', auto: '随境', pine: '松风', rain: '夜雨', stream: '山溪', cicada: '夏蝉', cricket: '秋虫' }
+export type SoundMode = 'off' | 'auto' | 'pine' | 'rain' | 'stream' | 'cicada' | 'cricket' | 'qin' | 'di' | 'yayue'
+export const SOUND_MODES: readonly SoundMode[] = ['off', 'auto', 'pine', 'rain', 'stream', 'cicada', 'cricket', 'qin', 'di', 'yayue']
+export const SOUND_NAMES: Record<SoundMode, string> = { off: '静', auto: '随境', pine: '松风', rain: '夜雨', stream: '山溪', cicada: '夏蝉', cricket: '秋虫', qin: '古琴', di: '竹笛', yayue: '琴瑟笛' }
+/** 自然声与古乐分两行列出 */
+export const NATURE_MODES: readonly SoundMode[] = ['off', 'auto', 'pine', 'rain', 'stream', 'cicada', 'cricket']
+export const MUSIC_MODES: readonly SoundMode[] = ['qin', 'di', 'yayue']
 
-type Layer = 'wind' | 'breeze' | 'rain' | 'stream' | 'birds' | 'cicada' | 'cricket' | 'winter'
+type Layer = 'wind' | 'breeze' | 'rain' | 'stream' | 'birds' | 'cicada' | 'cricket' | 'winter' | 'qin' | 'se' | 'di'
 type Mix = Partial<Record<Layer, number>>
 
 /**
@@ -30,18 +33,33 @@ function autoMix(season: Season, time: TimeOfDay, weather: Weather): Mix {
 }
 
 const FIXED: Record<Exclude<SoundMode, 'off' | 'auto'>, Mix> = {
-  pine: { breeze: 0.34, wind: 0.12, birds: 0.06 },
-  rain: { rain: 0.6, wind: 0.12 },
-  stream: { stream: 0.42, birds: 0.14, breeze: 0.08 },
-  cicada: { cicada: 0.3, breeze: 0.1 },
-  cricket: { cricket: 0.44, wind: 0.08 },
+  pine: { breeze: 0.3, wind: 0.14, birds: 0.05 },
+  rain: { rain: 0.46, wind: 0.1 },
+  stream: { stream: 0.36, birds: 0.12, breeze: 0.06 },
+  cicada: { cicada: 0.24, breeze: 0.08 },
+  cricket: { cricket: 0.38, wind: 0.07 },
+  // 古乐：琴、笛各自一路，合奏时琴瑟笛相和；底下衬一点风与溪
+  qin: { qin: 0.62, wind: 0.05, stream: 0.05 },
+  di: { di: 0.5, breeze: 0.06 },
+  yayue: { qin: 0.5, se: 0.32, di: 0.36, wind: 0.04 },
+}
+
+/** 五声音阶（D 宫：宫商角徵羽），按半音算频率 */
+const PENTA = [0, 2, 4, 7, 9]
+const noteHz = (degree: number, base = 146.83): number => {
+  const oct = Math.floor(degree / 5)
+  const st = PENTA[((degree % 5) + 5) % 5] + oct * 12
+  return base * Math.pow(2, st / 12)
 }
 
 /**
  * 程序合成的白噪音与自然声（Web Audio，不用音频文件）：
  *  - 风（褐噪声低通、慢慢起伏）、松风（粉噪声带通、阵阵）、寒风（低通 + 呼啸的窄带）；
  *  - 雨（高通白噪声 + 随机雨滴）、溪流（两段带通粉噪声、快速起伏的汩汩声）；
- *  - 鸟鸣（正弦上滑的短啼）、夏蝉（锯齿波窄带 + 颤音）、秋虫（高频短脉冲三连）。
+ *  - 鸟鸣（正弦上滑的短啼）、夏蝉（锯齿波窄带 + 颤音）、秋虫（高频短脉冲三连）；
+ *  - 古乐：五声音阶即兴——古琴（低音区拨弦，泛音衰减、吟猱颤音、偶有上滑）、瑟（高一些的分解和弦）、
+ *    竹笛（气声 + 颤音的连绵乐句），过一道程序生成的厅堂混响。
+ * 噪声类的声音都压在中低频（两千多赫兹以下），不刺耳。
  * 各层音量按模式平滑过渡；页面隐藏时暂停。
  */
 export class AmbientSound {
@@ -74,7 +92,7 @@ export class AmbientSound {
     if (!this.ctx || !this.master) return
     const now = this.ctx.currentTime
     const mix: Mix = this.mode === 'off' ? {} : this.mode === 'auto' ? autoMix(this.env.season, this.env.time, this.env.weather) : FIXED[this.mode]
-    this.master.gain.setTargetAtTime(this.mode === 'off' ? 0 : 0.7, now, 0.6)
+    this.master.gain.setTargetAtTime(this.mode === 'off' ? 0 : 0.55, now, 0.6)
     for (const [k, g] of this.layers) g.gain.setTargetAtTime(mix[k] ?? 0, now, 1.2)
     if (this.mode === 'off') window.setTimeout(() => this.mode === 'off' && void this.ctx?.suspend(), 2500)
   }
@@ -89,6 +107,7 @@ export class AmbientSound {
     this.master.connect(ctx.destination)
     document.addEventListener('visibilitychange', this.onVis)
     const white = this.noise('white')
+    this.noiseBuf = white
     const pink = this.noise('pink')
     const brown = this.noise('brown')
     const layer = (k: Layer) => {
@@ -137,30 +156,34 @@ export class AmbientSound {
       wander(lp.frequency, 220, 720, [3, 8])
       wander(sw.gain, 0.5, 1.2, [2, 6])
     }
-    /* 松风：阵阵的中频沙沙 */
+    /* 松风：阵阵的低中频松涛（低通，不带尖锐的沙沙） */
     {
-      const bp = filter('bandpass', 900, 0.6)
+      const lp = filter('lowpass', 650, 0.5)
+      const lp2 = filter('lowpass', 1200, 0.5)
       const sw = ctx.createGain()
-      loop(pink, bp, sw, layer('breeze'))
-      wander(bp.frequency, 600, 1500, [2.5, 6])
-      wander(sw.gain, 0.3, 1.3, [1.5, 5])
+      loop(pink, lp, lp2, sw, layer('breeze'))
+      wander(lp.frequency, 320, 900, [3, 7])
+      wander(sw.gain, 0.35, 1.0, [2, 6])
     }
     /* 寒风：低吼 + 一缕呼啸 */
     {
       const g = layer('winter')
       const lp = filter('lowpass', 300)
       loop(brown, lp, g)
-      const bp = filter('bandpass', 700, 14)
+      const bp = filter('bandpass', 480, 10)
       const wg = ctx.createGain()
-      wg.gain.value = 0.5
-      loop(white, bp, wg, g)
-      wander(bp.frequency, 420, 1100, [3, 7])
-      wander(wg.gain, 0.1, 0.8, [2, 5])
+      wg.gain.value = 0.3
+      loop(pink, bp, wg, g)
+      wander(bp.frequency, 280, 650, [3, 7])
+      wander(wg.gain, 0.08, 0.45, [2, 5])
     }
     /* 雨：高通白噪声的沙沙 + 随机雨滴 */
     {
       const g = layer('rain')
-      loop(white, filter('highpass', 800), filter('lowpass', 6500), g)
+      // 雨声：粉噪声，高通 250、低通 2 千赫上下起伏——像打在瓦上、叶上的细密雨，而不是电视雪花
+      const rl = filter('lowpass', 2000, 0.4)
+      loop(pink, filter('highpass', 250), rl, g)
+      wander(rl.frequency, 1500, 2500, [3, 8])
       const drop = () => {
         if (quiet(g)) {
           this.later(drop, 500)
@@ -169,11 +192,11 @@ export class AmbientSound {
         const t = ctx.currentTime
         const s = ctx.createBufferSource()
         s.buffer = white
-        const bp = filter('bandpass', 1800 + Math.random() * 3200, 8)
+        const bp = filter('bandpass', 700 + Math.random() * 1300, 4)
         const e = ctx.createGain()
         e.gain.setValueAtTime(0.0001, t)
-        e.gain.exponentialRampToValueAtTime(0.5 + Math.random() * 0.6, t + 0.004)
-        e.gain.exponentialRampToValueAtTime(0.0001, t + 0.06)
+        e.gain.exponentialRampToValueAtTime(0.18 + Math.random() * 0.25, t + 0.006)
+        e.gain.exponentialRampToValueAtTime(0.0001, t + 0.08)
         const pan = ctx.createStereoPanner()
         pan.pan.value = Math.random() * 2 - 1
         s.connect(bp).connect(e).connect(pan).connect(g)
@@ -185,15 +208,19 @@ export class AmbientSound {
     /* 溪流：两段带通，快速起伏 */
     {
       const g = layer('stream')
-      const a = filter('bandpass', 520, 1.1)
-      const b = filter('bandpass', 1900, 2.5)
+      // 溪流：低频的哗哗（260–480 赫）+ 一层轻轻的汩汩（700–1100 赫），总体低通
+      const soft = filter('lowpass', 1600, 0.4)
+      soft.connect(g)
+      const a = filter('bandpass', 360, 0.9)
+      const b = filter('bandpass', 900, 1.4)
       const ga = ctx.createGain()
       const gb = ctx.createGain()
-      loop(pink, a, ga, g)
-      loop(pink, b, gb, g)
-      wander(a.frequency, 380, 700, [0.4, 1.2])
-      wander(b.frequency, 1400, 2600, [0.2, 0.6])
-      wander(gb.gain, 0.2, 0.9, [0.15, 0.5])
+      gb.gain.value = 0.4
+      loop(pink, a, ga, soft)
+      loop(pink, b, gb, soft)
+      wander(a.frequency, 260, 480, [0.6, 1.6])
+      wander(b.frequency, 700, 1100, [0.3, 0.8])
+      wander(gb.gain, 0.15, 0.55, [0.25, 0.7])
     }
     /* 鸟鸣：一串两三声的短啼，间隔随机 */
     {
@@ -281,7 +308,190 @@ export class AmbientSound {
         this.later(chirp, Math.random() * 800)
       }
     }
+    this.buildMusic(ctx, layer, quiet)
   }
+
+  /**
+   * 古乐：五声音阶即兴。琴、瑟、笛各一层，过同一道混响；琴声稀疏从容，瑟作分解和弦，笛吹连绵的乐句。
+   */
+  private buildMusic(ctx: AudioContext, layer: (k: Layer) => GainNode, quiet: (g: GainNode) => boolean): void {
+    /* 混响：程序生成的指数衰减噪声冲激（三秒、左右声道各一） */
+    const verb = ctx.createConvolver()
+    const len = ctx.sampleRate * 3
+    const ir = ctx.createBuffer(2, len, ctx.sampleRate)
+    for (let ch = 0; ch < 2; ch++) {
+      const d = ir.getChannelData(ch)
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.2)
+    }
+    verb.buffer = ir
+    const wet = ctx.createGain()
+    wet.gain.value = 0.42
+    verb.connect(wet).connect(this.master!)
+    const route = (k: Layer) => {
+      const g = layer(k)
+      const send = ctx.createGain()
+      send.gain.value = 1
+      g.connect(send).connect(verb)
+      return g
+    }
+    const qin = route('qin')
+    const se = route('se')
+    const di = route('di')
+
+    /** 拨弦：基音与两个泛音各自指数衰减，起音带一点拨弦噪声；吟猱：延音时的慢颤音；可上滑 */
+    const pluck = (out: GainNode, hz: number, t: number, opts: { decay: number; bright: number; vib?: number; slide?: number; vol?: number; pan?: number }) => {
+      const pan = ctx.createStereoPanner()
+      pan.pan.value = opts.pan ?? 0
+      pan.connect(out)
+      const vol = opts.vol ?? 0.3
+      const partials: [number, number, number][] = [
+        [1, 1, opts.decay],
+        [2, 0.45 * opts.bright, opts.decay * 0.55],
+        [3, 0.22 * opts.bright, opts.decay * 0.32],
+        [4.02, 0.1 * opts.bright, opts.decay * 0.2],
+      ]
+      for (const [mul, amp, dec] of partials) {
+        const o = ctx.createOscillator()
+        o.type = 'sine'
+        o.frequency.setValueAtTime(hz * mul, t)
+        if (opts.slide) o.frequency.exponentialRampToValueAtTime(hz * mul * opts.slide, t + 0.35)
+        if (opts.vib) {
+          const lfo = ctx.createOscillator()
+          lfo.frequency.value = 4.2
+          const lg = ctx.createGain()
+          lg.gain.setValueAtTime(0, t)
+          lg.gain.linearRampToValueAtTime(hz * mul * 0.006 * opts.vib, t + 0.6)
+          lfo.connect(lg).connect(o.frequency)
+          lfo.start(t)
+          lfo.stop(t + dec + 0.2)
+        }
+        const e = ctx.createGain()
+        e.gain.setValueAtTime(0.0001, t)
+        e.gain.exponentialRampToValueAtTime(vol * amp, t + 0.006)
+        e.gain.exponentialRampToValueAtTime(0.0001, t + dec)
+        o.connect(e).connect(pan)
+        o.start(t)
+        o.stop(t + dec + 0.05)
+      }
+      /* 拨弦的一点噪声 */
+      const nb = ctx.createBufferSource()
+      nb.buffer = this.noiseBuf!
+      const bp = ctx.createBiquadFilter()
+      bp.type = 'bandpass'
+      bp.frequency.value = hz * 3
+      bp.Q.value = 2
+      const ne = ctx.createGain()
+      ne.gain.setValueAtTime(vol * 0.25 * opts.bright, t)
+      ne.gain.exponentialRampToValueAtTime(0.0001, t + 0.05)
+      nb.connect(bp).connect(ne).connect(pan)
+      nb.start(t, Math.random(), 0.06)
+    }
+
+    /* 琴：低音区，一句三到六音，句间长停 */
+    let qDeg = 5
+    const qinPhrase = () => {
+      if (quiet(qin)) {
+        this.later(qinPhrase, 1500)
+        return
+      }
+      let t = ctx.currentTime + 0.1
+      const n = 3 + Math.floor(Math.random() * 4)
+      for (let i = 0; i < n; i++) {
+        qDeg = Math.max(0, Math.min(11, qDeg + [-2, -1, -1, 1, 1, 2, 0][Math.floor(Math.random() * 7)]))
+        const hz = noteHz(qDeg, 73.42)
+        const last = i === n - 1
+        pluck(qin, hz, t, { decay: last ? 4.5 : 2.6, bright: 0.8, vib: last ? 1.5 : Math.random() < 0.3 ? 0.8 : 0, slide: !last && Math.random() < 0.2 ? Math.pow(2, 2 / 12) : undefined, vol: 0.34, pan: -0.15 })
+        // 偶尔配一个高八度的泛音
+        if (Math.random() < 0.25) pluck(qin, hz * 2, t + 0.02, { decay: 1.6, bright: 0.3, vol: 0.12, pan: -0.1 })
+        t += last ? 0 : 0.45 + Math.random() * 0.9
+      }
+      this.later(qinPhrase, (t - ctx.currentTime) * 1000 + 2500 + Math.random() * 4000)
+    }
+    this.later(qinPhrase, 400)
+
+    /* 瑟：中音区分解和弦（宫—徵—宫八度—角），四五音一组 */
+    const seArp = () => {
+      if (quiet(se)) {
+        this.later(seArp, 2000)
+        return
+      }
+      const root = [0, 1, 3, 4][Math.floor(Math.random() * 4)]
+      const shape = [0, 3, 5, 7, 5]
+      let t = ctx.currentTime + 0.05
+      for (const off of shape.slice(0, 4 + Math.floor(Math.random() * 2))) {
+        pluck(se, noteHz(root + off, 146.83), t, { decay: 1.8, bright: 1.1, vol: 0.2, pan: 0.25 })
+        t += 0.18 + Math.random() * 0.08
+      }
+      this.later(seArp, (t - ctx.currentTime) * 1000 + 3000 + Math.random() * 5000)
+    }
+    this.later(seArp, 2500)
+
+    /* 笛：高音区连绵乐句；正弦 + 三角波，慢起音、颤音、气声 */
+    let dDeg = 7
+    const diPhrase = () => {
+      if (quiet(di)) {
+        this.later(diPhrase, 1500)
+        return
+      }
+      const o = ctx.createOscillator()
+      o.type = 'sine'
+      const o2 = ctx.createOscillator()
+      o2.type = 'triangle'
+      const mix2 = ctx.createGain()
+      mix2.gain.value = 0.25
+      const env = ctx.createGain()
+      env.gain.value = 0.0001
+      const lfo = ctx.createOscillator()
+      lfo.frequency.value = 5.4
+      const lg = ctx.createGain()
+      lfo.connect(lg)
+      lg.connect(o.frequency)
+      lg.connect(o2.frequency)
+      const pan = ctx.createStereoPanner()
+      pan.pan.value = 0.1
+      o.connect(env)
+      o2.connect(mix2).connect(env)
+      env.connect(pan).connect(di)
+      /* 气声：带通白噪声跟着音高走 */
+      const br = ctx.createBufferSource()
+      br.buffer = this.noiseBuf!
+      br.loop = true
+      const bbp = ctx.createBiquadFilter()
+      bbp.type = 'bandpass'
+      bbp.Q.value = 3
+      const bg = ctx.createGain()
+      bg.gain.value = 0.0001
+      br.connect(bbp).connect(bg).connect(pan)
+      let t = ctx.currentTime + 0.1
+      const n = 4 + Math.floor(Math.random() * 5)
+      for (let i = 0; i < n; i++) {
+        dDeg = Math.max(5, Math.min(14, dDeg + [-2, -1, 1, 1, 2, -1, 0][Math.floor(Math.random() * 7)]))
+        const hz = noteHz(dDeg, 146.83)
+        const dur = i === n - 1 ? 1.6 + Math.random() : 0.35 + Math.random() * 0.7
+        o.frequency.setTargetAtTime(hz, t, 0.03)
+        o2.frequency.setTargetAtTime(hz, t, 0.03)
+        bbp.frequency.setTargetAtTime(hz * 2, t, 0.03)
+        lg.gain.setTargetAtTime(0, t, 0.02)
+        lg.gain.setTargetAtTime(hz * 0.008, t + Math.min(0.35, dur * 0.5), 0.15)
+        env.gain.setTargetAtTime(0.26, t, i === 0 ? 0.08 : 0.03)
+        bg.gain.setTargetAtTime(0.05, t, 0.05)
+        t += dur
+      }
+      env.gain.setTargetAtTime(0.0001, t, 0.25)
+      bg.gain.setTargetAtTime(0.0001, t, 0.2)
+      const end = t + 1.5
+      for (const x of [o, o2, lfo]) {
+        x.start()
+        x.stop(end)
+      }
+      br.start()
+      br.stop(end)
+      this.later(diPhrase, (end - ctx.currentTime) * 1000 + 1800 + Math.random() * 4000)
+    }
+    this.later(diPhrase, 1200)
+  }
+
+  private noiseBuf: AudioBuffer | null = null
 
   /** 定时排下一次（销毁后不再排） */
   private later(fn: () => void, ms: number): void {

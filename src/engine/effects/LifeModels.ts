@@ -156,6 +156,21 @@ export function fishingBoatGeometry(): THREE.BufferGeometry {
   // 钓竿与钓线
   for (let i = 0; i < 6; i++) b.box(1.4 + i * 0.42, 1.2 + i * 0.28, -0.04, 1.84 + i * 0.42, 1.28 + i * 0.28, 0.04, T.mast)
   b.box(3.9, 0.5, -0.01, 3.93, 2.9, 0.01, '#d8d2c4')
+  // 船舷一圈压条、晾在篷上的渔网、船尾鱼篓、舷边两只鸬鹚
+  b.box(-2.5, 0.7, -0.84, 2.3, 0.78, -0.76, T.hullDark)
+  b.box(-2.5, 0.7, 0.76, 2.3, 0.78, 0.84, T.hullDark)
+  for (let i = 0; i < 5; i++) b.box(-1.85 + i * 0.32, 0.9 + (i % 2) * 0.1, -0.8, -1.72 + i * 0.32, 1.45, -0.74, '#6b675c')
+  b.box(-1.9, 1.35, -0.82, -0.3, 1.42, -0.74, '#7a766a')
+  b.box(-2.2, 0.7, -0.45, -1.9, 1.05, -0.15, T.straw)
+  b.box(-2.22, 1.02, -0.47, -1.88, 1.08, -0.13, T.straw, 0.8)
+  for (const [x, z] of [
+    [0.3, 0.72],
+    [0.9, -0.72],
+  ]) {
+    b.box(x - 0.15, 0.78, z - 0.08, x + 0.15, 1.05, z + 0.08, T.bird)
+    b.box(x + 0.1, 1.0, z - 0.05, x + 0.28, 1.12, z + 0.05, T.bird)
+    b.box(x + 0.26, 1.03, z - 0.02, x + 0.36, 1.06, z + 0.02, T.gold)
+  }
   return b.build()
 }
 
@@ -180,6 +195,23 @@ export function passengerBoatGeometry(): THREE.BufferGeometry {
   // 船尾橹与艄公
   b.box(-6.2, 0.6, -0.08, -4.6, 0.75, 0.08, T.mast)
   boatman(b, -4.2, 0.9, 0, '#5a6a78', false)
+  // 舱窗挂竹帘（窗格间）、篷檐两端翘起、船头一对红灯笼、桅顶小旗、舷边压条、船头缆桩与缆绳
+  for (const x of [-2.4, -1.0, 0.4]) {
+    b.box(x + 0.12, 1.35, -1.18, x + 1.25, 2.0, -1.14, T.straw, 0.9)
+    b.box(x + 0.12, 1.35, 1.14, x + 1.25, 2.0, 1.18, T.straw, 0.9)
+  }
+  b.box(-3.1, 2.4, -1.45, -2.8, 2.7, 1.45, T.awning, 0.85)
+  b.box(1.8, 2.4, -1.45, 2.1, 2.7, 1.45, T.awning, 0.85)
+  for (const z of [-0.8, 0.8]) {
+    b.box(3.9, 1.6, z - 0.04, 3.96, 2.3, z + 0.04, T.mast)
+    b.box(3.75, 1.2, z - 0.2, 4.1, 1.6, z + 0.2, T.lacquer)
+    b.box(3.8, 1.15, z - 0.12, 4.05, 1.2, z + 0.12, T.gold)
+  }
+  b.box(2.7, 7.2, -0.03, 3.6, 7.6, 0.03, T.flag)
+  b.box(-4.5, 0.9, -1.4, 4.3, 0.98, -1.32, T.hullDark)
+  b.box(-4.5, 0.9, 1.32, 4.3, 0.98, 1.4, T.hullDark)
+  b.box(4.4, 1.1, -0.15, 4.7, 1.5, 0.15, T.hullDark)
+  b.box(4.7, 1.2, -0.03, 5.6, 1.26, 0.03, T.straw)
   return b.build()
 }
 
@@ -223,6 +255,38 @@ export function mingShipGeometry(): THREE.BufferGeometry {
   mast(-0.8, 14, 7.5, T.sailRust)
   mast(4.6, 11, 5.6, T.sailRust)
   mast(-6.6, 7.5, 3.6, T.sailTan)
+  // 主桅瞭望斗
+  b.box(-1.3, 13.2, -0.5, -0.3, 13.9, 0.5, T.hull)
+  // 缆索：桅顶斜拉到首尾
+  const rope = (ax: number, ay: number, bx: number, by: number, z: number) => {
+    const n = 14
+    for (let i = 0; i <= n; i++) {
+      const t = i / n
+      const x = ax + (bx - ax) * t
+      const y = ay + (by - ay) * t
+      b.box(x - 0.04, y - 0.04, z - 0.03, x + 0.04, y + 0.04, z + 0.03, '#3a2e22')
+    }
+  }
+  rope(-0.8, 16.5, 10.2, 3.6, 0)
+  rope(-0.8, 16.5, -8.6, 6.9, 0)
+  rope(4.6, 13.5, 10.5, 3.4, 0.3)
+  // 艉楼窗格、檐下两盏大灯笼
+  for (const x of [-8.2, -7.2, -6.2, -5.2]) {
+    b.box(x, 4.1, -2.72, x + 0.6, 4.9, -2.66, '#e8dcc0')
+    b.box(x, 4.1, 2.66, x + 0.6, 4.9, 2.72, '#e8dcc0')
+  }
+  for (const z of [-2.1, 2.1]) {
+    b.box(-9.4, 5.6, z - 0.3, -8.9, 6.4, z + 0.3, T.lacquer)
+    b.box(-9.35, 5.5, z - 0.2, -8.95, 5.6, z + 0.2, T.gold)
+  }
+  // 船首铁锚与锚链、舷侧一排长橹
+  b.box(9.6, 1.0, -2.2, 10.2, 2.6, -1.95, '#3a3a38')
+  b.box(9.4, 0.8, -2.25, 10.4, 1.05, -1.9, '#3a3a38')
+  for (let x = -5; x <= 5; x += 2.5)
+    for (const sgn of [-1, 1]) {
+      const z0 = sgn * 2.7
+      b.box(x - 0.08, 1.2, Math.min(z0, z0 + sgn * 2.2), x + 0.08, 1.35, Math.max(z0, z0 + sgn * 2.2), T.mast)
+    }
   return b.build()
 }
 

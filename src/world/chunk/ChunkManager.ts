@@ -99,6 +99,8 @@ export class ChunkManager {
   readonly maskData: Uint8Array
   readonly mask: THREE.DataTexture
   private maskDirty = false
+  /** 掩膜版本：每次有变化 +1（覆盖图据此立刻重判遮盖，不等定时） */
+  maskVersion = 0
   uploadsPerFrame = 4
   maxCached = 900
   maxFarCached = 900
@@ -240,6 +242,7 @@ export class ChunkManager {
     if (this.maskDirty) {
       this.mask.needsUpdate = true
       this.maskDirty = false
+      this.maskVersion++
     }
 
     /* 5. 脏区块重建（只有近景存方块数据） */

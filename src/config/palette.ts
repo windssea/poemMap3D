@@ -57,7 +57,7 @@ export const MaterialTokens = {
   plaster: ['#ece6d6', '#e2dbc8', '#f4efe2', '#d7cfba'],
   lacquer: ['#a43d32', '#943429', '#b24a3d', '#842d24'],
   roofGray: ['#3f4a52', '#353f46', '#4a565e', '#2c353b'],
-  roofYellow: ['#d9a93a', '#c8962c', '#e6bb52', '#b38324'],
+  roofYellow: ['#b89040', '#a8823a', '#c49c4a', '#96742f'],
   roofGreen: ['#3f7d63', '#346c55', '#4a8b70', '#2c5e49'],
   stoneBrick: ['#8d8a82', '#7e7b74', '#9b9890', '#6f6c66'],
   cityBrick: ['#6f6d68', '#62605b', '#7c7a74', '#55534f'],
@@ -84,6 +84,8 @@ export const MaterialTokens = {
   birchLog: ['#e8e4da', '#d8d3c6', '#2e2a26', '#f2efe6'],
   palmLog: ['#8a7152', '#7a6246', '#9a8060', '#6a543c'],
   leavesPalm: ['#e0e0e0', '#c6c6c6', '#aeaeae', '#f0f0f0'],
+  lotusPad: ['#3f7a4a', '#4f8a56', '#35683f', '#6a9a5a'],
+  lotusFlower: ['#e98fa6', '#f4c6d0', '#4f8062', '#f2e0a0'],
 } as const
 
 export type MaterialTokenKey = keyof typeof MaterialTokens
@@ -122,11 +124,13 @@ export type ShanshuiZoneKey = (typeof ShanshuiZones)[number]['key']
 
 /** 专用树叶色（与生物群系叠乘前的树种底色） */
 export const FoliageTokens = {
-  broad: '#6a9a58',
-  pine: '#2f5a44',
-  willow: '#8fbf5e',
-  bamboo: '#5f9a4a',
+  broad: '#5c8747',
+  pine: '#205338',
+  willow: '#91b364',
+  bamboo: '#7ea351',
   grassTuft: '#8fb46a',
+  /** 草地压向的灰黄绿（草不比树冠还绿） */
+  grassMute: '#a2aa73',
   rice: '#7fb84a',
   palm: '#4f9a48',
 } as const

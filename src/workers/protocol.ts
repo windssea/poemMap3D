@@ -39,7 +39,16 @@ export interface MeshRequest {
   volume: { ox: number; oy: number; oz: number; sx: number; sy: number; sz: number; data: Uint16Array; tint: Uint8Array }
 }
 
-export type WorkerRequest = InitRequest | ChunkRequest | OverviewRequest | MeshRequest
+/** 预热：只生成并存入浏览器缓存，不回传网格 */
+export interface WarmRequest {
+  type: 'warm'
+  id: number
+  cx: number
+  cz: number
+  lod: 1 | 2 | 4
+}
+
+export type WorkerRequest = InitRequest | ChunkRequest | OverviewRequest | MeshRequest | WarmRequest
 
 /* ============ Worker → 主线程 ============ */
 
@@ -74,6 +83,7 @@ export type WorkerResponse =
   | { type: 'macro'; macro: MacroGridData }
   | { type: 'ready'; ms: number }
   | { type: 'error'; id?: number; message: string }
+  | { type: 'warm'; id: number }
   | ChunkResult
   | MeshResult
   | OverviewResult

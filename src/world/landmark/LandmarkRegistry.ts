@@ -216,7 +216,8 @@ export class LandmarkRegistry {
   private makeModifier(lm: ResolvedLandmark): TerrainModifier {
     const { def, x: cx, z: cz, level, index } = lm
     const ops: readonly TerrainOp[] = def.terrainModifier ?? [{ t: 'flatten', x: 0, z: 0, r: Math.max(6, def.radius * 0.4), blend: 8 }]
-    const R = def.radius + 16
+    // 修改器范围：营造半径外再留足缓坡（高台、削山的过渡带随高差放宽）
+    const R = def.radius + 40
     const bo = def.biomeOverride
     const n = createSimplex2D(hashString(def.id))
     return {
@@ -240,10 +241,12 @@ export class LandmarkRegistry {
               const ox = dx - op.x
               const oz = dz - op.z
               const dist = op.square ? op.r + Math.max(Math.abs(ox) - op.r, Math.abs(oz) - (op.rz ?? op.r)) : Math.hypot(ox, oz)
-              const blend = op.blend ?? 8
+              const target = level + (op.dy ?? 0)
+              /* 过渡带宽度随高差放宽（至多 20 格）：垫高、削低都成缓坡，不再立起一圈直上直下的墙 */
+              const diff = target - col.height
+              const blend = Math.min(20, Math.max(op.blend ?? 8, diff > 0 ? diff * 1.4 : -diff * 1.2))
               if (dist >= op.r + blend) break
               if (wet() && !op.overWater) break
-              const target = level + (op.dy ?? 0)
               if (dist < op.r) {
                 col.height = target
                 if (op.overWater && col.waterKind !== WaterKind.Sea) {
@@ -251,8 +254,14 @@ export class LandmarkRegistry {
                   col.waterDist = Math.max(col.waterDist, 4)
                 }
                 if (op.pave) col.paved = true
-              } else if (col.height - target < 14) col.height = lerp(target, col.height, smoothstep(op.r, op.r + blend, dist))
-              // 过渡带上高出甚多的是山：留着，不削平城外名山
+              } else {
+                const k = smoothstep(op.r, op.r + blend, dist)
+                const flat = lerp(target, col.height, k)
+                // 过渡带上高出甚多的是山：削得越来越少（连续渐变，不在某个高差处一刀切出一面墙）
+                // 远低于台面的（崖下、谷底）也不去填：那是天然的崖，不是要垫的缓坡
+                const keep = diff < 0 ? smoothstep(8, 30, -diff) : smoothstep(14, 28, diff)
+                col.height = lerp(flat, col.height, keep)
+              }
               break
             }
             case 'lake': {
@@ -305,8 +314,14 @@ export class LandmarkRegistry {
                   col.waterKind = WaterKind.Lake
                 }
               } else if (best < op.w) {
-                col.waterY = level
-                col.height = Math.min(col.height, level - 2)
+                if (col.height < level - 1.5) {
+                  // 渠道流出营造区、地势低下去：水面随地面降下（下游一级级跌水），不悬空
+                  col.waterY = Math.floor(col.height)
+                  col.height = col.height - 2
+                } else {
+                  col.waterY = level
+                  col.height = Math.min(col.height, level - 2)
+                }
                 col.waterKind = WaterKind.Pond // 城中河渠：与天然江河区分（城墙可以圈住它）
                 col.waterDist = 0
                 col.paved = false
@@ -415,28 +430,37 @@ export class LandmarkRegistry {
       def.structures.forEach((spec, i) => {
         let x = Math.round(cx + spec.x)
         let z = Math.round(cz + spec.z)
-        if (spec.span) {
-          /* 桥沿自身轴线（rot 1 为南北向）找最近的一段水面，居中跨过 */
+        const isBridge = spec.b === 'bridge'
+        let params = spec.p ?? {}
+        if (isBridge) {
+          /* 桥：沿自身轴线（rot 1 为南北向）找最近的一段水面，居中跨过、按水面宽定桥长，两头必须落在岸上；
+             找不到可跨的水或水面太宽（桥会立在水中）就不建 */
           const alongZ = (spec.rot ?? 0) % 2 === 1
-          let best: [number, number] | null = null
-          for (let k = 0; k <= 20 && !best; k++)
+          const at = (k: number, px: number, pz: number) => (alongZ ? [px, pz + k] : [px + k, pz]) as [number, number]
+          let found: { cx: number; cz: number; w: number } | null = null
+          for (let k = 0; k <= 20 && !found; k++)
             for (const sgn of [1, -1]) {
-              const px = alongZ ? x : x + sgn * k
-              const pz = alongZ ? z + sgn * k : z
+              const [px, pz] = at(sgn * k, x, z)
               if (!isWet(px, pz)) continue
-              let a = 0
-              let b2 = 0
-              while (a < 30 && isWet(alongZ ? px : px - a - 1, alongZ ? pz - a - 1 : pz)) a++
-              while (b2 < 30 && isWet(alongZ ? px : px + b2 + 1, alongZ ? pz + b2 + 1 : pz)) b2++
-              const mid = Math.round((b2 - a) / 2)
-              best = alongZ ? [px, pz + mid] : [px + mid, pz]
+              let lo = 0
+              let hi = 0
+              while (lo < 30 && isWet(...at(-lo - 1, px, pz))) lo++
+              while (hi < 30 && isWet(...at(hi + 1, px, pz))) hi++
+              const [mx, mz] = at(Math.round((hi - lo) / 2), px, pz)
+              found = { cx: mx, cz: mz, w: lo + hi + 1 }
               break
             }
-          if (best) [x, z] = best
+          if (!found || found.w > 13) return
+          const L = Math.max(7, Math.min(17, (found.w + 4) | 1))
+          const half = (L - 1) / 2
+          // 两头：桥端外一格必须是岸
+          if (isWet(...at(-half - 1, found.cx, found.cz)) || isWet(...at(half + 1, found.cx, found.cz))) return
+          x = found.cx
+          z = found.cz
+          params = { ...params, length: L }
         }
-        const isBridge = spec.b === 'bridge'
         if (!isBridge && !spec.overWater && isWet(x, z)) return
-        const s = buildBuilding(spec.b, spec.p ?? {}).rotate(spec.rot ?? 0)
+        const s = buildBuilding(spec.b, params).rotate(spec.rot ?? 0)
         const y = (spec.atLevel ? level + 1 : terrain.surfaceHeightAt(x, z) + 1) + (spec.dy ?? 0)
         const bd = BuildingRegistry.get(spec.b)!
         add(`${def.id}-${spec.b}-${i}`, s, x, y, z, { foundation: bd.foundation === 'stone', clear: isBridge ? 0 : 10, entrance: bd.entrance, rot: spec.rot ?? 0 })

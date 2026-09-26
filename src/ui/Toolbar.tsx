@@ -1,5 +1,5 @@
 import { useApp } from '../app/AppStore'
-import { SOUND_MODES, SOUND_NAMES } from '../app/AmbientSound'
+import { MUSIC_MODES, NATURE_MODES, SOUND_NAMES } from '../app/AmbientSound'
 import { QUALITY_PRESETS, type Quality } from '../engine/rendering/QualityManager'
 import { Icon } from './icons'
 import { useServices } from './ServicesContext'
@@ -53,22 +53,24 @@ export function Toolbar() {
         </button>
         {soundOpen && (
           <div className="panel amb-pop sound-pop">
-            <div className="amb-row">
-              <span className="lab">声</span>
-              {SOUND_MODES.map((m) => (
-                <button
-                  key={m}
-                  className={`chip ${m === sound ? 'on' : ''}`}
-                  title={m === 'auto' ? '随季节、时辰、天气自动调配' : undefined}
-                  onClick={() => {
-                    services.sound.setMode(m)
-                    store.set((s) => ({ sound: m, ui: { ...s.ui, soundOpen: false } }))
-                  }}
-                >
-                  {SOUND_NAMES[m]}
-                </button>
-              ))}
-            </div>
+            {([['自然', NATURE_MODES], ['古乐', MUSIC_MODES]] as const).map(([lab, modes]) => (
+              <div className="amb-row" key={lab}>
+                <span className="lab">{lab}</span>
+                {modes.map((m) => (
+                  <button
+                    key={m}
+                    className={`chip ${m === sound ? 'on' : ''}`}
+                    title={m === 'auto' ? '随季节、时辰、天气自动调配' : undefined}
+                    onClick={() => {
+                      services.sound.setMode(m)
+                      store.set((s) => ({ sound: m, ui: { ...s.ui, soundOpen: false } }))
+                    }}
+                  >
+                    {SOUND_NAMES[m]}
+                  </button>
+                ))}
+              </div>
+            ))}
           </div>
         )}
       </div>

@@ -104,6 +104,6 @@ export async function bootstrap(container: HTMLElement): Promise<AppServices> {
   store.set({ quality: engine.quality.quality, loading: { ready: true, label: '', progress: 1, error: null } })
   if (store.get().debug.chunks) engine.setChunkDebug(true)
   res.lazy('font-poems')
-  ;(window as unknown as { __shanhe?: unknown }).__shanhe = { engine, facade, store }
+  ;(window as unknown as { __shanhe?: unknown }).__shanhe = { engine, facade, store, sound }
   return { store, facade, poetry, places, aggregator, search, navigation, tour, trails, director, resources: res, majorPlaces: major, sound }
 }
