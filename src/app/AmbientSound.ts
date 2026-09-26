@@ -108,8 +108,6 @@ export class AmbientSound {
     document.addEventListener('visibilitychange', this.onVis)
     const white = this.noise('white')
     this.noiseBuf = white
-    const pink = this.noise('pink')
-    const brown = this.noise('brown')
     const layer = (k: Layer) => {
       const g = ctx.createGain()
       g.gain.value = 0
@@ -121,7 +119,6 @@ export class AmbientSound {
       const s = ctx.createBufferSource()
       s.buffer = buf
       s.loop = true
-      s.loopStart = Math.random() * 2
       let n: AudioNode = s
       for (const c of chain) {
         n.connect(c)
@@ -152,7 +149,7 @@ export class AmbientSound {
     {
       const lp = filter('lowpass', 420)
       const sw = ctx.createGain()
-      loop(brown, lp, sw, layer('wind'))
+      loop(this.loopNoise('brown'), lp, sw, layer('wind'))
       wander(lp.frequency, 220, 720, [3, 8])
       wander(sw.gain, 0.5, 1.2, [2, 6])
     }
@@ -161,7 +158,7 @@ export class AmbientSound {
       const lp = filter('lowpass', 650, 0.5)
       const lp2 = filter('lowpass', 1200, 0.5)
       const sw = ctx.createGain()
-      loop(pink, lp, lp2, sw, layer('breeze'))
+      loop(this.loopNoise('pink'), lp, lp2, sw, layer('breeze'))
       wander(lp.frequency, 320, 900, [3, 7])
       wander(sw.gain, 0.35, 1.0, [2, 6])
     }
@@ -169,11 +166,11 @@ export class AmbientSound {
     {
       const g = layer('winter')
       const lp = filter('lowpass', 300)
-      loop(brown, lp, g)
+      loop(this.loopNoise('brown'), lp, g)
       const bp = filter('bandpass', 480, 10)
       const wg = ctx.createGain()
       wg.gain.value = 0.3
-      loop(pink, bp, wg, g)
+      loop(this.loopNoise('pink'), bp, wg, g)
       wander(bp.frequency, 280, 650, [3, 7])
       wander(wg.gain, 0.08, 0.45, [2, 5])
     }
@@ -182,7 +179,7 @@ export class AmbientSound {
       const g = layer('rain')
       // 雨声：粉噪声，高通 250、低通 2 千赫上下起伏——像打在瓦上、叶上的细密雨，而不是电视雪花
       const rl = filter('lowpass', 2000, 0.4)
-      loop(pink, filter('highpass', 250), rl, g)
+      loop(this.loopNoise('pink'), filter('highpass', 250), rl, g)
       wander(rl.frequency, 1500, 2500, [3, 8])
       const drop = () => {
         if (quiet(g)) {
@@ -216,8 +213,8 @@ export class AmbientSound {
       const ga = ctx.createGain()
       const gb = ctx.createGain()
       gb.gain.value = 0.4
-      loop(pink, a, ga, soft)
-      loop(pink, b, gb, soft)
+      loop(this.loopNoise('pink'), a, ga, soft)
+      loop(this.loopNoise('pink'), b, gb, soft)
       wander(a.frequency, 260, 480, [0.6, 1.6])
       wander(b.frequency, 700, 1100, [0.3, 0.8])
       wander(gb.gain, 0.15, 0.55, [0.25, 0.7])
@@ -498,32 +495,49 @@ export class AmbientSound {
     if (!this.disposed) window.setTimeout(fn, ms)
   }
 
-  /** 两秒长的噪声缓冲（白 / 粉 / 褐） */
-  private noise(kind: 'white' | 'pink' | 'brown'): AudioBuffer {
+  /**
+   * 噪声缓冲（白 / 粉 / 褐），默认 2 秒（给雨滴、气声这类一次性取片段用）。
+   * 循环铺底用 loopNoise：每一路单独生成、七到十一秒、首尾交叉淡化成无缝循环——
+   * 同一段短噪声反复循环会听出节拍般的「回声」，两路同源噪声错开叠加还会梳状滤波，声音发空。
+   */
+  private noise(kind: 'white' | 'pink' | 'brown', seconds = 2, seamless = false): AudioBuffer {
     const ctx = this.ctx!
-    const n = ctx.sampleRate * 2
+    const n = Math.floor(ctx.sampleRate * seconds)
+    const F = seamless ? Math.floor(ctx.sampleRate * 0.25) : 0
     const buf = ctx.createBuffer(2, n, ctx.sampleRate)
+    const raw = new Float32Array(n + F)
     for (let ch = 0; ch < 2; ch++) {
-      const d = buf.getChannelData(ch)
       let b0 = 0
       let b1 = 0
       let b2 = 0
       let last = 0
-      for (let i = 0; i < n; i++) {
+      for (let i = 0; i < n + F; i++) {
         const w = Math.random() * 2 - 1
-        if (kind === 'white') d[i] = w * 0.5
+        if (kind === 'white') raw[i] = w * 0.5
         else if (kind === 'pink') {
           b0 = 0.99765 * b0 + w * 0.099046
           b1 = 0.963 * b1 + w * 0.2965164
           b2 = 0.57 * b2 + w * 1.0526913
-          d[i] = (b0 + b1 + b2 + w * 0.1848) * 0.11
+          raw[i] = (b0 + b1 + b2 + w * 0.1848) * 0.11
         } else {
           last = (last + 0.02 * w) / 1.02
-          d[i] = last * 3.5
+          raw[i] = last * 3.5
         }
+      }
+      const d = buf.getChannelData(ch)
+      for (let i = 0; i < n; i++) d[i] = raw[i]
+      /* 无缝：开头 F 个样本与「本该接在末尾之后」的 F 个样本等功率交叉淡化，循环回到开头时波形连续 */
+      for (let i = 0; i < F; i++) {
+        const t = i / F
+        d[i] = raw[i] * Math.sqrt(t) + raw[n + i] * Math.sqrt(1 - t)
       }
     }
     return buf
+  }
+
+  /** 循环铺底用：独立的一段长噪声（长度随机，几路之间不会同步） */
+  private loopNoise(kind: 'white' | 'pink' | 'brown'): AudioBuffer {
+    return this.noise(kind, 7 + Math.random() * 4, true)
   }
 
   dispose(): void {
