@@ -136,7 +136,7 @@ function base(id: number, name: string, shape: BlockShape, tex: TextureKey | Blo
     castsShadow: shape !== BlockShape.AIR && layer !== BlockRenderLayer.Effect && shape !== BlockShape.LIQUID,
     receivesAO: layer === BlockRenderLayer.Solid || layer === BlockRenderLayer.Cutout,
     tags: o.tags ?? [],
-    materialKey: o.material ?? (layer === BlockRenderLayer.Solid ? 'block.solid' : layer === BlockRenderLayer.Cutout ? 'block.cutout' : layer === BlockRenderLayer.Translucent ? 'block.translucent' : 'block.effect'),
+    materialKey: o.material ?? (layer === BlockRenderLayer.Solid ? 'block.solid' : layer === BlockRenderLayer.Cutout || layer === BlockRenderLayer.Plant ? 'block.cutout' : layer === BlockRenderLayer.Translucent ? 'block.translucent' : 'block.effect'),
     faces: faces(tex),
     tint: o.tint ?? TintClass.None,
     emissive: o.emissive,
@@ -148,7 +148,7 @@ const cube = (id: number, name: string, tex: TextureKey | BlockFaces, o?: Opts) 
 const slab = (id: number, name: string, tex: TextureKey | BlockFaces, o?: Opts) => base(id, name, BlockShape.SLAB, tex, o)
 const stairs = (id: number, name: string, tex: TextureKey | BlockFaces, o?: Opts) => base(id, name, BlockShape.STAIRS, tex, o)
 const cross = (id: number, name: string, tex: TextureKey, o?: Opts) =>
-  base(id, name, BlockShape.CROSS_PLANT, tex, { layer: BlockRenderLayer.Cutout, tags: ['plant'], ...o })
+  base(id, name, BlockShape.CROSS_PLANT, tex, { layer: BlockRenderLayer.Plant, tags: ['plant'], ...o })
 const custom = (id: number, name: string, tex: TextureKey | BlockFaces, boxes: VoxelBox[], o?: Opts): BlockDefinition => ({
   ...base(id, name, BlockShape.CUSTOM_VOXEL, tex, o),
   boxes,
@@ -269,7 +269,7 @@ export function createDefaultBlockRegistry(): BlockRegistry {
   r.register(cube(B.PALM_LOG, 'palm_log', { top: 'log_top', bottom: 'log_top', side: 'palm_log' }, { tags: ['wood'] }))
   r.register(leaves(B.LEAVES_PALM, 'leaves_palm', 'leaves_palm', TintClass.Evergreen))
   /* 荷叶贴着水面（1/16 厚的镂空圆叶），荷花立在水上 */
-  r.register(custom(B.LOTUS_PAD, 'lotus_pad', 'lotus_pad', [[1, 0, 1, 15, 1, 15]], { layer: BlockRenderLayer.Cutout, tags: ['plant'], tint: TintClass.Lotus, replaceable: true }))
+  r.register(custom(B.LOTUS_PAD, 'lotus_pad', 'lotus_pad', [[1, 0, 1, 15, 1, 15]], { layer: BlockRenderLayer.Plant, tags: ['plant'], tint: TintClass.Lotus, replaceable: true }))
   r.register(cross(B.LOTUS_FLOWER, 'lotus_flower', 'lotus_flower', { tint: TintClass.Lotus }))
   return r
 }

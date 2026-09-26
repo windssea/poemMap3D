@@ -52,6 +52,9 @@ export function createSharedUniforms() {
     /** 边缘雾图（地图四边、远海、海南以南）与其覆盖范围 x0, z0, 宽, 高 */
     uFogMap: { value: null as THREE.DataTexture | null },
     uFogRect: { value: new THREE.Vector4(0, 0, 1, 1) },
+    /** 烘焙的天空可见度（只乘间接光）与其覆盖范围 x0, z0, 宽, 高；宽为 0 表示未烘焙 */
+    uBakeMap: { value: null as THREE.DataTexture | null },
+    uBakeRect: { value: new THREE.Vector4(0, 0, 0, 0) },
     /** 荷叶荷花的繁茂程度（按季节：夏 1、春秋少、冬 0） */
     uLotus: { value: 1 },
     /** 夜里窗光、灯笼的可见范围（镜头距离，超出淡出） */

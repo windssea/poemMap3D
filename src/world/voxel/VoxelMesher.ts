@@ -342,6 +342,7 @@ export function meshVolume(vol: VoxelVolume, opts: MesherOptions = {}): MeshResu
       du[u] = 1
       dv[v] = 1
       if (onBoundary && reg.receivesAO[id]) aoCorners(x + nrm[0], y + nrm[1], z + nrm[2], du, dv, aoTmp)
+      else if (!onBoundary && axis === 1 && sign > 0 && reg.receivesAO[id]) aoCorners(x, y, z, du, dv, aoTmp) // 半砖顶、楼梯踏面：靠墙的角也暗下去
       else for (let k = 0; k < 4; k++) aoTmp[k] = AO_NONE[k]
       const cell = [x, y, z]
       const plane = cell[axis] + (sign > 0 ? b[axis + 3] : b[axis]) / 16

@@ -10,6 +10,7 @@ import { type FogMap, fogAt } from '../overview/EdgeFog'
 import type { OverviewGrid } from '../overview/OverviewBuilder'
 import type { MeshLayerData } from '../voxel/MeshBuffer'
 import type { World } from '../World'
+import { BlockRenderLayer } from '../block/BlockDefinition'
 import { Chunk, ChunkState } from './Chunk'
 import { createChunkMeshes } from './ChunkMeshFactory'
 
@@ -211,6 +212,7 @@ export class ChunkManager {
       this.trim(this.regions, this.maxRegionCached)
       this.lastScan = this.frame
       this.scanDirty = false
+      for (const r of this.records.values()) this.castPolicy(r)
       this.visDirty = true
     }
 
@@ -449,6 +451,7 @@ export class ChunkManager {
       rec.triangles += (m.geometry.index?.count ?? 0) / 3
       this.scene.attach('world', m)
     }
+    this.castPolicy(rec)
     if (rec.tier === 1) {
       const c = this.world.getChunk(rec.cx, rec.cz)
       if (c) c.state = ChunkState.VISIBLE
@@ -459,6 +462,19 @@ export class ChunkManager {
     if (rec.tier === 1 && this.dist2(rec) > (this.radius + 2) * (this.radius + 2)) this.hide(rec)
     // 远景装好时若四个区块已由近景显示，交给下一轮可见性判断藏起来
     if (rec.tier === 2) this.visDirty = true
+  }
+
+  /**
+   * 阴影投射按距离分级：树叶只在焦点 7 区块（约 112 格）内投影（落在近处的高精度级联里）；
+   * 地形与建筑在整个近景圈内投影（远处级联的山影）；地被层从不投影，远景片与远景区块也不投影。
+   */
+  private castPolicy(rec: ChunkRecord): void {
+    if (rec.tier !== 1) return
+    const near = this.dist2(rec) <= 49
+    for (const m of rec.meshes) {
+      const layer = m.userData.layer as number
+      m.castShadow = layer === BlockRenderLayer.Solid || (layer === BlockRenderLayer.Cutout && near)
+    }
   }
 
   private show(rec: ChunkRecord): void {

@@ -15,9 +15,13 @@ export const BlockShape = {
 } as const
 export type BlockShape = (typeof BlockShape)[keyof typeof BlockShape]
 
-export const BlockRenderLayer = { Solid: 0, Cutout: 1, Translucent: 2, Effect: 3 } as const
+/**
+ * 渲染层：Solid 实心、Cutout 镂空（树叶）、Translucent 半透明（水、冰）、Effect 发光、
+ * Plant 地被（草、芦苇、花、庄稼、荷）——与 Cutout 同一材质，但不投射实时阴影，只靠顶点 AO 与面向明暗。
+ */
+export const BlockRenderLayer = { Solid: 0, Cutout: 1, Translucent: 2, Effect: 3, Plant: 4 } as const
 export type BlockRenderLayer = (typeof BlockRenderLayer)[keyof typeof BlockRenderLayer]
-export const RENDER_LAYER_COUNT = 4
+export const RENDER_LAYER_COUNT = 5
 
 export type BlockTag =
   | 'terrain'

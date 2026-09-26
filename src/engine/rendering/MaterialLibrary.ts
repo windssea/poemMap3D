@@ -60,6 +60,15 @@ uniform vec3 uSnowColor;
 uniform vec3 uWindow;
 uniform float uBare;
 uniform float uLitFar;
+uniform sampler2D uBakeMap;
+uniform vec4 uBakeRect;
+/** 烘焙的天空可见度：范围外为 1 */
+float bakedSky(vec3 w) {
+  if (uBakeRect.z < 1.0) return 1.0;
+  vec2 uv = (w.xz - uBakeRect.xy) / uBakeRect.zw;
+  if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) return 1.0;
+  return texture2D(uBakeMap, uv).r;
+}
 uniform float uLotus;
 varying vec3 vBlockUv;
 varying float vAo;
@@ -104,16 +113,19 @@ export class MaterialLibrary {
     this.block[BlockRenderLayer.Cutout] = this.createBlockMaterial('cutout')
     this.block[BlockRenderLayer.Translucent] = this.createBlockMaterial('translucent')
     this.block[BlockRenderLayer.Effect] = this.createGlowMaterial()
+    this.block[BlockRenderLayer.Plant] = this.block[BlockRenderLayer.Cutout]
     this.blockFar = []
     this.blockFar[BlockRenderLayer.Solid] = this.createBlockMaterial('solid', 'far')
     this.blockFar[BlockRenderLayer.Cutout] = this.createBlockMaterial('cutout', 'far')
     this.blockFar[BlockRenderLayer.Translucent] = this.createBlockMaterial('translucent', 'far')
     this.blockFar[BlockRenderLayer.Effect] = this.createGlowMaterial()
+    this.blockFar[BlockRenderLayer.Plant] = this.blockFar[BlockRenderLayer.Cutout]
     this.blockCoarse = []
     this.blockCoarse[BlockRenderLayer.Solid] = this.createBlockMaterial('solid', 'coarse')
     this.blockCoarse[BlockRenderLayer.Cutout] = this.createBlockMaterial('cutout', 'coarse')
     this.blockCoarse[BlockRenderLayer.Translucent] = this.createBlockMaterial('translucent', 'coarse')
     this.blockCoarse[BlockRenderLayer.Effect] = this.block[BlockRenderLayer.Effect]
+    this.blockCoarse[BlockRenderLayer.Plant] = this.blockCoarse[BlockRenderLayer.Cutout]
     this.water = this.createWaterMaterial(false)
     this.waterCoarse = this.createWaterMaterial(false, 'coarse')
     this.waterFar = this.createWaterMaterial(false, 'far')
@@ -196,6 +208,8 @@ export class MaterialLibrary {
         )
         .replace('#include <opaque_fragment>', `outgoingLight = desaturate(outgoingLight, uSaturation);\n#include <opaque_fragment>`)
         .replace('#include <fog_fragment>', EDGE_FOG_FRAGMENT('vBWorld'))
+        // 烘焙的天空可见度只压间接光（院落、檐下、楼间更暗），不动直射日光
+        .replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\n reflectedLight.indirectDiffuse *= bakedSky(vBWorld);')
       if (kind === 'cutout') frag = frag.replace('#include <normal_fragment_begin>', 'float faceDirection = 1.0;\nvec3 normal = normalize( vNormal );\nvec3 nonPerturbedNormal = normal;')
       shader.fragmentShader = frag
     }

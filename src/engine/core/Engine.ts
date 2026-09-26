@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { AmbientBaker } from '../rendering/AmbientBaker'
 import type { PlaceAnchor } from '../../world/landmark/LandmarkDefinition'
 import { WorldManager } from '../../world/WorldManager'
 import { CameraController } from '../camera/CameraController'
@@ -63,6 +64,9 @@ export class Engine {
   camera!: CameraController
   env!: EnvironmentManager
   raycast!: RaycastSystem
+  /** 重点建筑的天空可见度烘焙（只乘间接光） */
+  baker!: AmbientBaker
+  private bakeAt: { x: number; z: number; t: number; n: number } | null = null
   private readonly tmpDir = new THREE.Vector3()
   selection!: SelectionSystem
   chunkDebug: ChunkDebugOverlay | null = null
@@ -81,7 +85,7 @@ export class Engine {
     this.renderer = new RendererManager(container, q.pixelRatio)
     this.materials = new MaterialLibrary(this.shared, q.anisotropy)
     this.shadows = new ShadowManager(this.renderer.renderer, q.shadowSize)
-    this.shadows.setEnabled(q.shadows, q.shadowSize)
+    this.shadows.setEnabled(q.shadows, q.shadowSize, q.shadowCascades)
     this.scene.attach('effects', this.trail.group)
     this.loop = new RenderLoop(() => this.ready && this.pipeline.render())
     this.loop.add((dt, t) => this.tick(dt, t))
@@ -104,11 +108,17 @@ export class Engine {
     this.camera = new CameraController(this.world.sampler, bounds, home)
     this.camera.onLevelChange = (l) => this.events.emit('level', l)
     this.camera.setAspect(this.renderer.width / this.renderer.height)
+    this.shadows.attach(this.camera.camera, this.scene.scene)
+    this.baker = new AmbientBaker(this.shared)
+    ;(this as unknown as { __shadowToggle: (on: boolean) => void }).__shadowToggle = (on: boolean) => {
+      const p = this.quality.preset
+      this.shadows.setEnabled(on && p.shadows, p.shadowSize, p.shadowCascades)
+    }
     this.renderer.onResize((w, h) => this.camera.setAspect(w / h))
     this.pipeline = new RenderPipeline(this.renderer.renderer, this.scene.scene, this.camera.camera)
     this.pipeline.setQuality(this.quality.quality)
     // 衡、高：软阴影（边缘有半影，不再是一刀切的锯齿）
-    this.renderer.renderer.shadowMap.type = this.quality.quality === 'low' ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap
+    this.renderer.renderer.shadowMap.type = THREE.PCFShadowMap
     this.renderer.onResize((w, h) => this.pipeline.setSize(w, h))
     this.env = new EnvironmentManager(this.shared, this.scene, this.shadows, this.renderer.renderer, { time: this.opts.time, season: this.opts.season, weather: this.opts.weather }, this.world.waterfalls())
     this.env.setQuality(q.particles)
@@ -144,8 +154,8 @@ export class Engine {
       this.renderer.setPixelRatio(p.pixelRatio)
       this.pipeline.setQuality(q)
       this.pipeline.setSize(this.renderer.width, this.renderer.height)
-      this.renderer.renderer.shadowMap.type = q === 'low' ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap
-      this.shadows.setEnabled(p.shadows, p.shadowSize)
+      this.renderer.renderer.shadowMap.type = THREE.PCFShadowMap
+      this.shadows.setEnabled(p.shadows, p.shadowSize, p.shadowCascades)
       this.world.setQuality(p)
       this.env.setQuality(p.particles)
     })
@@ -179,6 +189,19 @@ export class Engine {
     this.lanterns.update(dt, time, pose.target, pose.distance, this.shared.uNight.value)
     // 晨暮（太阳低）调色更暖
     const sunY = this.shared.uSunDir.value.y
+    /* 地标的天空可见度烘焙：到了之后等近景载入再烘（再补烘一次）；走远了撤掉 */
+    if (this.bakeAt) {
+      const bk = this.bakeAt
+      const dd = Math.hypot(pose.target.x - bk.x, pose.target.z - bk.z)
+      if (dd > 140) {
+        this.baker.clear()
+        this.bakeAt = null
+      } else if ((bk.t -= dt) <= 0 && bk.n < 2 && !this.camera.destination) {
+        this.baker.bake(this.world.world, bk.x, bk.z)
+        bk.n++
+        bk.t = 5
+      }
+    }
     this.pipeline.setLight(this.shared.uNight.value, (1 - this.shared.uNight.value) * (1 - Math.min(1, Math.max(0, (sunY - 0.3) / 0.35))))
     this.life.update(dt, time, pose.target, pose.distance, this.shared.uNight.value, Math.min(1, Math.max(0, this.shared.uSunDir.value.y * 2)))
     if (this.hoverPending && this.loop.frame % 3 === 0) {
@@ -198,6 +221,7 @@ export class Engine {
     const v = this.world.landmarkView(placeId)
     if (!v) return Promise.resolve()
     this.life.setPlace(placeId)
+    this.bakeAt = { x: v.target.x, z: v.target.z, t: 2.5, n: 0 }
     return this.camera.focusLandmark(v, opts)
   }
 

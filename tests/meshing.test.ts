@@ -97,7 +97,9 @@ describe('VoxelMesher', () => {
     v.set(6, 10, 2, S(B.TALL_GRASS))
     const r = meshVolume(v)
     expect(quads(r, BlockRenderLayer.Solid)).toBe(6 + 5 + 6)
-    expect(quads(r, BlockRenderLayer.Cutout)).toBe(2)
+    // 草等地被在 Plant 层（不投影），树叶仍在 Cutout 层
+    expect(quads(r, BlockRenderLayer.Plant)).toBe(2)
+    expect(quads(r, BlockRenderLayer.Cutout)).toBe(0)
   })
 
   it('灯笼额外输出光晕到效果层', () => {

@@ -92,8 +92,9 @@ export class RenderPipeline {
     if (q === 'high') {
       const ao = new GTAOPass(this.scene, this.camera, size.x, size.y)
       ao.output = GTAOPass.OUTPUT.Default
-      ao.blendIntensity = 0.85
-      ao.updateGtaoMaterial({ radius: 2.4, distanceExponent: 1.6, thickness: 1.4, scale: 1.1, samples: 12, distanceFallOff: 1, screenSpaceRadius: false })
+      // 屏幕空间 AO 只作低强度补充（主要的 AO 来自网格生成时的顶点 AO），半径小、强度低，不出黑边
+      ao.blendIntensity = 0.3
+      ao.updateGtaoMaterial({ radius: 1.2, distanceExponent: 2, thickness: 1, scale: 0.8, samples: 12, distanceFallOff: 1, screenSpaceRadius: false })
       ao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 5, rings: 2, samples: 12 })
       composer.addPass(ao)
       this.ao = ao
@@ -138,7 +139,7 @@ export class RenderPipeline {
       u.uStrength.value = 0.5 + 0.2 * Math.max(night, warm)
       u.uVignette.value = 0.5 + 0.35 * night
     }
-    if (this.ao) this.ao.blendIntensity = 0.85 - 0.35 * night
+    if (this.ao) this.ao.blendIntensity = 0.3 - 0.12 * night
   }
 
   /** 旧接口 */
