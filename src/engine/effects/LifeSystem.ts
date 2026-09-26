@@ -10,7 +10,9 @@ import { Random } from '../../utils/math'
 import {
   birdBodyGeometry,
   birdWingGeometry,
+  cargoBoatGeometry,
   fishingBoatGeometry,
+  seaFisherGeometry,
   FIGURE_KINDS,
   figureBody,
   figureHead,
@@ -23,8 +25,8 @@ import {
 const MAX_PEOPLE = 90
 const MAX_SMOKE = 160
 const MAX_BIRDS = 24
-const MAX_FISHING = 14
-const MAX_PASSENGER = 6
+const MAX_RIVER_BOATS = 16
+const MAX_LAKE_BOATS = 14
 const MAX_SHIPS = 4
 /** 镜头比这更远就不画市井（看不清，也省） */
 const LIFE_DISTANCE = 420
@@ -64,7 +66,7 @@ interface Puff {
 }
 
 interface Boat {
-  kind: 'fishing' | 'passenger' | 'ship'
+  kind: 'fishing' | 'passenger' | 'cargo' | 'ship' | 'seaFisher'
   /** 江河：沿中心线走（river、s、方向、横向偏移）；湖海：直线漫游 */
   river: number
   s: number
@@ -139,7 +141,7 @@ export class LifeSystem {
     this.smoke = new THREE.InstancedMesh(smokeGeometry(), this.smokeMat, MAX_SMOKE)
     this.birdBody = new THREE.InstancedMesh(birdBodyGeometry(), this.mat, MAX_BIRDS)
     this.birdWing = new THREE.InstancedMesh(birdWingGeometry(), this.mat, MAX_BIRDS * 2)
-    this.boatGeo = { fishing: fishingBoatGeometry(), passenger: passengerBoatGeometry(), ship: mingShipGeometry() }
+    this.boatGeo = { fishing: fishingBoatGeometry(), passenger: passengerBoatGeometry(), cargo: cargoBoatGeometry(), ship: mingShipGeometry(), seaFisher: seaFisherGeometry() }
     for (const im of [...this.bodies, ...this.heads, this.legs, this.smoke, this.birdBody, this.birdWing]) {
       im.count = 0
       im.frustumCulled = false
@@ -444,80 +446,114 @@ export class LifeSystem {
     this.boats.push({ ...init, kind, mesh, phase: this.rnd.range(0, 6.28) })
   }
 
+  /**
+   * 按水域配船：
+   *  - 大江（半宽 ≥ 4.5，长江、黄河下游……）：运货的漕船与客船为主，少量渔舟；
+   *  - 中小河：渔舟为主，间有小一号的漕船；
+   *  - 运河（大运河、江南运河）与城中河渠：漕船、客船；
+   *  - 湖：只有渔舟（按湖面积定数目，一到十条），大湖（太湖、洞庭、鄱阳）再有一两条客船；不进大船；
+   *  - 海（真实海域）：明代福船为主，一两条海上渔船。
+   */
   private populateWater(focus: THREE.Vector3): void {
     this.clearBoats()
     const rnd = new Random(Math.round(focus.x) * 31 + Math.round(focus.z))
     const rivers = this.ctx.rivers.rivers
     const RANGE = 420
-    /* 江河：在焦点附近的河段上撒船，船沿中心线上下行 */
-    let fishing = 0
-    let passenger = 0
-    for (let ri = 0; ri < rivers.length; ri++) {
-      const r = rivers[ri]
-      const idx: number[] = []
-      for (let s = 0; s < r.pts.length; s++) if (Math.hypot(r.pts[s][0] - focus.x, r.pts[s][1] - focus.z) < RANGE) idx.push(s)
-      if (!idx.length) continue
-      const big = r.halfWidth[idx[idx.length >> 1]] >= 4.5
-      const nF = Math.min(MAX_FISHING - fishing, Math.ceil(idx.length / 25))
-      for (let i = 0; i < nF; i++) {
-        const s = rnd.pick(idx)
-        if (r.halfWidth[s] < 2.5) continue
-        this.addBoat('fishing', { river: ri, s, dir: rnd.chance(0.5) ? 1 : -1, lane: rnd.range(-0.5, 0.5), x: 0, z: 0, y: 0, a: 0, speed: rnd.range(0.4, 1.2) })
-        fishing++
-      }
-      if (big)
-        for (let i = 0; i < Math.min(MAX_PASSENGER - passenger, Math.ceil(idx.length / 40)); i++) {
-          const dir = rnd.chance(0.5) ? 1 : -1
-          this.addBoat('passenger', { river: ri, s: rnd.pick(idx), dir, lane: dir * 0.35, x: 0, z: 0, y: 0, a: 0, speed: rnd.range(1.6, 2.6) })
-          passenger++
-        }
+    let river = 0
+    let lake = 0
+    const riverBoat = (kind: Boat['kind'], ri: number, s: number, speed: number, lane: number) => {
+      this.addBoat(kind, { river: ri, s, dir: lane >= 0 ? 1 : -1, lane, x: 0, z: 0, y: 0, a: 0, speed })
+      river++
     }
-    /* 城中河渠（秦淮、苏州水巷）：乌篷客船沿河来回 */
+    /* 江河、运河 */
+    // 离焦点最近的水道先配船（名额有限时，眼前的运河、小河不被远处的大江占光）
+    const near = rivers
+      .map((r, ri) => {
+        const idx: number[] = []
+        let dmin = Infinity
+        for (let s = 0; s < r.pts.length; s++) {
+          const d = Math.hypot(r.pts[s][0] - focus.x, r.pts[s][1] - focus.z)
+          if (d < RANGE) idx.push(s)
+          dmin = Math.min(dmin, d)
+        }
+        return { ri, idx, dmin }
+      })
+      .filter((o) => o.idx.length)
+      .sort((a, b) => a.dmin - b.dmin)
+    for (const { ri, idx } of near) {
+      if (river >= MAX_RIVER_BOATS) break
+      const r = rivers[ri]
+      const canal = r.def.id.includes('canal')
+      const hw = r.halfWidth[idx[idx.length >> 1]]
+      const n = Math.min(MAX_RIVER_BOATS - river, Math.ceil(idx.length / (canal ? 18 : hw >= 4.5 ? 16 : 24)))
+      for (let i = 0; i < n; i++) {
+        const s = rnd.pick(idx)
+        if (r.halfWidth[s] < 2.2) continue
+        const u = rnd.next()
+        const lane = rnd.chance(0.5) ? rnd.range(0.25, 0.5) : -rnd.range(0.25, 0.5)
+        if (canal) riverBoat(u < 0.6 ? 'cargo' : 'passenger', ri, s, rnd.range(1.0, 1.8), lane)
+        else if (hw >= 4.5) riverBoat(u < 0.42 ? 'cargo' : u < 0.72 ? 'passenger' : 'fishing', ri, s, u < 0.72 ? rnd.range(1.4, 2.4) : rnd.range(0.4, 1.0), lane)
+        else if (r.halfWidth[s] >= 3) riverBoat(u < 0.65 ? 'fishing' : u < 0.9 ? 'cargo' : 'passenger', ri, s, u < 0.65 ? rnd.range(0.4, 1.0) : rnd.range(1.0, 1.8), lane)
+        else riverBoat('fishing', ri, s, rnd.range(0.4, 1.0), lane)
+      }
+    }
+    /* 城中河渠（秦淮、苏州水巷）：客船与漕船来回 */
     for (const lm of this.ctx.landmarks.landmarks) {
       if (Math.hypot(lm.x - focus.x, lm.z - focus.z) > RANGE) continue
       for (const op of lm.def.terrainModifier ?? []) {
-        if (op.t !== 'canal' || passenger >= MAX_PASSENGER + 4) continue
+        if (op.t !== 'canal' || op.w < 1.8 || river >= MAX_RIVER_BOATS) continue
         const path = op.pts.map(([px, pz]) => [lm.x + px, lm.z + pz] as [number, number])
         let len = 0
         for (let i = 1; i < path.length; i++) len += Math.hypot(path[i][0] - path[i - 1][0], path[i][1] - path[i - 1][1])
         const n = Math.max(1, Math.round(len / 40))
         for (let i = 0; i < n; i++) {
-          this.addBoat(i % 2 ? 'fishing' : 'passenger', { river: -1, s: rnd.range(0, len), dir: rnd.chance(0.5) ? 1 : -1, lane: 0, x: path[0][0], z: path[0][1], y: lm.level + 1, a: 0, speed: rnd.range(0.8, 1.4) })
+          this.addBoat(i % 3 === 2 ? 'cargo' : i % 2 ? 'fishing' : 'passenger', { river: -1, s: rnd.range(0, len), dir: rnd.chance(0.5) ? 1 : -1, lane: 0, x: path[0][0], z: path[0][1], y: lm.level + 1, a: 0, speed: rnd.range(0.8, 1.4) })
           this.boats[this.boats.length - 1].path = path
-          passenger++
+          river++
         }
       }
     }
-    /* 名胜里的湖（西湖这样手工营造的）：湖心几条渔舟，大湖再加一条画舫 */
+    /* 湖：按面积定渔舟数；大湖加一两条客船 */
+    const placeInLake = (cx: number, cz: number, rx: number, rz: number, cos: number, sin: number, kind: Boat['kind'], y?: number): boolean => {
+      for (let t = 0; t < 12; t++) {
+        const a = rnd.range(0, Math.PI * 2)
+        const f = Math.sqrt(rnd.next()) * 0.8
+        const u = Math.cos(a) * rx * f
+        const v = Math.sin(a) * rz * f
+        const x = cx + u * cos - v * sin
+        const z = cz + u * sin + v * cos
+        if (!this.lakeAt(x, z)) continue
+        const c = this.ctx.terrain.column(Math.floor(x), Math.floor(z))
+        this.addBoat(kind, { river: -1, s: 0, dir: 1, lane: 0, x, z, y: y ?? c.waterY + 1, a: rnd.range(0, 6.28), speed: kind === 'fishing' ? rnd.range(0.3, 0.7) : 0.9 })
+        lake++
+        return true
+      }
+      return false
+    }
+    for (const lk of this.ctx.lakes.lakes) {
+      if (Math.hypot(lk.x - focus.x, lk.z - focus.z) > RANGE + Math.max(lk.rx, lk.rz)) continue
+      const area = Math.PI * lk.rx * lk.rz
+      const nF = Math.max(1, Math.min(10, Math.round(area / 350)))
+      for (let i = 0; i < nF && lake < MAX_LAKE_BOATS; i++) placeInLake(lk.x, lk.z, lk.rx, lk.rz, lk.cos, lk.sin, 'fishing')
+      const nP = area > 6000 ? 2 : area > 2500 ? 1 : 0
+      for (let i = 0; i < nP; i++) placeInLake(lk.x, lk.z, lk.rx * 0.6, lk.rz * 0.6, lk.cos, lk.sin, 'passenger')
+    }
+    /* 名胜里营造的湖（西湖……）：同样按面积 */
     for (const lm of this.ctx.landmarks.landmarks) {
       if (Math.hypot(lm.x - focus.x, lm.z - focus.z) > RANGE) continue
       for (const op of lm.def.terrainModifier ?? []) {
         if (op.t !== 'lake') continue
-        const n = Math.min(MAX_FISHING - fishing, Math.max(1, Math.round((op.rx * op.rz) / 90)))
-        for (let i = 0; i < n; i++) {
-          const a = rnd.range(0, Math.PI * 2)
-          const f = rnd.range(0, 0.6)
-          this.addBoat('fishing', { river: -1, s: 0, dir: 1, lane: 0, x: lm.x + op.x + Math.cos(a) * op.rx * f, z: lm.z + op.z + Math.sin(a) * op.rz * f, y: lm.level + 1, a: rnd.range(0, 6.28), speed: rnd.range(0.3, 0.7) })
-          fishing++
-        }
-        if (op.rx >= 12 && op.rz >= 10 && passenger < MAX_PASSENGER) {
-          this.addBoat('passenger', { river: -1, s: 0, dir: 1, lane: 0, x: lm.x + op.x, z: lm.z + op.z, y: lm.level + 1, a: rnd.range(0, 6.28), speed: 0.9 })
-          passenger++
-        }
+        const area = Math.PI * op.rx * op.rz
+        const c = Math.cos(op.rot ?? 0)
+        const sn = Math.sin(op.rot ?? 0)
+        const nF = Math.max(1, Math.min(6, Math.round(area / 150)))
+        for (let i = 0; i < nF && lake < MAX_LAKE_BOATS; i++) placeInLake(lm.x + op.x, lm.z + op.z, op.rx, op.rz, c, sn, 'fishing', lm.level + 1)
+        if (area > 500) placeInLake(lm.x + op.x, lm.z + op.z, op.rx * 0.5, op.rz * 0.5, c, sn, 'passenger', lm.level + 1)
       }
     }
-    /* 湖：几条渔舟在湖心附近漂 */
-    for (let tries = 0; tries < 60 && fishing < MAX_FISHING; tries++) {
-      const x = focus.x + rnd.range(-300, 300)
-      const z = focus.z + rnd.range(-300, 300)
-      const c = this.ctx.terrain.column(Math.floor(x), Math.floor(z))
-      if ((c.waterKind !== WaterKind.Lake && c.waterKind !== WaterKind.Pond) || c.waterY < c.height + 1) continue
-      this.addBoat('fishing', { river: -1, s: 0, dir: 1, lane: 0, x, z, y: c.waterY + 1, a: rnd.range(0, 6.28), speed: rnd.range(0.3, 0.8) })
-      fishing++
-    }
-    /* 海：沿岸深水处，福船顺着海岸线缓缓驶过 */
-    let ships = 0
-    for (let tries = 0; tries < 90 && ships < MAX_SHIPS; tries++) {
+    /* 海：真实海域里沿岸而行——大船为主，一两条海上渔船 */
+    let sea = 0
+    for (let tries = 0; tries < 120 && sea < MAX_SHIPS + 2; tries++) {
       const a = rnd.range(0, Math.PI * 2)
       const d = rnd.range(60, 360)
       const x = focus.x + Math.cos(a) * d
@@ -525,10 +561,10 @@ export class LifeSystem {
       if (!this.deepSea(x, z)) continue
       const land = this.landDir(x, z)
       if (!land) continue
-      // 岸在一侧：沿岸而行
       const h = Math.atan2(land[1], land[0]) + (rnd.chance(0.5) ? Math.PI / 2 : -Math.PI / 2)
-      this.addBoat('ship', { river: -1, s: 0, dir: 1, lane: 0, x, z, y: SEA_LEVEL + 1, a: h, speed: rnd.range(2.2, 3.4) })
-      ships++
+      const kind: Boat['kind'] = sea < MAX_SHIPS ? 'ship' : 'seaFisher'
+      this.addBoat(kind, { river: -1, s: 0, dir: 1, lane: 0, x, z, y: SEA_LEVEL + 1, a: h, speed: kind === 'ship' ? rnd.range(2.2, 3.4) : rnd.range(1.2, 2) })
+      sea++
     }
   }
 
@@ -624,20 +660,20 @@ export class LifeSystem {
       } else {
         const nx = b.x + Math.cos(b.a) * b.speed * dt
         const nz = b.z + Math.sin(b.a) * b.speed * dt
-        const ahead = b.kind === 'ship' ? 14 : 4
-        const okAhead = b.kind === 'ship' ? this.deepSea(nx + Math.cos(b.a) * ahead, nz + Math.sin(b.a) * ahead) : this.lakeAt(nx + Math.cos(b.a) * ahead, nz + Math.sin(b.a) * ahead)
+        const ahead = b.kind === 'ship' ? 14 : b.kind === 'seaFisher' ? 8 : 4
+        const okAhead = b.kind === 'ship' || b.kind === 'seaFisher' ? this.deepSea(nx + Math.cos(b.a) * ahead, nz + Math.sin(b.a) * ahead) : this.lakeAt(nx + Math.cos(b.a) * ahead, nz + Math.sin(b.a) * ahead)
         if (okAhead) {
           b.x = nx
           b.z = nz
-        } else b.a += (b.kind === 'ship' ? 0.6 : 1.2) * dt * 4
+        } else b.a += (b.kind === 'ship' ? 0.6 : 1.0) * dt * 4
         if (b.kind === 'fishing') b.a += Math.sin(time * 0.2 + b.phase) * dt * 0.2
       }
-      const roll = Math.sin(time * 1.3 + b.phase) * (b.kind === 'ship' ? 0.025 : 0.05)
+      const roll = Math.sin(time * 1.3 + b.phase) * (b.kind === 'ship' ? 0.025 : b.kind === 'cargo' ? 0.03 : 0.05)
       const pitch = Math.sin(time * 0.9 + b.phase * 2) * 0.02
       const bob = Math.sin(time * 1.7 + b.phase) * 0.06
       this.q.setFromEuler(this.e.set(roll, -b.a, pitch, 'YXZ'))
       // 吃水：船底略低于水面
-      b.mesh.matrix.compose(this.v.set(b.x, b.y - (b.kind === 'ship' ? 1.3 : 0.4) + bob, b.z), this.q, this.s.set(1, 1, 1))
+      b.mesh.matrix.compose(this.v.set(b.x, b.y - (b.kind === 'ship' ? 1.3 : b.kind === 'seaFisher' ? 0.8 : b.kind === 'cargo' ? 0.55 : 0.4) + bob, b.z), this.q, this.s.set(1, 1, 1))
       b.mesh.matrixWorldNeedsUpdate = true
     }
   }
