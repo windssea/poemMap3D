@@ -81,7 +81,7 @@ function initial(): AppState {
     tourState: { active: false, paused: false, region: '', stopName: '', poemId: null, round: 0, index: 0, total: 0, settings: DEFAULT_TOUR_SETTINGS },
     trailState: { poet: null, picking: false, phase: 'done', prog: 0, verseIdx: -1 },
     ui: { ambienceOpen: false, hidden: false, tourSettingsOpen: false, soundOpen: false },
-    autoCamera: read<string>('shac', (v) => v === '0' || v === '1', '1') !== '0',
+    autoCamera: read<string>('shac', (v) => v === '0' || v === '1', '0') === '1',
     sound: read<SoundMode>('shsd', (v) => (SOUND_MODES as readonly string[]).includes(v), 'off'),
     debug: { chunks: params.has('debug'), terrain: params.has('debug') },
   }

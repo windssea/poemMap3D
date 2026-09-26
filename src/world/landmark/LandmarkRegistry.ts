@@ -53,7 +53,8 @@ export class LandmarkRegistry {
     const defs = [...LANDMARK_CATALOG, ...planSettlements(anchors, LANDMARK_CATALOG, (lng, lat) => P.project(lng, lat))]
     defs.forEach((def, index) => {
       const c = P.project(def.coordinate.lng, def.coordinate.lat)
-      const [x, z] = this.clearOfCities(def, ...this.clearOfWater(def, ...this.clearOfRivers(def, Math.round(c.x + (def.offset?.[0] ?? 0)), Math.round(c.z + (def.offset?.[1] ?? 0)), baseTerrain), baseTerrain))
+      let [x, z] = this.clearOfCities(def, ...this.clearOfWater(def, ...this.clearOfRivers(def, Math.round(c.x + (def.offset?.[0] ?? 0)), Math.round(c.z + (def.offset?.[1] ?? 0)), baseTerrain), baseTerrain))
+      if (def.levelMode === 'summit') [x, z] = this.findSummit(baseTerrain, x, z)
       const level = (def.levelMode === 'summit' ? this.summitLevel(baseTerrain, x, z) : this.baseLevel(baseTerrain, x, z, !def.terrainModifier?.some((o) => o.t === 'hill'))) + (def.levelDy ?? 0)
       const lm: ResolvedLandmark = {
         index,
@@ -187,6 +188,31 @@ export class LandmarkRegistry {
         if (c < bestCost) {
           bestCost = c
           best = [cx, cz]
+        }
+      }
+    return best
+  }
+
+  /**
+   * 山巅：以山为名的地点（荆门山、天门山……）坐标常落在两山夹江的江心；在附近 28 格内找最高的干地，
+   * 亭子就立在那座山头上
+   */
+  private findSummit(t: TerrainManager, x: number, z: number): [number, number] {
+    const dry = (cx: number, cz: number) => {
+      const c = t.column(cx, cz)
+      return (c.waterY < 0 || c.height >= c.waterY) && c.waterDist > 2
+    }
+    const c0 = t.column(x, z)
+    if (dry(x, z) && c0.waterDist > 6) return [x, z]
+    let best: [number, number] = [x, z]
+    let bh = -Infinity
+    for (let dz = -28; dz <= 28; dz += 2)
+      for (let dx = -28; dx <= 28; dx += 2) {
+        if (dx * dx + dz * dz > 28 * 28 || !dry(x + dx, z + dz)) continue
+        const h = t.column(x + dx, z + dz).height - Math.hypot(dx, dz) * 0.05
+        if (h > bh) {
+          bh = h
+          best = [x + dx, z + dz]
         }
       }
     return best

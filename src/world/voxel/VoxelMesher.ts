@@ -529,6 +529,19 @@ export function meshVolume(vol: VoxelVolume, opts: MesherOptions = {}): MeshResu
               if (reg.liquid[nb] || reg.occludes[nb]) skip |= 1 << f
             }
             if (skip !== 0b111111) emitBox(x, y, z, [0, 0, 0, 16, topH, 16], id, st, buf, skip, extra, rgb)
+            /* 水位台阶：本格是满格水、旁边是顶层水（水面低 2/16）——侧面这两格高的缝补一条水帘，不透出一道缝 */
+            if (full && !falling) {
+              let strip = 0b111111
+              for (let f = 0; f < 6; f++) {
+                const { axis, sign } = boxFaces[f]
+                if (axis === 1) continue
+                const nrm = [0, 0, 0]
+                nrm[axis] = sign
+                const nb = at(x + nrm[0], y + nrm[1], z + nrm[2]) & 255
+                if (reg.liquid[nb] && !reg.liquid[at(x + nrm[0], y + 1, z + nrm[2]) & 255] && !reg.occludes[at(x + nrm[0], y + 1, z + nrm[2]) & 255]) strip &= ~(1 << f)
+              }
+              if (strip !== 0b111111) emitBox(x, y, z, [0, 14, 0, 16, 16, 16], id, st, buf, strip, extra, rgb)
+            }
             break
           }
           case BlockShape.CUSTOM_VOXEL: {
