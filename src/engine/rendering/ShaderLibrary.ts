@@ -36,6 +36,7 @@ uniform float uSnow;
 uniform float uNight;
 uniform float uWet;
 uniform float uSaturation;
+uniform float uFogOn;
 uniform vec3 uAutumnA;
 uniform vec3 uAutumnB;
 uniform vec3 uAutumnC;
@@ -69,9 +70,16 @@ vec3 seasonTint(vec3 tintSrgb, float tclass, vec3 wpos) {
 }
 `
 
+/**
+ * 顶点 AO（0–3）只换成环境遮蔽强度，不改网格里的等级。
+ * 0.80 / 0.88 / 0.95 / 1：缝、檐下、树冠里仍看得出，但不再把颜色乘没。
+ * uAoStrength 0 时等于不遮蔽，供光照调试对照。
+ */
 export const GLSL_AO = /* glsl */ `
+uniform float uAoStrength;
 float aoCurve(float ao) {
-  return ao < 0.5 ? 0.52 : ao < 1.5 ? 0.68 : ao < 2.5 ? 0.84 : 1.0;
+  float shaped = ao < 0.5 ? 0.80 : ao < 1.5 ? 0.88 : ao < 2.5 ? 0.95 : 1.0;
+  return mix(1.0, shaped, uAoStrength);
 }
 `
 
@@ -87,14 +95,16 @@ vec3 applySnow(vec3 col, vec3 wnormal, vec3 wpos, vec3 snowColor, float climate)
 `
 
 /**
- * 面向明暗（方块世界的体积感）：顶面最亮，东西侧面、南北侧面依次暗一档，底面最暗。
- * 阴天、背光、阴影里 Lambert 各面几乎一样亮，块面糊成一片；乘上这一档，楼阁山体的形体就立住了。
+ * 方块体积感。直射光已由 Lambert 的 NdotL 区分受光面，这里只作较轻的一档，
+ * 并且只乘间接光（见方块 / 覆盖图材质），避免和太阳再压一次。
+ * 顶 1，东西侧 0.94，南北侧 0.88，底 0.84。只乘间接光。uFaceStrength 0 时各面一样。
  */
 export const GLSL_FACE_SHADE = /* glsl */ `
+uniform float uFaceStrength;
 float faceShade(vec3 n) {
   vec3 a = abs(n);
-  if (a.y >= a.x && a.y >= a.z) return n.y > 0.0 ? 1.0 : 0.6;
-  return a.x > a.z ? 0.87 : 0.79;
+  float s = (a.y >= a.x && a.y >= a.z) ? (n.y > 0.0 ? 1.0 : 0.84) : (a.x > a.z ? 0.94 : 0.88);
+  return mix(1.0, s, uFaceStrength);
 }
 `
 
@@ -110,18 +120,30 @@ float valleyMist(vec3 w) {
   // 注视处清楚，越过注视点往远处才一层层起岚
   float d = length(w - cameraPosition);
   float low = 1.0 - smoothstep(uMistY - 4.0, uMistY + 22.0, w.y);
-  return uMist * low * smoothstep(uMistNear * 1.1, uMistNear * 3.2 + 120.0, d);
+  return uMist * uFogOn * low * smoothstep(uMistNear * 2.6, uMistNear * 5.4 + 280.0, d);
 }
 `
 
-/** 边缘雾：地图四边与离岸远海渐隐入雾（取样雾图） */
+/** 边缘雾：地图四边与离岸远海渐隐入雾（取样雾图）；极远边带向地平线天色收敛，不出灰白墙 */
 export const GLSL_EDGE_FOG = /* glsl */ `
 uniform sampler2D uFogMap;
 uniform vec4 uFogRect;
+uniform vec3 uHorizonColor;
+/** 贴图边/越界的像素占比：0 内陆 → 1 极远边带（雾图 band 内 + 矩形外） */
+float edgeBandK(vec2 uv) {
+  vec2 c = clamp(uv, vec2(0.0), vec2(1.0));
+  vec2 b = min(c, 1.0 - c);
+  return 1.0 - smoothstep(0.015, 0.09, min(b.x, b.y));
+}
 float edgeFog(vec3 w) {
   vec2 uv = (w.xz - uFogRect.xy) / uFogRect.zw;
-  if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) return 1.0;
-  return texture2D(uFogMap, uv).r;
+  if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) {
+    // 出图（境外海面）：按越界的世界格距离渐变到 1，不再一刀切全雾
+    vec2 d = max(max(-uv, vec2(0.0)), uv - 1.0);
+    vec2 wl = d * uFogRect.zw;
+    return smoothstep(0.0, 480.0, max(wl.x, wl.y)) * uFogOn;
+  }
+  return texture2D(uFogMap, uv).r * uFogOn;
 }
 `
 
@@ -129,5 +151,19 @@ export const GLSL_DESATURATE = /* glsl */ `
 vec3 desaturate(vec3 c, float s) {
   float l = dot(c, vec3(0.299, 0.587, 0.114));
   return mix(vec3(l), c, s);
+}
+`
+
+/**
+ * 雾混合系数伪彩色（Phase 0 定位中景是否被过早雾染）：
+ * 蓝 0 → 黄 0.5 → 红 1。调试视图 uDebugView = 5 时直接把系数画在屏幕上。
+ */
+export const GLSL_FOG_HEAT = /* glsl */ `
+vec3 fogHeat(float f) {
+  f = clamp(f, 0.0, 1.0);
+  vec3 cool = vec3(0.12, 0.25, 0.85);
+  vec3 warm = vec3(0.95, 0.85, 0.35);
+  vec3 hot = vec3(0.9, 0.25, 0.15);
+  return f < 0.5 ? mix(cool, warm, f * 2.0) : mix(warm, hot, (f - 0.5) * 2.0);
 }
 `

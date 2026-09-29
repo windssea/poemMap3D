@@ -22,6 +22,7 @@ import { RenderPipeline } from '../rendering/RenderPipeline'
 import { SceneManager } from '../rendering/SceneManager'
 import { ShadowManager } from '../rendering/ShadowManager'
 import { createSharedUniforms } from '../rendering/SharedUniforms'
+import { defaultLighting, type LightingTweaks } from '../rendering/LightingDebug'
 import { EventBus } from './EventBus'
 import type { FrameContext } from './FrameContext'
 import { RenderLoop } from './RenderLoop'
@@ -75,6 +76,9 @@ export class Engine {
   private readonly loop: RenderLoop
   private hoverPending: { x: number; y: number } | null = null
   private ready = false
+  /** 光照调试。默认就是平衡后的白天参数，滑条只做对照 */
+  readonly lighting: LightingTweaks
+  private shadowOn: boolean
 
   constructor(
     private readonly container: HTMLElement,
@@ -85,6 +89,8 @@ export class Engine {
     this.renderer = new RendererManager(container, q.pixelRatio)
     this.materials = new MaterialLibrary(this.shared, q.anisotropy)
     this.shadows = new ShadowManager(this.renderer.renderer, q.shadowSize)
+    this.lighting = defaultLighting(q.shadows)
+    this.shadowOn = q.shadows
     this.shadows.setEnabled(q.shadows, q.shadowSize, q.shadowCascades)
     this.scene.attach('effects', this.trail.group)
     this.trail.setResolution(this.renderer.width * this.renderer.renderer.getPixelRatio(), this.renderer.height * this.renderer.renderer.getPixelRatio())
@@ -122,7 +128,8 @@ export class Engine {
     // 衡、高：软阴影（边缘有半影，不再是一刀切的锯齿）
     this.renderer.renderer.shadowMap.type = THREE.PCFShadowMap
     this.renderer.onResize((w, h) => this.pipeline.setSize(w, h))
-    this.env = new EnvironmentManager(this.shared, this.scene, this.shadows, this.renderer.renderer, { time: this.opts.time, season: this.opts.season, weather: this.opts.weather }, this.world.waterfalls())
+    this.env = new EnvironmentManager(this.shared, this.scene, this.shadows, this.renderer.renderer, this.camera, { time: this.opts.time, season: this.opts.season, weather: this.opts.weather }, this.world.waterfalls())
+    this.env.lighting = this.lighting
     this.env.setQuality(q.particles)
     this.raycast = new RaycastSystem(this.world.world, this.world.sampler)
     this.hover = new HoverSystem(this.renderer.canvas)
@@ -157,6 +164,8 @@ export class Engine {
       this.pipeline.setQuality(q)
       this.pipeline.setSize(this.renderer.width, this.renderer.height)
       this.renderer.renderer.shadowMap.type = THREE.PCFShadowMap
+      this.lighting.shadow = p.shadows
+      this.shadowOn = p.shadows
       this.shadows.setEnabled(p.shadows, p.shadowSize, p.shadowCascades)
       this.world.setQuality(p)
       this.env.setQuality(p.particles)
@@ -186,6 +195,7 @@ export class Engine {
     const cam = this.camera.camera
     const pose = this.camera.effective
     this.world.update(dt, cam, pose.target, pose.distance, this.camera.destination)
+    this.applyDebugWorld()
     this.env.update(dt, time, cam, pose.target, pose.distance, this.renderer.renderer.getPixelRatio())
     this.trail.update(time)
     this.lanterns.update(dt, time, pose.target, pose.distance, this.shared.uNight.value)
@@ -204,6 +214,8 @@ export class Engine {
         bk.t = 5
       }
     }
+    this.pipeline.setIsolated(this.lighting.view !== 'final')
+    this.pipeline.setAoScale(this.lighting.ao)
     this.pipeline.setLight(this.shared.uNight.value, (1 - this.shared.uNight.value) * (1 - Math.min(1, Math.max(0, (sunY - 0.3) / 0.35))))
     this.life.update(dt, time, pose.target, pose.distance, this.shared.uNight.value, Math.min(1, Math.max(0, this.shared.uSunDir.value.y * 2)))
     if (this.hoverPending && this.loop.frame % 3 === 0) {
@@ -271,6 +283,43 @@ export class Engine {
   }
   setThemeFog(k: number): void {
     this.env.fog.extra = k
+  }
+
+  setLighting(patch: Partial<LightingTweaks>): void {
+    Object.assign(this.lighting, patch)
+    this.syncShadow()
+  }
+
+  resetLighting(): void {
+    Object.assign(this.lighting, defaultLighting(this.quality.preset.shadows))
+    this.syncShadow()
+  }
+
+  /** 阴影开关真正关掉级联灯。无光的调试视图不投影，省掉一轮阴影通道 */
+  private syncShadow(): void {
+    const L = this.lighting
+    const unlit = L.view === 'albedo' || L.view === 'ao' || L.view === 'face' || L.view === 'fog' || L.world === 'none'
+    const on = L.shadow && L.sun > 0.001 && !unlit
+    if (on === this.shadowOn) return
+    this.shadowOn = on
+    const p = this.quality.preset
+    this.shadows.setEnabled(on, p.shadowSize, on ? p.shadowCascades : 1)
+  }
+
+  /**
+   * Phase 0 调试：按 lighting.world 保留哪一层世界几何。'all' 时完全不干预，
+   * 其余模式在 world.update 之后逐帧强制，盖过流式加载的 show/hide；全国覆盖图跟远景一起显隐。
+   */
+  private applyDebugWorld(): void {
+    const mode = this.lighting.world
+    if (mode === 'all') {
+      // 从调试模式退回时恢复区块与覆盖图的正常可见性
+      this.world.chunks.restoreVisibility()
+      this.world.overview.group.visible = true
+      return
+    }
+    this.world.chunks.applyTierVisibility((tier) => mode === 'near' ? tier === 1 : mode === 'far' && tier !== 1)
+    this.world.overview.group.visible = mode === 'far'
   }
 
   /** 诗人足迹光带：返回各站位置与在线上的进度位置 */

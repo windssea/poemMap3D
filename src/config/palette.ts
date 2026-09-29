@@ -26,7 +26,7 @@ export const MaterialTokens = {
   dirt: ['#9a7550', '#8a6646', '#a8825b', '#7b5b3e'],
   // 石青山体：岩层偏蓝灰（千里江山图的青绿山水）
   stone: ['#6f858c', '#7b9096', '#62777e', '#8a9ba0'],
-  rock: ['#4a5e66', '#56696f', '#3f525a', '#6d7874'],
+  rock: ['#5E727D', '#465C63', '#738893', '#3D5360'],
   cobble: ['#6d7072', '#85898a', '#5a5d60', '#9a9d9c'],
   gravel: ['#88817a', '#9c958d', '#766f69', '#aaa39a'],
   sand: ['#dccfa0', '#d2c392', '#e5d9ae', '#c8b986'],
@@ -54,9 +54,9 @@ export const MaterialTokens = {
   reed: ['#b9a877', '#a8986a', '#c8b886', '#8f8158'],
   flowerRed: ['#c8443a', '#e0625a', '#7da15a', '#5a7c3d'],
   flowerYellow: ['#e8c34a', '#f2d86a', '#7da15a', '#5a7c3d'],
-  plaster: ['#ece6d6', '#e2dbc8', '#f4efe2', '#d7cfba'],
+  plaster: ['#E7E2D4', '#CFC7B9', '#F1EBDD', '#DDD6C6'],
   lacquer: ['#a43d32', '#943429', '#b24a3d', '#842d24'],
-  roofGray: ['#3f4a52', '#353f46', '#4a565e', '#2c353b'],
+  roofGray: ['#324656', '#2F3C4A', '#435364', '#1F2A35'],
   roofYellow: ['#b89040', '#a8823a', '#c49c4a', '#96742f'],
   roofGreen: ['#3f7d63', '#346c55', '#4a8b70', '#2c5e49'],
   stoneBrick: ['#8d8a82', '#7e7b74', '#9b9890', '#6f6c66'],
@@ -124,9 +124,9 @@ export type ShanshuiZoneKey = (typeof ShanshuiZones)[number]['key']
 
 /** 专用树叶色（与生物群系叠乘前的树种底色） */
 export const FoliageTokens = {
-  broad: '#5c8747',
-  pine: '#205338',
-  willow: '#91b364',
+  broad: '#6C9452',
+  pine: '#315D46',
+  willow: '#9CB468',
   bamboo: '#7ea351',
   grassTuft: '#8fb46a',
   /** 草地压向的灰黄绿（草不比树冠还绿） */
@@ -139,7 +139,7 @@ export const FoliageTokens = {
 export const SeasonTint = {
   spring: { grass: '#f4fff0', foliage: '#f2ffe6', autumn: 0.0, snow: 0 },
   summer: { grass: '#e6f2dc', foliage: '#dcecd2', autumn: 0.0, snow: 0 },
-  autumn: { grass: '#fff0c8', foliage: '#ffffff', autumn: 0.85, snow: 0 },
+  autumn: { grass: '#fff0c8', foliage: '#ffffff', autumn: 0.68, snow: 0 },
   winter: { grass: '#e8e4d8', foliage: '#c9ccc4', autumn: 0.55, snow: 1 },
 } as const
 
@@ -190,23 +190,40 @@ export const WeatherTint = {
   clear: { light: 1.0, fog: 1.0, saturation: 1.0 },
   rain: { light: 0.62, fog: 1.9, saturation: 0.72 },
   snow: { light: 0.8, fog: 1.7, saturation: 0.6 },
+  /** 雾：只把地平线拉近，不压暗日光，也不把天顶涂灰 */
+  mist: { light: 0.94, fog: 1.55, saturation: 0.9 },
   rainColor: '#a8b8c4',
   snowColor: '#ffffff',
+  /** 雨天往天空上罩的灰青，只混合，不替换时段色 */
+  skyRain: '#8FA3B0',
+  skySnow: '#C5D0D8',
+  skyMist: '#E3E0D4',
 } as const
 
-/** 天空 / 光照 —— 按时辰 */
+/**
+ * 天空三段色：顶、中、地平线。
+ * 镜头是俯看，看得见的天主要在地平线附近，所以中段青色必须靠近地平线，不能只放在天顶。
+ * 雾色跟地平线走，用来染远山，不拿来涂整片天。
+ * core / rim / halo 只画日轮。sun 是照到山上、屋上的平行光，不拿来涂整个天。
+ */
 export const SkyTokens = {
-  dawn: { top: '#94b0d0', horizon: '#f2dccb', sun: '#ffd6aa', ambientSky: '#d9dde6', ambientGround: '#b39c86', fog: '#ebe3da', cloud: '#fff1e6' },
-  day: { top: '#7aa8bd', horizon: '#f2ead8', sun: '#fff3e2', ambientSky: '#e4eef2', ambientGround: '#c6ab7c', fog: '#e8e4d6', cloud: '#ffffff' },
-  dusk: { top: '#8298b0', horizon: '#f2c38e', sun: '#ffb070', ambientSky: '#c4c8d6', ambientGround: '#a47f60', fog: '#e6c7a0', cloud: '#ffd9b8' },
-  night: { top: '#15254a', horizon: '#46597f', sun: '#c2d2ff', ambientSky: '#8093bd', ambientGround: '#3a4254', fog: '#36466a', cloud: '#5d6a88' },
+  // V3.2 Phase 2（晨）：三段/日轮/雾 → 任务书 §4 晨行 + §10.1 晨日轮 + §5 晨雾；方向/强度/曝光不动
+  dawn: { top: '#A2C6D7', mid: '#D4DFDA', horizon: '#F3DEC1', sun: '#F7D9AD', core: '#FFF2D0', rim: '#F7CF94', halo: '#F3D4AB', ambientSky: '#d9dde6', ambientGround: '#8E9D92', fog: '#D4D8D1', cloud: '#E4D8C8' },
+  // V3.2 Phase 1 实验：昼三段向任务书 §4 昼行靠拢（清透低饱和青蓝，不再灰白）；只动 top/mid/horizon
+  // Phase 1 第 2 组：昼雾色 §5 `#CBD7D4`（偏青灰而非白）；fog 同步任务书
+  day: { top: '#79B9D9', mid: '#BEDAE5', horizon: '#E6E8DB', sun: '#FFF3DC', core: '#FFFDF1', rim: '#FFF4D6', halo: '#F7EFD6', ambientSky: '#e4eef2', ambientGround: '#90A094', fog: '#CBD7D4', cloud: '#D5E2DC' },
+  // V3.2 Phase 2（暮 A｜夕照黄昏，用户已确认）：太阳低悬、暖色地平线、月亮隐藏（night=0，不画月亮）。
+  // 三段/日轮/雾 → 任务书 §4 暮A 侧行 + §10.1 暮A 日轮；sun/ambient 保持原方向逻辑，只换颜色
+  dusk: { top: '#7089AB', mid: '#C7A39E', horizon: '#F2C49A', sun: '#F0AF78', core: '#FFDCAB', rim: '#F0A16A', halo: '#D77E69', ambientSky: '#B4C6D0', ambientGround: '#8A8D8B', fog: '#D4BDB0', cloud: '#E2C4AE' },
+  // 夜的日轮色只用于落到地平线时的过渡，夜里不画太阳
+  night: { top: '#1D2F4A', mid: '#364B68', horizon: '#6A788C', sun: '#A5BBD8', core: '#8C5A48', rim: '#6E4038', halo: '#5C3834', ambientSky: '#8093bd', ambientGround: '#526170', fog: '#516175', cloud: '#3C5068' },
 } as const
 
 /** 水色：浅 → 中 → 深 */
 export const WaterTokens = {
-  shallow: '#6fa89a',
-  mid: '#3f7f94',
-  deep: '#263e47',
+  shallow: '#9FCFC8',
+  mid: '#74B5B7',
+  deep: '#4E8F98',
   foam: '#f2ead8',
   sky: '#c9dde4',
 } as const

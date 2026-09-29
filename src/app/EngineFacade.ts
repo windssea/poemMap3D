@@ -1,7 +1,9 @@
+import type { FlightOptions } from '../engine/camera/FlightController'
 import type * as THREE from 'three'
 import type { Engine } from '../engine/core/Engine'
 import type { FrameContext } from '../engine/core/FrameContext'
 import type { Season, TimeOfDay, Weather } from '../engine/environment/types'
+import type { LightingTweaks } from '../engine/rendering/LightingDebug'
 import type { Quality } from '../engine/rendering/QualityManager'
 import type { TrailDirector, TrailPort } from '../features/poetTrail/TrailDirector'
 import type { TourPort, TourService } from '../features/tour/TourService'
@@ -24,6 +26,9 @@ export interface EngineFacade {
   showPoetTrail(poetId: string): void
 
   setQuality(level: Quality): void
+  setLighting(patch: Partial<LightingTweaks>): void
+  resetLighting(): void
+  lighting(): LightingTweaks
 
   /* —— 以下为 UI 需要的补充能力 —— */
   hidePoetTrail(): void
@@ -82,8 +87,8 @@ export class EngineFacadeImpl implements EngineFacade, TourPort, TrailPort {
     private readonly store: AppStore,
   ) {}
 
-  focusLandmark(id: string): void {
-    void this.engine.focusPlace(id)
+  focusLandmark(id: string, opts?: FlightOptions & { shot?: number }): void {
+    void this.engine.focusPlace(id, opts)
   }
 
   setTime(time: TimeOfDay): void {
@@ -124,6 +129,16 @@ export class EngineFacadeImpl implements EngineFacade, TourPort, TrailPort {
   setQuality(level: Quality): void {
     this.engine.setQuality(level)
     this.store.set({ quality: level })
+  }
+
+  setLighting(patch: Partial<LightingTweaks>): void {
+    this.engine.setLighting(patch)
+  }
+  resetLighting(): void {
+    this.engine.resetLighting()
+  }
+  lighting(): LightingTweaks {
+    return { ...this.engine.lighting }
   }
 
   flyToView(key: string): void {

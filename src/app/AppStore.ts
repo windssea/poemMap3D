@@ -55,6 +55,9 @@ export interface AppState {
 
 const read = <T,>(k: string, ok: (v: string) => boolean, d: T): T => {
   try {
+    /* 地址参数优先（?shs=… ?shw=… ?shm=…），没有才用上一次的选择 */
+    const p = params.get(k)
+    if (p !== null && ok(p)) return p as unknown as T
     const v = localStorage.getItem(k)
     return v !== null && ok(v) ? (v as unknown as T) : d
   } catch {
@@ -75,7 +78,7 @@ function initial(): AppState {
     panelState: 'none',
     cameraLevel: 'national',
     season: read<Season>('shs', (v) => ['spring', 'summer', 'autumn', 'winter'].includes(v), 'spring'),
-    weather: read<Weather>('shw', (v) => ['clear', 'rain', 'snow'].includes(v), 'clear'),
+    weather: read<Weather>('shw', (v) => ['clear', 'rain', 'snow', 'mist'].includes(v), 'clear'),
     time: read<TimeOfDay>('shm', (v) => ['dawn', 'day', 'dusk', 'night'].includes(v), 'day'),
     quality: (params.get('q') as Quality) || read<Quality>('shq', (v) => ['low', 'mid', 'high'].includes(v), undefined as unknown as Quality),
     tourState: { active: false, paused: false, region: '', stopName: '', poemId: null, round: 0, index: 0, total: 0, settings: DEFAULT_TOUR_SETTINGS },

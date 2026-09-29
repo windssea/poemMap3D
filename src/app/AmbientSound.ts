@@ -18,6 +18,7 @@ type Mix = Partial<Record<Layer, number>>
 function autoMix(season: Season, time: TimeOfDay, weather: Weather): Mix {
   if (weather === 'rain') return { rain: 0.55, wind: 0.14, stream: 0.08 }
   if (weather === 'snow') return { winter: 0.34, wind: 0.12 }
+  if (weather === 'mist') return { wind: 0.2, stream: 0.06 }
   const day = time === 'day' || time === 'dawn'
   const night = time === 'night'
   switch (season) {

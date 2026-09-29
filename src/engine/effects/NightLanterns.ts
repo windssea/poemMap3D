@@ -112,7 +112,7 @@ export class NightLanterns {
     this.sky = new THREE.InstancedMesh(g.paper, new THREE.MeshBasicMaterial({ vertexColors: true, fog: false, toneMapped: false }), SKY_N)
     this.skyFrame = new THREE.InstancedMesh(g.frame, new THREE.MeshBasicMaterial({ vertexColors: true, fog: true }), SKY_N)
     this.river = new THREE.InstancedMesh(lotusGeometry(), new THREE.MeshBasicMaterial({ vertexColors: true, fog: false, toneMapped: false }), RIVER_N)
-    const halo = new THREE.MeshBasicMaterial({ color: new THREE.Color(NightTokens.lanternGlow), transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })
+    const halo = new THREE.MeshBasicMaterial({ color: new THREE.Color(NightTokens.lanternGlow), transparent: true, opacity: 0.2, blending: THREE.AdditiveBlending, depthWrite: false, fog: false })
     this.glow = new THREE.InstancedMesh(new THREE.SphereGeometry(1.25, 10, 8), halo, SKY_N + RIVER_N)
     for (const m of [this.sky, this.skyFrame, this.river, this.glow]) {
       m.frustumCulled = false

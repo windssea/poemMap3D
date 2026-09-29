@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import type { AppServices } from './app/bootstrap'
 import { closedPops, useApp } from './app/AppStore'
 import { DebugPanel } from './devtools/DebugPanel'
+import { LightingDebugPanel } from './devtools/LightingDebugPanel'
 import { AmbienceControls } from './ui/AmbienceControls'
 import { Brand } from './ui/Brand'
 import { LabelLayer } from './ui/LabelLayer'
@@ -89,6 +90,7 @@ export function App() {
             <Toolbar />
           </div>
           <DebugPanel />
+          {import.meta.env.DEV && <LightingDebugPanel />}
           {hidden && <div style={{ position: 'fixed', inset: 0, zIndex: 9 }} onClick={() => services.store.set((s) => ({ ui: { ...s.ui, hidden: false } }))} />}
         </ServicesContext.Provider>
       )}

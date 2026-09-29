@@ -140,6 +140,7 @@ export class CameraController {
     }
     this.camera.position.copy(pos)
     this.camera.lookAt(this.resolved.target)
+    this.updateViewDir()
     this.updateLevel()
   }
 
@@ -164,5 +165,15 @@ export class CameraController {
   /** 当前生效的（已避山的）姿态 */
   get effective(): CameraPose {
     return this.resolved
+  }
+
+  /** 镜头朝向的单位向量（走当前姿态算，不依赖相机矩阵的更新时机） */
+  readonly viewDir = new THREE.Vector3()
+
+  private updateViewDir(): void {
+    const p = this.resolved
+    const cp = Math.cos(p.pitch)
+    // poseToPosition 的反推：镜头在 target 的 yaw/pitch 方向上，看回 target
+    this.viewDir.set(-Math.sin(p.yaw) * cp, -Math.sin(p.pitch), -Math.cos(p.yaw) * cp)
   }
 }

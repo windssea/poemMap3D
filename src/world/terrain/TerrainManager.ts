@@ -103,8 +103,7 @@ export class TerrainManager {
     const bump = this.nBump(x / 14, z / 14)
     h += d * amp + r * amp * 0.9 * smoothstep(3, 10, relief) + bump * (0.6 + 0.08 * amp)
     h = this.regional(x, z, h, relief)
-    /* 山体退让：起伏大的山地按 5 格一级做出台层（缓坡的平台 + 短陡坎），高崖不再一整面直上直下；
-       平台位置随低频噪声错开，不成一圈圈等高线 */
+    /* 山体退让：起伏大的山地按 7 格一级做出台层。 */
     if (relief > 5) {
       const w = 0.3 * smoothstep(6, 14, relief)
       const off = 3 * this.nMisc(x / 40 + 71, z / 40)
@@ -209,8 +208,30 @@ export class TerrainManager {
     /* 地标修改器（按注册顺序） */
     for (const m of this.modifiers) if (x >= m.minX && x <= m.maxX && z >= m.minZ && z <= m.maxZ) m.apply(col)
 
+    if (col.waterY < 0 || col.height > col.waterY + 1) col.height = this.xinchengHill(x, z, col.height)
+
     col.height = clamp(col.height, 1, WORLD_HEIGHT - 20)
     return col
+  }
+
+  /**
+   * 新城 (702, 330) 西侧的山：这一小片山嘴与杭州的谷地贴得太近，坡脚直接压着杭州西 hall 与新城亭台，
+   * 此前为安顿建筑做的「大退台直崖」实际效果仍很生硬。不再塑形——把整片山嘴顺势削低，收成寻常山包。
+   * 削低从矩形边缘渐入（边缘环上不动，不立新坎），到中心处把山峰收到六成半：
+   * 峰高 由 84 上下收到 65 上下，东侧缓缓过渡到 42–52 的河岸平地——一面再普通不过的山坡。
+   * 山脚的厅堂、亭台取整后的地形再落位，照旧不受影响。
+   */
+  private xinchengHill(x: number, z: number, h: number): number {
+    if (x < 636 || x > 706 || z < 258 || z > 328) return h
+    const dEdge = Math.min(x - 636, 706 - x, z - 258, 328 - z)
+    const mask = smoothstep(0, 24, dEdge)
+    if (mask <= 0) return h
+    let k = 1 - 0.45 * mask
+    /* 杭州的填谷盘（dist < 58 削到 40）北缘正压着这片山：盘缘到峰线这一段再收一档，
+       不让削低后的山肩与盘缘之间留一步直坎。 */
+    const dHang = Math.hypot(x - 741, z - 305)
+    if (dHang < 78) k *= 0.55 + 0.45 * smoothstep(56, 78, dHang)
+    return 40 + (h - 40) * k
   }
 
   /**

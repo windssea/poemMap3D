@@ -6,14 +6,14 @@ const DRIFT = 700
 const MIST = 240
 
 const DRIFT_COLORS: Record<Season, [string, string, number]> = {
-  spring: [MaterialTokens.blossom[0], MaterialTokens.blossomDeep[0], 1],
-  summer: [MaterialTokens.bambooStalk[2], MaterialTokens.bambooStalk[1], 0.45],
-  autumn: [AutumnTokens.maple, AutumnTokens.gold, 0.9],
-  winter: [MaterialTokens.snow[0], MaterialTokens.snow[1], 0.7],
+  spring: [MaterialTokens.blossom[0], MaterialTokens.blossomDeep[0], 0.6],
+  summer: [MaterialTokens.bambooStalk[2], MaterialTokens.bambooStalk[1], 0.26],
+  autumn: [AutumnTokens.maple, AutumnTokens.gold, 0.5],
+  winter: [MaterialTokens.snow[0], MaterialTokens.snow[1], 0.4],
 }
 
 /**
- * 粒子：春天飘花瓣、夏天飘竹叶、秋天飘枫叶（数量克制，下雨时减弱）；名胜瀑布潭口起水雾。
+ * 粒子：春天飘花瓣、夏天飘竹叶、秋天飘枫叶（数量克制、缓落摇曳、翻转飘散，下雨时减弱）；名胜瀑布潭口起水雾。
  */
 export class ParticleSystem {
   readonly group = new THREE.Group()
@@ -47,27 +47,40 @@ export class ParticleSystem {
         uniform float uPx;
         varying float vPick;
         varying float vOn;
+        varying float vRot;
         void main() {
           vOn = step(aSeed.w, uAmount);
           vPick = aSeed.z;
           float t = uTime * (0.5 + aSeed.z * 0.5);
-          float wx = uCenter.x + mod(aSeed.x * uBox + t * 3.0 - uCenter.x + uBox * 0.5, uBox) - uBox * 0.5 + sin(t + aSeed.y * 30.0) * 2.0;
-          float wz = uCenter.z + mod(aSeed.y * uBox + t * 1.5 - uCenter.z + uBox * 0.5, uBox) - uBox * 0.5;
-          float wy = uCenter.y + 40.0 - mod(aSeed.z * 60.0 + t * 2.2, 60.0);
+          // 缓慢翻转，正反方向交替
+          vRot = uTime * (0.3 + aSeed.y * 0.8) * (aSeed.z < 0.5 ? -1.0 : 1.0);
+          // 横向多频摇曳 + 缓慢漂移，纵向缓落并伴随轻微起伏
+          float wx = uCenter.x + mod(aSeed.x * uBox + t * 2.2 - uCenter.x + uBox * 0.5, uBox) - uBox * 0.5
+            + sin(t * 0.8 + aSeed.x * 40.0) * 3.0 + sin(t * 0.3 + aSeed.y * 24.0) * 2.0;
+          float wz = uCenter.z + mod(aSeed.y * uBox + t * 1.1 - uCenter.z + uBox * 0.5, uBox) - uBox * 0.5
+            + sin(t * 0.5 + aSeed.z * 30.0) * 2.0;
+          float wy = uCenter.y + 40.0 - mod(aSeed.z * 60.0 + t * (1.3 + aSeed.x * 1.2), 60.0)
+            + sin(t * 1.6 + aSeed.y * 36.0) * 0.9;
           vec4 mv = modelViewMatrix * vec4(wx, wy, wz, 1.0);
           gl_Position = projectionMatrix * mv;
-          gl_PointSize = vOn * 2.6 * uPx * 160.0 / max(6.0, -mv.z);
+          gl_PointSize = vOn * (1.7 + aSeed.y * 1.7) * uPx * 160.0 / max(6.0, -mv.z);
         }`,
       fragmentShader: /* glsl */ `
         uniform vec3 uColA;
         uniform vec3 uColB;
         varying float vPick;
         varying float vOn;
+        varying float vRot;
         void main() {
           if (vOn < 0.5) discard;
           vec2 q = gl_PointCoord - 0.5;
-          if (max(abs(q.x), abs(q.y)) > 0.3) discard;
-          gl_FragColor = vec4(vPick < 0.6 ? uColA : uColB, 0.95);
+          float c = cos(vRot);
+          float s = sin(vRot);
+          q = mat2(c, -s, s, c) * q;
+          float d = max(abs(q.x), abs(q.y));
+          if (d > 0.34) discard;
+          float soft = smoothstep(0.34, 0.16, d);
+          gl_FragColor = vec4(vPick < 0.6 ? uColA : uColB, mix(0.35, 0.9, soft));
           #include <colorspace_fragment>
         }`,
       transparent: true,

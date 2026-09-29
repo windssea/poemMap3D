@@ -483,6 +483,33 @@ export class ChunkManager {
     this.touch(rec)
   }
 
+  /**
+   * Phase 0 调试：按层强制显隐（tier 1 近景、2 远景、4 远景片），'all' 时不动。
+   * 只在网格已建（READY/VISIBLE）的记录上生效，不影响加载流水线；
+   * 每帧在 world.update 之后由 Engine 调用，盖过本帧的 show/hide。
+   */
+  applyTierVisibility(keep: (tier: ChunkTier) => boolean): void {
+    for (const tier of [1, 2, 4] as ChunkTier[]) {
+      const vis = keep(tier)
+      const map = this.mapOf(tier)
+      for (const rec of map.values()) {
+        if (rec.state !== ChunkState.VISIBLE && rec.state !== ChunkState.READY) continue
+        for (const m of rec.meshes) m.visible = vis
+      }
+    }
+  }
+
+  /** 退出调试模式时恢复：声称 VISIBLE 的重新显示，READY 的回到隐藏状态 */
+  restoreVisibility(): void {
+    for (const tier of [1, 2, 4] as ChunkTier[]) {
+      for (const rec of this.mapOf(tier).values()) {
+        if (rec.state !== ChunkState.VISIBLE && rec.state !== ChunkState.READY) continue
+        const vis = rec.state === ChunkState.VISIBLE
+        for (const m of rec.meshes) m.visible = vis
+      }
+    }
+  }
+
   private hide(rec: ChunkRecord): void {
     for (const m of rec.meshes) m.visible = false
     rec.state = ChunkState.READY

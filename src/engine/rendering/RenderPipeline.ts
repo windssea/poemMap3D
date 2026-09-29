@@ -21,8 +21,8 @@ const GradeShader = {
     uShadowTint: { value: new THREE.Vector3(0.94, 0.99, 1.05) },
     uHighTint: { value: new THREE.Vector3(1.04, 1.01, 0.95) },
     uStrength: { value: 0.55 },
-    uContrast: { value: 0.16 },
-    uVignette: { value: 0.55 },
+    uContrast: { value: 0.08 },
+    uVignette: { value: 0.34 },
     uGrain: { value: 0.012 },
   },
   vertexShader: /* glsl */ `
@@ -71,6 +71,10 @@ export class RenderPipeline {
   private quality: Quality = 'low'
   private night = -1
   private warm = -1
+  /** 非「完整」调试视图时关掉调色、泛光和屏幕空间 AO，避免把隔离结果再压暗 */
+  private isolated = false
+  /** 顶点 AO 滑条：屏幕空间 AO 跟着收，避免第二套遮蔽把刚抬起来的暗部压回去 */
+  aoScale = 1
 
   constructor(
     private readonly renderer: THREE.WebGLRenderer,
@@ -93,7 +97,7 @@ export class RenderPipeline {
       const ao = new GTAOPass(this.scene, this.camera, size.x, size.y)
       ao.output = GTAOPass.OUTPUT.Default
       // 屏幕空间 AO 只作低强度补充（主要的 AO 来自网格生成时的顶点 AO），半径小、强度低，不出黑边
-      ao.blendIntensity = 0.3
+      ao.blendIntensity = 0.14
       ao.updateGtaoMaterial({ radius: 1.2, distanceExponent: 2, thickness: 1, scale: 0.8, samples: 12, distanceFallOff: 1, screenSpaceRadius: false })
       ao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 5, rings: 2, samples: 12 })
       composer.addPass(ao)
@@ -123,10 +127,34 @@ export class RenderPipeline {
   /**
    * 按天色调泛光与调色：night 0 白天、1 深夜；warm 0 正午、1 晨暮（太阳低）。
    */
+  /** 调试视图不是「完整」时，后处理不再改亮度 */
+  setIsolated(on: boolean): void {
+    if (on === this.isolated) return
+    this.isolated = on
+    this.night = -1
+  }
+
+  setAoScale(scale: number): void {
+    if (Math.abs(scale - this.aoScale) < 0.001) return
+    this.aoScale = scale
+    this.night = -1
+  }
+
   setLight(night: number, warm: number): void {
     if (Math.abs(night - this.night) < 0.01 && Math.abs(warm - this.warm) < 0.01) return
     this.night = night
     this.warm = warm
+    if (this.isolated) {
+      if (this.bloom) this.bloom.strength = 0
+      if (this.ao) this.ao.blendIntensity = 0
+      if (this.grade) {
+        const u = this.grade.uniforms as Record<string, { value: number }>
+        u.uStrength.value = 0
+        u.uVignette.value = 0
+        u.uContrast.value = 0
+      }
+      return
+    }
     if (this.bloom) {
       this.bloom.strength = 0.1 + 0.24 * night
       this.bloom.threshold = 1.3 - 0.33 * night
@@ -137,9 +165,10 @@ export class RenderPipeline {
       ;(u.uShadowTint.value as THREE.Vector3).set(0.94 - 0.06 * night, 0.99 - 0.02 * night, 1.05 + 0.08 * night)
       ;(u.uHighTint.value as THREE.Vector3).set(1.04 + 0.05 * warm, 1.01 + 0.01 * warm, 0.95 - 0.06 * warm + 0.04 * night)
       u.uStrength.value = 0.5 + 0.2 * Math.max(night, warm)
-      u.uVignette.value = 0.5 + 0.35 * night
+      u.uVignette.value = 0.34 + 0.28 * night
+      u.uContrast.value = 0.08
     }
-    if (this.ao) this.ao.blendIntensity = 0.3 - 0.12 * night
+    if (this.ao) this.ao.blendIntensity = 0.14 * this.aoScale * (1 - 0.4 * night)
   }
 
   /** 旧接口 */

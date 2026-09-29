@@ -4,3 +4,5 @@ legacy/fonts/MaShanZheng-Regular.ttf
 shots/
 /example
 *.log
+/.openchamber
+/doc/lighting

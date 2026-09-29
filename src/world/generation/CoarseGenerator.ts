@@ -81,12 +81,12 @@ export function generateCoarseRegion(terrain: TerrainManager, landmarks: Landmar
   for (const p of placements) stamp(p.x, p.y, p.z, p.blocks)
   const R = MAX_TREE_RADIUS
   const list = [...trees.collect(x0 - C - R, z0 - C - R, X1 + R, Z1 + R), ...landmarks.treesNear(x0 - C - R, z0 - C - R, X1 + R, Z1 + R)]
-  // 远景片：树减四成（远山看的是山形与大片林色，不是一棵棵树）
-  for (const t of list) if ((((t.x * 73856093) ^ (t.z * 19349663)) >>> 0) % 10 >= 4) stamp(t.x, t.y, t.z, trees.cache.get(t.type, t.variant, t.height, t.slot, t.rotation).blocks)
+  // 远景保留整片林，不按树整棵抽掉。细枝在落格时凑不够就不成块。
+  for (const t of list) stamp(t.x, t.y, t.z, trees.cache.get(t.type, t.variant, t.height, t.slot, t.rotation).blocks)
 
   for (let k = 0; k < solid.length; k++) {
-    if (solid[k] >= 10) vol.data[k] = S(sid[k])
-    else if (leaf[k] + solid[k] >= 8 && leaf[k] >= 5 && !vol.data[k]) vol.data[k] = S(lid[k])
+    if (solid[k] >= 16) vol.data[k] = S(sid[k])
+    else if (leaf[k] >= 8 && !vol.data[k]) vol.data[k] = S(lid[k])
   }
   return { volume: vol, trees: list.length, structures: placements.length }
 }

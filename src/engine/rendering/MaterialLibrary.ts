@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { BlockRenderLayer } from '../../world/block/BlockDefinition'
-import { GLSL_AO, GLSL_BAYER, GLSL_DESATURATE, GLSL_EDGE_FOG, GLSL_ENV_UNIFORMS, GLSL_FACE_SHADE, GLSL_HASH, GLSL_MIST, GLSL_SEASON, GLSL_SNOW } from './ShaderLibrary'
+import { GLSL_AO, GLSL_BAYER, GLSL_DESATURATE, GLSL_EDGE_FOG, GLSL_ENV_UNIFORMS, GLSL_FACE_SHADE, GLSL_FOG_HEAT, GLSL_HASH, GLSL_MIST, GLSL_SEASON, GLSL_SNOW } from './ShaderLibrary'
 import type { SharedUniforms } from './SharedUniforms'
 import { createBlockTextureArray } from './TextureAtlas'
 import { GLSL_CLIMATE } from '../../world/climate/Climate'
@@ -26,18 +26,12 @@ varying vec3 vBWorld;
 varying vec3 vBNormal;
 `
 
-/** 雾之后再按边缘雾图混向雾色：地图四边、远海、海南以南渐隐 */
-const EDGE_FOG_FRAGMENT = (v: string) => `#ifdef USE_FOG
- { // 空气透视：远处褪色、减反差、偏向蓝灰雾色——远山像山水画里的远山，不是还数得清的一棵棵树
-   float apD = length(${v} - cameraPosition);
-   float ap = smoothstep(uMistNear * 1.3, uMistNear * 4.0 + 260.0, apD) * 0.6;
-   vec3 grey = vec3(dot(gl_FragColor.rgb, vec3(0.3, 0.59, 0.11)));
-   gl_FragColor.rgb = mix(gl_FragColor.rgb, mix(grey, fogColor, 0.45), ap);
- }
-#endif
-#include <fog_fragment>
+/** 雾之后再按边缘雾图混向雾色：地图四边、远海、海南以南渐隐；极远边带向地平线天色收敛 */
+const EDGE_FOG_FRAGMENT = (v: string) => `#include <fog_fragment>
 #ifdef USE_FOG
- gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, max(edgeFog(${v}), valleyMist(${v})));
+ vec2 fuv = (${v}.xz - uFogRect.xy) / uFogRect.zw;
+ vec3 edgeFogCol = mix(fogColor, uHorizonColor, edgeBandK(fuv));
+ gl_FragColor.rgb = mix(gl_FragColor.rgb, edgeFogCol, max(edgeFog(${v}), valleyMist(${v})));
 #endif`
 
 /**
@@ -60,6 +54,8 @@ uniform vec3 uSnowColor;
 uniform vec3 uWindow;
 uniform float uBare;
 uniform float uLitFar;
+uniform float uDebugView;
+uniform vec3 uSunDir;
 uniform sampler2D uBakeMap;
 uniform vec4 uBakeRect;
 /** 烘焙的天空可见度：范围外为 1 */
@@ -85,6 +81,7 @@ ${GLSL_SNOW}
 ${GLSL_DESATURATE}
 ${GLSL_EDGE_FOG}
 ${GLSL_MIST}
+${GLSL_FOG_HEAT}
 ${GLSL_FACE_SHADE}
 `
 
@@ -174,6 +171,7 @@ export class MaterialLibrary {
           '#include <map_fragment>',
           /* glsl */ `
           vec4 texel = texture(uBlockAtlas, vec3(vBlockUv.x, -vBlockUv.y, vBlockUv.z));
+          ${tier === 'near' ? '' : `texel.rgb = mix(texel.rgb, vec3(dot(texel.rgb, vec3(0.3, 0.59, 0.11))), 0.55);`}
           float tclass = mod(vFlags, 8.0);
           // 亮窗（暖色发光）的窗格：离远了平均成一片纸色，不让三像素一道的木棂在远处闪出摩尔纹
           if (mod(floor(vFlags / 8.0), 2.0) > 0.5 && mod(floor(vFlags / 32.0), 2.0) > 0.5) texel.rgb = mix(texel.rgb, vec3(0.42, 0.35, 0.24), smoothstep(12.0, 36.0, distance(vBWorld, cameraPosition)));
@@ -189,9 +187,38 @@ export class MaterialLibrary {
             leaf = mix(leaf, mix(uAutumnA, uAutumnB, hash13(floor(vBWorld))), uAutumn * 0.8);
             col = mix(leaf, texel.rgb, uBlossom);
           }
-          col *= aoCurve(vAo) * faceShade(vBNormal);
           col = applySnow(col, vBNormal, vBWorld, uSnowColor, snowClimate(vBWorld));
           col *= mix(1.0, 0.78, uWet * step(0.5, vBNormal.y));
+          // 陡壁：每 6 格一层岩带（台面亮、层缝暗）。背光不再整面乘暗，否则正午下朝镜头的主山是一块灰板。
+          float tileId = vBlockUv.z;
+          if (abs(tileId - 3.0) < 0.5 || abs(tileId - 4.0) < 0.5 || abs(tileId - 52.0) < 0.5) {
+            vec3 rn = normalize(vBNormal);
+            float sun = dot(rn, normalize(uSunDir));
+            float steep = 1.0 - smoothstep(0.2, 0.72, rn.y);
+            float course = mod(floor(vBWorld.y + hash12(floor(vBWorld.xz / 16.0)) * 5.0), 6.0);
+            float layer = mix(1.0, 1.22, step(4.5, course));
+            layer = mix(layer, 0.74, step(course, 0.5));
+            layer *= mix(0.94, 1.06, hash12(floor(vBWorld.xz / 14.0)));
+            vec3 sunTint = mix(vec3(0.94, 1.02, 1.05), vec3(1.14, 1.08, 0.98), smoothstep(-0.35, 0.55, sun));
+            vec3 wall = col * layer * sunTint;
+            vec3 crown = col * mix(1.0, 1.1, smoothstep(0.15, 0.75, sun));
+            col = mix(crown, wall, steep);
+            col *= mix(1.0, 0.8, smoothstep(0.2, 0.75, -rn.y));
+          }
+          // 受光面提气约 9%：草坡、树冠、白墙、屋面、石阶、河岸、塔身。背光面不动。
+          float sunLit = smoothstep(0.35, 0.82, dot(normalize(vBNormal), normalize(uSunDir)));
+          float tile = vBlockUv.z;
+          bool litSurf = abs(tile) < 0.5 || abs(tile - 22.0) < 0.5 || abs(tile - 23.0) < 0.5 || abs(tile - 24.0) < 0.5 || abs(tile - 28.0) < 0.5 || abs(tile - 60.0) < 0.5
+            || abs(tile - 33.0) < 0.5 || abs(tile - 34.0) < 0.5
+            || (tile > 34.5 && tile < 37.5)
+            || abs(tile - 38.0) < 0.5 || abs(tile - 40.0) < 0.5 || abs(tile - 41.0) < 0.5 || abs(tile - 42.0) < 0.5
+            || abs(tile - 6.0) < 0.5 || abs(tile - 7.0) < 0.5 || abs(tile - 48.0) < 0.5;
+          if (litSurf) col *= mix(1.0, 1.09, sunLit);
+          ${tier === 'near' ? '' : `float farL = dot(col, vec3(0.299, 0.587, 0.114));
+          col = mix(vec3(farL), col, 0.84);
+          float farL2 = dot(col, vec3(0.299, 0.587, 0.114));
+          float pulled = mix(farL2, 0.42, 0.26);
+          col *= clamp(pulled / max(farL2, 0.05), 0.84, 1.08);`}
           diffuseColor.rgb *= col;
           ${kind === 'translucent' ? 'diffuseColor.a = texel.a;' : ''}
           `,
@@ -208,10 +235,25 @@ export class MaterialLibrary {
             totalEmissiveRadiance += (warm ? uWindow * (0.55 + 0.15 * dot(texel.rgb, vec3(0.333))) : col * 1.6) * uNight * lit;
           }`,
         )
-        .replace('#include <opaque_fragment>', `outgoingLight = desaturate(outgoingLight, uSaturation);\n#include <opaque_fragment>`)
+        .replace(
+          '#include <opaque_fragment>',
+          `outgoingLight = desaturate(outgoingLight, uSaturation);
+          if (uDebugView > 0.5) {
+            if (uDebugView < 1.5) outgoingLight = col;
+            else if (uDebugView < 2.5) outgoingLight = col * aoCurve(vAo);
+            else if (uDebugView < 3.5) outgoingLight = col * faceShade(vBNormal);
+            else if (uDebugView < 4.5) outgoingLight = reflectedLight.directDiffuse;
+            else outgoingLight = fogHeat(max(edgeFog(vBWorld), valleyMist(vBWorld)));
+          }
+          #include <opaque_fragment>`,
+        )
         .replace('#include <fog_fragment>', EDGE_FOG_FRAGMENT('vBWorld'))
-        // 烘焙的天空可见度只压间接光（院落、檐下、楼间更暗），不动直射日光
-        .replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\n reflectedLight.indirectDiffuse *= bakedSky(vBWorld);')
+        // 顶点 AO 与面向明暗只乘间接光。直射日光已由 Lambert 按法线计算，再乘一次会把侧面、檐下和树冠压黑。
+        .replace(
+          '#include <lights_fragment_end>',
+          `#include <lights_fragment_end>
+          reflectedLight.indirectDiffuse *= bakedSky(vBWorld) * aoCurve(vAo) * faceShade(vBNormal);`,
+        )
       if (kind === 'cutout') frag = frag.replace('#include <normal_fragment_begin>', 'float faceDirection = 1.0;\nvec3 normal = normalize( vNormal );\nvec3 nonPerturbedNormal = normal;')
       shader.fragmentShader = frag
     }
@@ -284,7 +326,7 @@ export class MaterialLibrary {
         uniform vec3 uSunDir;
         uniform vec3 uSunColor;
         uniform vec3 uSkyColor;
-        uniform vec3 uHorizonColor;
+        // uHorizonColor 随 GLSL_EDGE_FOG 声明，避免重复
         uniform vec3 uWaterShallow;
         uniform vec3 uWaterMid;
         uniform vec3 uWaterDeep;
@@ -315,6 +357,7 @@ export class MaterialLibrary {
           bool falling = vTint.g > 0.5;
           vec3 col = mix(uWaterShallow, uWaterMid, smoothstep(0.0, 0.35, depth));
           col = mix(col, uWaterDeep, smoothstep(0.35, 1.0, depth));
+          col *= mix(1.09, 1.0, smoothstep(0.05, 0.45, depth));
           vec2 q = floor(vWorld.xz * ${overview ? '0.5' : '8.0'}) / ${overview ? '0.5' : '8.0'};
           float w = sin(q.x * 1.7 + uTime * 1.3) * sin(q.y * 1.3 - uTime * 1.1) + 0.6 * sin((q.x + q.y) * 0.9 + uTime * 0.7);
           col *= 1.0 + 0.06 * w;
@@ -324,7 +367,7 @@ export class MaterialLibrary {
           vec3 sky = mix(uHorizonColor, uSkyColor, 0.4);
           col = mix(col, sky, fres * 0.55);
           float spec = pow(max(dot(reflect(-uSunDir, n), v), 0.0), 80.0);
-          col += uSunColor * spec * 0.6 * (1.0 - uNight);
+          col += uSunColor * spec * 0.58 * (1.0 - uNight);
           if (depth < 0.02) col = mix(col, uWaterFoam, 0.18 + 0.1 * w);
           if (falling) {
             float stripe = hash12(vec2(floor(vWorld.x * 4.0 + vWorld.z * 4.0), floor(vWorld.y * 3.0 + uTime * 9.0)));
@@ -380,6 +423,7 @@ export class MaterialLibrary {
           uniform vec4 uChunkMaskRect;
           uniform vec3 uSnowColor;
           uniform vec3 uLeafGreen;
+          uniform float uDebugView;
           varying vec3 vOColor;
           varying float vKind;
           varying vec3 vOWorld;
@@ -392,6 +436,7 @@ export class MaterialLibrary {
           ${GLSL_DESATURATE}
           ${GLSL_EDGE_FOG}
           ${GLSL_MIST}
+          ${GLSL_FOG_HEAT}
           ${GLSL_FACE_SHADE}`,
         )
         .replace(
@@ -404,9 +449,15 @@ export class MaterialLibrary {
           '#include <map_fragment>',
           `vec3 col = seasonTint(vOColor, vKind, vOWorld);
            col = applySnow(col, vONormal, vOWorld * 0.125, uSnowColor, snowClimate(vOWorld));
-           diffuseColor.rgb *= col * faceShade(vONormal);`,
+           diffuseColor.rgb *= col;`,
         )
-        .replace('#include <opaque_fragment>', `outgoingLight = desaturate(outgoingLight, uSaturation);\n#include <opaque_fragment>`)
+        .replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\n reflectedLight.indirectDiffuse *= faceShade(vONormal);')
+        .replace(
+          '#include <opaque_fragment>',
+          `outgoingLight = desaturate(outgoingLight, uSaturation);
+          if (uDebugView > 4.5) outgoingLight = fogHeat(max(edgeFog(vOWorld), valleyMist(vOWorld)));
+          #include <opaque_fragment>`,
+        )
         .replace('#include <fog_fragment>', EDGE_FOG_FRAGMENT('vOWorld'))
     }
     m.customProgramCacheKey = () => 'overview'

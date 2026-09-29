@@ -4,7 +4,7 @@ import { WeatherTint } from '../../config/palette'
 const MAX = 9000
 
 /**
- * 雨雪：以焦点为中心的一箱粒子，下落动画全在顶点着色器里；雨是斜长的线，雪是缓飘的方片。
+ * 雨雪：以焦点为中心的一箱粒子，下落动画全在顶点着色器里；雨是细缓的斜线，雪是多频摆动、缓慢摇曳的飘落方片。
  */
 export class PrecipitationSystem {
   readonly points: THREE.Points
@@ -43,16 +43,20 @@ export class PrecipitationSystem {
           float rain = step(aSeed.w, uRain);
           vKind = snow;
           vA = max(snow, rain);
-          float speed = snow > 0.5 ? 6.0 + aSeed.z * 3.0 : 70.0 + aSeed.z * 30.0;
+          // 雨：一半的速度、细小的水线；雪：更慢的下落
+          float speed = snow > 0.5 ? 3.0 + aSeed.z * 2.5 : 34.0 + aSeed.z * 14.0;
           // 以世界坐标为锚、在以焦点为中心的箱子里循环，镜头平移时雨雪不跟着滑
-          float wind = snow > 0.5 ? sin(uTime * 0.8 + aSeed.z * 20.0) * 2.0 : uTime * 6.0;
+          float wind = snow > 0.5
+            ? sin(uTime * 0.7 + aSeed.z * 20.0) * 3.0 + sin(uTime * 0.23 + aSeed.x * 31.0) * 2.2 + uTime * 1.1
+            : uTime * 3.5;
           float wx = uCenter.x + mod(aSeed.x * uBox.x + wind - uCenter.x + uBox.x * 0.5, uBox.x) - uBox.x * 0.5;
           float wz = uCenter.z + mod(aSeed.y * uBox.z - uCenter.z + uBox.z * 0.5, uBox.z) - uBox.z * 0.5;
-          float wy = uCenter.y + uBox.y * 0.5 - mod(aSeed.z * uBox.y + uTime * speed, uBox.y);
+          float wy = uCenter.y + uBox.y * 0.5 - mod(aSeed.z * uBox.y + uTime * speed, uBox.y)
+            + (snow > 0.5 ? sin(uTime * 1.3 + aSeed.x * 40.0) * 1.1 : 0.0);
           vec3 w = vec3(wx, wy, wz);
           vec4 mv = modelViewMatrix * vec4(w, 1.0);
           gl_Position = projectionMatrix * mv;
-          gl_PointSize = vA * (snow > 0.5 ? 2.2 : 3.2) * uPx * 220.0 / max(8.0, -mv.z);
+          gl_PointSize = vA * (snow > 0.5 ? 1.5 + aSeed.y * 1.8 : 2.2) * uPx * 220.0 / max(8.0, -mv.z);
         }`,
       fragmentShader: /* glsl */ `
         uniform vec3 uRainColor;
@@ -63,11 +67,13 @@ export class PrecipitationSystem {
           if (vA < 0.5) discard;
           vec2 q = gl_PointCoord - 0.5;
           if (vKind > 0.5) {
-            if (max(abs(q.x), abs(q.y)) > 0.32) discard;
-            gl_FragColor = vec4(uSnowColor, 0.9);
+            vec2 a = abs(q);
+            if (max(a.x, a.y) > 0.34) discard;
+            float soft = smoothstep(0.34, 0.16, max(a.x, a.y));
+            gl_FragColor = vec4(uSnowColor, mix(0.3, 0.85, soft));
           } else {
-            if (abs(q.x) > 0.06) discard;
-            gl_FragColor = vec4(uRainColor, 0.55);
+            if (abs(q.x) > 0.05) discard;
+            gl_FragColor = vec4(uRainColor, 0.48);
           }
           #include <colorspace_fragment>
         }`,

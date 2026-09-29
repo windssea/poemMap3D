@@ -1,4 +1,5 @@
 import { Engine } from '../engine/core/Engine'
+import { ISOLATION, PHASE0 } from '../engine/rendering/LightingDebug'
 import { AmbientSound } from './AmbientSound'
 import { ResourceManager } from '../engine/core/ResourceManager'
 import { TrailDirector } from '../features/poetTrail/TrailDirector'
@@ -104,6 +105,37 @@ export async function bootstrap(container: HTMLElement): Promise<AppServices> {
   store.set({ quality: engine.quality.quality, loading: { ready: true, label: '', progress: 1, error: null } })
   if (store.get().debug.chunks) engine.setChunkDebug(true)
   res.lazy('font-poems')
+  /* 开发调试：?shp=地点id 启动后直接飞到该地（与 shs/shw/shm 同一套地址参数）。瞬时完成，不等飞行动画——后台标签页被节流时动画走不动 */
+  if (import.meta.env.DEV) {
+    const param = new URLSearchParams(location.search)
+    const shp = param.get('shp')
+    if (shp && places.get(shp)) {
+      const shot = Number(param.get('shz') ?? '1') || 1
+      navigation.selectPlace(shp, false)
+      /* ?shg=[距离]：落到该地后压平镜头仰视看天（任务书 §4/§10 调天空用）。
+         可选 shy=方位角(弧度，西 1.57 / 东 -1.57)、shp2=俯角(默认 0.1) */
+      const shg = param.get('shg')
+      if (shg) {
+        const dist = Number(shg) || 120
+        const yaw = Number(param.get('shy') ?? '0.42')
+        const pitch = Number(param.get('shp2') ?? '0.1')
+        void engine.focusPlace(shp, { duration: 0.2, shot: Math.max(0.2, Math.min(8, shot)) }).then(() => {
+          const v = engine.world.landmarkView(shp)
+          if (v) void engine.camera.flyTo({ target: v.target.clone(), yaw, pitch, distance: dist }, { duration: 0.4 })
+        })
+      } else {
+        facade.focusLandmark(shp, { duration: 0.2, shot: Math.max(0.2, Math.min(8, shot)) })
+      }
+    }
+    /* ?shl=id[,id]：启动即套用 Phase 0 / A–F 隔离调试位（与 P0 截图流程配套），如 shl=fogFactor */
+    const shl = param.get('shl')
+    if (shl) {
+      for (const k of shl.split(',')) {
+        const p = [...PHASE0, ...ISOLATION].find((x) => x.id === k)
+        if (p) facade.setLighting(p.patch)
+      }
+    }
+  }
   ;(window as unknown as { __shanhe?: unknown }).__shanhe = { engine, facade, store, sound }
   return { store, facade, poetry, places, aggregator, search, navigation, tour, trails, director, resources: res, majorPlaces: major, sound }
 }

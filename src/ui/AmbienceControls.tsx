@@ -43,8 +43,11 @@ export function AmbienceControls() {
             <button className={`chip ${weather === 'clear' ? 'on' : ''}`} onClick={() => facade.setWeather('clear')}>
               晴
             </button>
-            <button className={`chip ${weather !== 'clear' ? 'on' : ''}`} onClick={() => facade.setWeather(season === 'winter' ? 'snow' : 'rain')}>
+            <button className={`chip ${weather === 'rain' || weather === 'snow' ? 'on' : ''}`} onClick={() => facade.setWeather(season === 'winter' ? 'snow' : 'rain')}>
               {wetName}
+            </button>
+            <button className={`chip ${weather === 'mist' ? 'on' : ''}`} onClick={() => facade.setWeather('mist')}>
+              雾
             </button>
           </div>
         </div>

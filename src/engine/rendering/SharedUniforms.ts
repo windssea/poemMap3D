@@ -24,6 +24,14 @@ export function createSharedUniforms() {
     uWet: { value: 0 },
     /** 整体饱和度（雨雪天压低） */
     uSaturation: { value: 1 },
+    /** 顶点 AO 强度 0–1（1 为 0.80/0.88/0.95/1 曲线） */
+    uAoStrength: { value: 1 },
+    /** 面向明暗强度 0–1，只作用于间接光 */
+    uFaceStrength: { value: 1 },
+    /** 1 雾开，0 关掉边缘雾与谷地山岚 */
+    uFogOn: { value: 1 },
+    /** 0 完整，1 反照率，2 反照率×AO，3 反照率×面向，4 直射光（含阴影） */
+    uDebugView: { value: 0 },
     uSunDir: { value: new THREE.Vector3(0.3, 0.85, 0.55).normalize() },
     uSunColor: { value: new THREE.Color(1, 1, 1) },
     uSkyColor: { value: new THREE.Color(0.6, 0.75, 0.85) },

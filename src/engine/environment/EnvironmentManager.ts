@@ -11,6 +11,7 @@ import { SeasonSystem } from './SeasonSystem'
 import { SkySystem } from './SkySystem'
 import { TimeOfDaySystem } from './TimeOfDaySystem'
 import type { Season, TimeOfDay, Weather } from './types'
+import { VIEW_CODE, type LightingTweaks } from '../rendering/LightingDebug'
 import { WeatherSystem } from './WeatherSystem'
 
 /**
@@ -27,18 +28,27 @@ export class EnvironmentManager {
   readonly particles: ParticleSystem
   private readonly hemi: THREE.HemisphereLight
   private readonly tmpColor = new THREE.Color()
-  private readonly rainSky = new THREE.Color(WeatherTint.rainColor)
+  private readonly tmpTop = new THREE.Color()
+  private readonly tmpMid = new THREE.Color()
+  private readonly rainSky = new THREE.Color(WeatherTint.skyRain)
+  private readonly snowSky = new THREE.Color(WeatherTint.skySnow)
+  private readonly mistSky = new THREE.Color(WeatherTint.skyMist)
   private readonly winterFog = new THREE.Color(WinterTokens.fog)
-  private readonly winterSky = new THREE.Color(WinterTokens.sky)
   private readonly winterSun = new THREE.Color(WinterTokens.sun)
+  /** 照地的光：太阳在地平线上时等于日轮方向，落山后才交给月亮 */
+  private readonly lightDir = new THREE.Vector3()
   /** 补光：与日光相对的一盏弱平行光，阴面不至于死黑 */
   private readonly fill = new THREE.DirectionalLight(new THREE.Color(1, 1, 1), 0.3)
+  /** 调试滑条。空着就用默认：天空与太阳按 1 倍，AO / 面向全开 */
+  lighting: LightingTweaks | null = null
 
   constructor(
     private readonly shared: SharedUniforms,
     scene: SceneManager,
     private readonly shadows: ShadowManager,
     private readonly renderer: THREE.WebGLRenderer,
+    /** 相机控制器：天空自适应渐变带读它的视线方向 */
+    private readonly cameraCtrl: { readonly viewDir: THREE.Vector3 },
     initial: { time: TimeOfDay; season: Season; weather: Weather },
     waterfalls: { x: number; y: number; z: number; width: number }[],
   ) {
@@ -82,11 +92,14 @@ export class EnvironmentManager {
     const u = this.shared
 
     u.uTime.value = elapsed
-    u.uSunDir.value.copy(L.sunDir)
+    // 日轮还在地平线上时，平行光必须就是这个方向。落到地平线下再把光缓交给月亮，避免从地下照上来。
+    const elev = L.sunDir.y
+    const moonK = elev >= 0.06 ? 0 : elev <= -0.16 ? 1 : (0.06 - elev) / 0.22
+    this.lightDir.copy(L.sunDir).lerp(L.moonDir, moonK)
+    if (this.lightDir.lengthSq() > 1e-8) this.lightDir.normalize()
+    u.uSunDir.value.copy(this.lightDir)
     u.uSunColor.value.copy(L.sun)
     u.uNight.value = L.night
-    u.uSkyColor.value.copy(L.top)
-    u.uHorizonColor.value.copy(L.horizon)
     ;(u.uSeasonGrass.value as THREE.Color).copy(S.grass)
     ;(u.uSeasonFoliage.value as THREE.Color).copy(S.foliage)
     u.uAutumn.value = S.autumn
@@ -96,7 +109,7 @@ export class EnvironmentManager {
     u.uLotus.value += (lotusWant - u.uLotus.value) * Math.min(1, dt * 1.2)
     /* 山岚：晨起最浓，暮色次之，白天淡；雨雪加浓 */
     const mistBase = this.time.key === 'dawn' ? 0.34 : this.time.key === 'dusk' ? 0.2 : this.time.key === 'night' ? 0.16 : 0.08
-    const mistWant = Math.min(0.75, mistBase + wet * 0.3)
+    const mistWant = Math.min(0.8, mistBase + wet * 0.3 + this.weather.mist * 0.42)
     u.uMist.value += (mistWant - u.uMist.value) * Math.min(1, dt * 1.5)
     u.uMistY.value += (focus.y + 3 - u.uMistY.value) * Math.min(1, dt * 2)
     u.uMistNear.value = distance
@@ -108,25 +121,49 @@ export class EnvironmentManager {
     u.uBare.value = 0.96 * winter
     u.uIce.value = 0.6 * winter
 
-    /* 光照 */
+    /* 光照。天空光（半球 + 对向补光）和太阳分开乘，调试时可以只留其中一路 */
+    const tw = this.lighting
+    const skyK = tw?.sky ?? 1
+    const sunK = tw?.sun ?? 1
     this.shadows.light.color.copy(L.sun).lerp(this.winterSun, 0.5 * winter)
     this.fill.color.copy(L.ambientSky)
-    this.fill.intensity = (0.25 + 0.25 * L.night) * W.light
-    this.fill.position.set(focus.x - L.sunDir.x * 400, focus.y + 300, focus.z - L.sunDir.z * 400)
+    this.fill.intensity = (0.32 + 0.2 * L.night) * W.light * skyK
+    this.fill.position.set(focus.x - this.lightDir.x * 400, focus.y + 300, focus.z - this.lightDir.z * 400)
     this.fill.target.position.copy(focus)
     this.fill.target.updateMatrixWorld()
-    this.shadows.light.intensity = L.sunI * W.light
+    this.shadows.light.intensity = L.sunI * W.light * sunK
     this.hemi.color.copy(L.ambientSky)
     this.hemi.groundColor.copy(L.ambientGround)
-    this.hemi.intensity = L.ambientI * (0.75 + 0.25 * W.light)
-    this.renderer.toneMappingExposure = L.exposure
-    this.shadows.update(focus, L.sunDir, distance)
+    this.hemi.intensity = L.ambientI * (0.75 + 0.25 * W.light) * skyK
+    this.renderer.toneMappingExposure = L.exposure * (tw?.exposure ?? 1)
+    u.uAoStrength.value = tw?.ao ?? 1
+    u.uFaceStrength.value = tw?.face ?? 1
+    u.uFogOn.value = tw && !tw.fog ? 0 : 1
+    u.uDebugView.value = VIEW_CODE[tw?.view ?? 'final']
+    this.shadows.update(focus, this.lightDir, distance)
 
-    /* 天空、雾 */
-    const horizon = this.tmpColor.copy(L.horizon).lerp(L.fog, 0.5).lerp(this.rainSky, wet * 0.5).lerp(this.winterFog, 0.45 * winter * (1 - L.night * 0.7))
-    const top = L.top.clone().lerp(horizon, wet * 0.6).lerp(this.winterSky, 0.3 * winter * (1 - L.night))
-    this.sky.update(camera, top, horizon)
-    this.fog.update(distance, horizon, W.fog)
+    /* 天空保持三段渐变。天气只往时段色上罩一层，不把晨昼暮夜收成同一个灰。 */
+    const rainK = this.weather.rain
+    const snowK = this.weather.snow
+    const mistK = this.weather.mist
+    const top = this.tmpTop.copy(L.top)
+    const mid = this.tmpMid.copy(L.mid)
+    const horizon = this.tmpColor.copy(L.horizon)
+    top.lerp(this.rainSky, rainK * 0.42)
+    mid.lerp(this.rainSky, rainK * 0.5)
+    horizon.lerp(this.rainSky, rainK * 0.22)
+    top.lerp(this.snowSky, snowK * 0.28)
+    mid.lerp(this.snowSky, snowK * 0.4)
+    horizon.lerp(this.snowSky, snowK * 0.34)
+    horizon.lerp(this.mistSky, mistK * 0.4)
+    mid.lerp(this.mistSky, mistK * 0.12)
+    this.sky.update(camera, top, mid, horizon, L.sunDir, L.moonDir, L.core, L.rim, L.halo, L.sunR, L.haloGain, this.skyLiftOf())
+    u.uSkyColor.value.copy(mid)
+    u.uHorizonColor.value.copy(horizon)
+    const fogCol = top.copy(L.fog).lerp(this.rainSky, rainK * 0.35).lerp(this.snowSky, snowK * 0.4).lerp(this.winterFog, winter * 0.2 * (1 - L.night))
+    // 白天雾色向中段青靠一点，避免雾和天色完全拧开；不再整体压暗——远处把光还回去靠的是距离，不是发灰
+    if (L.night < 0.15) fogCol.lerp(mid, 0.3)
+    this.fog.update(distance, fogCol, W.fog, !tw || tw.fog)
     const clim = snowClimateAt(focus.y, focus.z)
     this.precipitation.update(elapsed, focus, distance, Math.min(1, this.weather.rain + this.weather.snow * (1 - clim)), this.weather.snow * clim, pixelRatio)
     this.particles.update(elapsed, focus, distance, this.season.key, wet, pixelRatio)
@@ -136,6 +173,12 @@ export class EnvironmentManager {
   setQuality(particles: number): void {
     this.precipitation.scale = particles
     this.particles.scale = particles
+  }
+
+  /** 天空渐变带：俯视地图镜头用俯角带（0），接近水平的机位铺满全带（1） */
+  private skyLiftOf(): number {
+    const fy = this.cameraCtrl?.viewDir?.y ?? -1
+    return THREE.MathUtils.smoothstep(fy, -0.62, -0.08)
   }
 
   dispose(): void {

@@ -3,7 +3,10 @@ import { SkyTokens } from '../../config/palette'
 import type { TimeOfDay } from './types'
 
 interface Look {
+  /** 指向太阳。夜里落到地平线以下，日轮随之隐去 */
   sunDir: THREE.Vector3
+  /** 指向月亮。只在太阳落山后接管平行光，不拿来画太阳 */
+  moonDir: THREE.Vector3
   sun: THREE.Color
   sunI: number
   ambientSky: THREE.Color
@@ -11,18 +14,32 @@ interface Look {
   ambientI: number
   fog: THREE.Color
   top: THREE.Color
+  mid: THREE.Color
   horizon: THREE.Color
   cloud: THREE.Color
+  core: THREE.Color
+  rim: THREE.Color
+  halo: THREE.Color
+  /** 日轮角半径，tan(半角)。镜头远近不改变它 */
+  sunR: number
+  /** 晕的混合强度。昼弱于晨暮 */
+  haloGain: number
   night: number
   exposure: number
 }
 
-const PRESET: Record<TimeOfDay, { dir: [number, number, number]; sunI: number; ambientI: number; night: number; exposure: number }> = {
-  dawn: { dir: [0.8, 0.38, 0.3], sunI: 1.8, ambientI: 0.95, night: 0, exposure: 1.05 },
-  day: { dir: [0.3, 0.85, 0.55], sunI: 2.6, ambientI: 1.05, night: 0, exposure: 1.02 },
-  dusk: { dir: [-0.75, 0.33, 0.3], sunI: 2.1, ambientI: 0.85, night: 0.25, exposure: 1.1 },
-  // 夜：满月当空（约 35° 高），月光银白、投下清楚的影子；星光与天光一起托底（环境光偏冷）
-  night: { dir: [0.4, 0.5, -0.6], sunI: 1.3, ambientI: 1.0, night: 1, exposure: 1.38 },
+const MOON: [number, number, number] = [0.4, 0.5, -0.6]
+
+const PRESET: Record<TimeOfDay, { dir: [number, number, number]; sunI: number; ambientI: number; night: number; exposure: number; sunR: number; haloGain: number }> = {
+  // 强度按 Lambert（除以 π）校准：文档里的 1.0 左右对应这里的 2.7 一档。
+  // 高度角相对世界水平面，dir 在归一化前：y / hypot(x,z) = tan(高度角)。
+  // 晨约 12°（0.197 / hypot(0.86, 0.34)），昼约 54°，暮约 8°（0.124 / hypot(0.84, 0.28)）。
+  // 晨 0.80 / 昼 1.06 / 暮 0.72 为 V2.0 通透感第一轮实验值（× 2.7 换算），暮靠低角度暖色直射，不整体压暗。
+  dawn: { dir: [0.86, 0.197, 0.34], sunI: 2.16, ambientI: 1.05, night: 0, exposure: 1.06, sunR: 0.0147, haloGain: 0.38 },
+  day: { dir: [0.3, 0.85, 0.55], sunI: 2.86, ambientI: 1.14, night: 0, exposure: 1.08, sunR: 0.011, haloGain: 0.18 },
+  dusk: { dir: [-0.84, 0.124, 0.28], sunI: 1.94, ambientI: 0.95, night: 0, exposure: 1.08, sunR: 0.0183, haloGain: 0.4 },
+  // 太阳在西边地平线下约 18°。月光仍用 MOON，不把日轮改白充当月亮。
+  night: { dir: [-0.84, -0.29, 0.28], sunI: 1.3, ambientI: 1.02, night: 1, exposure: 1.38, sunR: 0.014, haloGain: 0 },
 }
 
 const lookOf = (t: TimeOfDay): Look => {
@@ -30,6 +47,7 @@ const lookOf = (t: TimeOfDay): Look => {
   const p = PRESET[t]
   return {
     sunDir: new THREE.Vector3(...p.dir).normalize(),
+    moonDir: new THREE.Vector3(...MOON).normalize(),
     sun: new THREE.Color(s.sun),
     sunI: p.sunI,
     ambientSky: new THREE.Color(s.ambientSky),
@@ -37,14 +55,42 @@ const lookOf = (t: TimeOfDay): Look => {
     ambientI: p.ambientI,
     fog: new THREE.Color(s.fog),
     top: new THREE.Color(s.top),
+    mid: new THREE.Color(s.mid),
     horizon: new THREE.Color(s.horizon),
     cloud: new THREE.Color(s.cloud),
+    core: new THREE.Color(s.core),
+    rim: new THREE.Color(s.rim),
+    halo: new THREE.Color(s.halo),
+    sunR: p.sunR,
+    haloGain: p.haloGain,
     night: p.night,
     exposure: p.exposure,
   }
 }
 
-/** 时辰：晨 · 昼 · 暮 · 夜，切换时 2 秒平滑过渡 */
+const cloneLook = (L: Look): Look => ({
+  sunDir: L.sunDir.clone(),
+  moonDir: L.moonDir.clone(),
+  sun: L.sun.clone(),
+  sunI: L.sunI,
+  ambientSky: L.ambientSky.clone(),
+  ambientGround: L.ambientGround.clone(),
+  ambientI: L.ambientI,
+  fog: L.fog.clone(),
+  top: L.top.clone(),
+  mid: L.mid.clone(),
+  horizon: L.horizon.clone(),
+  cloud: L.cloud.clone(),
+  core: L.core.clone(),
+  rim: L.rim.clone(),
+  halo: L.halo.clone(),
+  sunR: L.sunR,
+  haloGain: L.haloGain,
+  night: L.night,
+  exposure: L.exposure,
+})
+
+/** 时辰：晨 · 昼 · 暮 · 夜。方向、日轮和天光一起平滑过渡 */
 export class TimeOfDaySystem {
   key: TimeOfDay
   readonly cur: Look
@@ -61,7 +107,7 @@ export class TimeOfDaySystem {
 
   set(key: TimeOfDay, instant = false): void {
     this.key = key
-    this.from = { ...this.cur, sunDir: this.cur.sunDir.clone(), sun: this.cur.sun.clone(), ambientSky: this.cur.ambientSky.clone(), ambientGround: this.cur.ambientGround.clone(), fog: this.cur.fog.clone(), top: this.cur.top.clone(), horizon: this.cur.horizon.clone(), cloud: this.cur.cloud.clone() }
+    this.from = cloneLook(this.cur)
     this.to = lookOf(key)
     this.t = instant ? 1 : 0
     if (instant) this.apply(1)
@@ -78,15 +124,22 @@ export class TimeOfDaySystem {
     const b = this.to
     const c = this.cur
     c.sunDir.lerpVectors(a.sunDir, b.sunDir, k).normalize()
+    c.moonDir.lerpVectors(a.moonDir, b.moonDir, k).normalize()
     c.sun.lerpColors(a.sun, b.sun, k)
     c.ambientSky.lerpColors(a.ambientSky, b.ambientSky, k)
     c.ambientGround.lerpColors(a.ambientGround, b.ambientGround, k)
     c.fog.lerpColors(a.fog, b.fog, k)
     c.top.lerpColors(a.top, b.top, k)
+    c.mid.lerpColors(a.mid, b.mid, k)
     c.horizon.lerpColors(a.horizon, b.horizon, k)
     c.cloud.lerpColors(a.cloud, b.cloud, k)
+    c.core.lerpColors(a.core, b.core, k)
+    c.rim.lerpColors(a.rim, b.rim, k)
+    c.halo.lerpColors(a.halo, b.halo, k)
     c.sunI = a.sunI + (b.sunI - a.sunI) * k
     c.ambientI = a.ambientI + (b.ambientI - a.ambientI) * k
+    c.sunR = a.sunR + (b.sunR - a.sunR) * k
+    c.haloGain = a.haloGain + (b.haloGain - a.haloGain) * k
     c.night = a.night + (b.night - a.night) * k
     c.exposure = a.exposure + (b.exposure - a.exposure) * k
   }
