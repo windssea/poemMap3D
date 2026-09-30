@@ -124,6 +124,57 @@ float valleyMist(vec3 w) {
 }
 `
 
+/**
+ * 天空底色（不含日月星）：给定视线方向 d 返回该方向上天空的颜色。
+ * 天空球与地形的边缘雾共用它——地图边缘、远海化进「这个方向上的天色」而不是一个固定的雾色，
+ * 所以不论镜头俯仰，图边都与它背后的天空严丝合缝地消隐。
+ *  - 俯看地图（uSkyLift=0）：三段渐变压进俯角带，看得见的天在俯角里；
+ *  - 地面仰视（uSkyLift=1）：地平线最浅最暖，向上过中段青到顶青；
+ *  - 晨、暮：以日出 / 日落方位为中心的霞光，贴地平线最浓，离方位越远越薄越低，上缘一圈粉紫，
+ *    背日一侧留一道很淡的粉。
+ */
+export const GLSL_SKY_BASE = /* glsl */ `
+uniform vec3 uSkyTop;
+uniform vec3 uSkyMid;
+uniform vec3 uHorizonColor;
+uniform float uSkyLift;
+uniform vec3 uGlowDir;
+uniform vec3 uGlowCol;
+uniform vec3 uGlowCol2;
+uniform float uGlowK;
+vec3 skyBase(vec3 d) {
+  float y = d.y;
+  // 俯看：三段渐变铺进 -0.78…-0.16 这段俯角，最深处带一点中段青，不铺成宣纸白墙
+  float lift = clamp((y + 0.78) / 0.62, 0.0, 1.0);
+  lift = lift * lift * (3.0 - 2.0 * lift);
+  vec3 skirt = mix(uSkyMid, uHorizonColor, 0.45) * 0.7;
+  vec3 down = mix(skirt, uSkyMid, smoothstep(0.1, 0.62, lift));
+  down = mix(down, uSkyTop, smoothstep(0.4, 0.92, lift));
+  // 站在地上看：地平线 → 中段 → 顶，低头则压向雾色
+  float up = max(y, 0.0);
+  vec3 ground = mix(uHorizonColor, uSkyMid, smoothstep(0.0, 0.26, up));
+  ground = mix(ground, uSkyTop, smoothstep(0.12, 0.62, up));
+  ground = mix(ground, uHorizonColor * 0.94, smoothstep(0.0, 0.35, -y));
+  vec3 col = mix(down, ground, uSkyLift);
+  // 霞光
+  if (uGlowK > 0.001) {
+    float dl = length(d.xz);
+    vec2 gh = normalize(uGlowDir.xz + vec2(1e-5));
+    float az = dl > 1e-3 ? dot(d.xz / dl, gh) : 0.0;
+    // 贴地平线处取平滑的高度（不在 y=0 折出一道尖），地平线之下衰减得更快
+    float hgt = sqrt(y * y + 0.0004) * mix(0.7, 1.0, smoothstep(-0.05, 0.05, y));
+    float wide = smoothstep(-0.5, 1.0, az);
+    float core = pow(max(az, 0.0), 4.0);
+    float band = exp(-hgt / mix(0.085, 0.26, core));
+    col = mix(col, uGlowCol, clamp((0.42 * wide + 0.9 * core) * band, 0.0, 1.0) * uGlowK);
+    float rim = exp(-pow((hgt - (0.1 + 0.11 * core)) / 0.12, 2.0));
+    col = mix(col, uGlowCol2, rim * (0.25 * wide + 0.45 * core) * uGlowK * 0.6);
+    col = mix(col, uGlowCol2, smoothstep(0.1, 1.0, -az) * exp(-hgt / 0.14) * uGlowK * 0.22);
+  }
+  return col;
+}
+`
+
 /** 边缘雾：地图四边与离岸远海渐隐入雾（取样雾图）；极远边带向地平线天色收敛，不出灰白墙 */
 export const GLSL_EDGE_FOG = /* glsl */ `
 uniform sampler2D uFogMap;

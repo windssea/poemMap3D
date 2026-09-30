@@ -23,6 +23,7 @@ import { SceneManager } from '../rendering/SceneManager'
 import { ShadowManager } from '../rendering/ShadowManager'
 import { createSharedUniforms } from '../rendering/SharedUniforms'
 import { defaultLighting, type LightingTweaks } from '../rendering/LightingDebug'
+import { GROUND_CAMERAS, groundCameraPose, type GroundCameraId } from '../camera/GroundTestCameras'
 import { EventBus } from './EventBus'
 import type { FrameContext } from './FrameContext'
 import { RenderLoop } from './RenderLoop'
@@ -285,6 +286,20 @@ export class Engine {
   }
   setThemeFog(k: number): void {
     this.env.fog.extra = k
+  }
+
+  /** 地面人视验收机位（见 GroundTestCameras）；传 null 放开，回到环绕镜头 */
+  groundTestCamera(id: GroundCameraId | null): boolean {
+    if (!id) {
+      this.camera.clearFixed()
+      return true
+    }
+    const spec = GROUND_CAMERAS[id]
+    const view = this.world.landmarkView(spec.place)
+    if (!view) return false
+    const { eye, look } = groundCameraPose(spec, view.target, (x, z) => this.world.sampler.groundHeightAt(x, z))
+    this.camera.setFixed(eye, look, spec.fov)
+    return true
   }
 
   setLighting(patch: Partial<LightingTweaks>): void {

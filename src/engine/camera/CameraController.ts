@@ -54,6 +54,7 @@ export class CameraController {
 
   /** 用户开始操作：打断飞行与环绕 */
   interrupt(): void {
+    this.releaseFixed()
     if (this.flight.active) {
       this.goal.target.copy(this.pose.target)
       Object.assign(this.goal, { yaw: this.pose.yaw, pitch: this.pose.pitch, distance: this.pose.distance })
@@ -76,17 +77,20 @@ export class CameraController {
 
   /** 平移：注视点恢复贴地 */
   pan(dx: number, dy: number, viewportH: number): void {
+    this.releaseFixed()
     this.holdY = false
     this.orbit.pan(dx, dy, viewportH)
   }
 
   /** 推拉：朝光标推近时注视点跟着落地 */
   zoom(delta: number, ground: THREE.Vector3 | null): void {
+    this.releaseFixed()
     if (ground && delta < 0) this.holdY = false
     this.orbit.zoom(delta, ground)
   }
 
   flyTo(to: CameraPose, opts?: FlightOptions): Promise<void> {
+    this.releaseFixed()
     this.focus.stopOrbit()
     this.holdY = true
     const p = this.flight.flyTo(this.pose, to, opts)
@@ -107,7 +111,58 @@ export class CameraController {
     return p ? this.flyTo(p, opts) : Promise.resolve()
   }
 
+  /** 固定机位：直接给眼点、注视点与视场角，绕过平滑、飞行与避山（地面人视校准、验收截图用） */
+  private fixed: { eye: THREE.Vector3; look: THREE.Vector3; fov: number } | null = null
+  private readonly baseFov = 42
+
+  setFixed(eye: THREE.Vector3, look: THREE.Vector3, fov = this.baseFov): void {
+    this.flight.cancel()
+    this.focus.stopOrbit()
+    this.destination = null
+    this.fixed = { eye: eye.clone(), look: look.clone(), fov }
+  }
+
+  clearFixed(): void {
+    if (!this.fixed) return
+    this.fixed = null
+    this.camera.fov = this.baseFov
+    this.camera.updateProjectionMatrix()
+    this.collision.reset()
+  }
+
+  /** 从固定机位回到环绕镜头：目标姿态取固定机位当时的姿态，不跳 */
+  private releaseFixed(): void {
+    if (!this.fixed) return
+    Object.assign(this.goal, { yaw: this.pose.yaw, pitch: Math.max(0.1, this.pose.pitch), distance: Math.max(10, this.pose.distance) })
+    this.goal.target.copy(this.pose.target)
+    this.pose.pitch = this.goal.pitch
+    this.pose.distance = this.goal.distance
+    this.clearFixed()
+  }
+
+  get isFixed(): boolean {
+    return this.fixed !== null
+  }
+
   update(dt: number): void {
+    if (this.fixed) {
+      const { eye, look, fov } = this.fixed
+      const d = Math.max(1, eye.distanceTo(look))
+      const p = this.pose
+      p.target.copy(look)
+      p.distance = d
+      p.pitch = Math.asin((eye.y - look.y) / d)
+      p.yaw = Math.atan2(eye.x - look.x, eye.z - look.z)
+      Object.assign(this.goal, { yaw: p.yaw, pitch: p.pitch, distance: d })
+      this.goal.target.copy(look)
+      this.resolved = clonePose(p)
+      if (this.camera.fov !== fov) {
+        this.camera.fov = fov
+        this.camera.updateProjectionMatrix()
+      }
+      this.applyResolved()
+      return
+    }
     if (this.flight.active) {
       this.flight.update(dt, this.pose)
     } else {
@@ -129,6 +184,11 @@ export class CameraController {
       this.pose.distance = Math.exp(Math.log(this.pose.distance) + Math.max(-cap, Math.min(cap, step)))
     }
     this.resolved = this.collision.resolve(this.pose, dt)
+    this.applyResolved()
+  }
+
+  /** 把解算后的姿态写到相机：位置、裁剪面、朝向与三级视角 */
+  private applyResolved(): void {
     const pos = poseToPosition(this.resolved, this.camera.position)
     /* 远近裁剪随距离缓变；远裁剪面贴着雾的尽头，雾外的覆盖图块直接被视锥剔除 */
     const near = Math.max(0.3, this.resolved.distance * 0.004)

@@ -36,6 +36,15 @@ export function createSharedUniforms() {
     uSunColor: { value: new THREE.Color(1, 1, 1) },
     uSkyColor: { value: new THREE.Color(0.6, 0.75, 0.85) },
     uHorizonColor: { value: new THREE.Color(0.95, 0.92, 0.85) },
+    /** 天空三段色的顶、中（地平线用 uHorizonColor）与渐变带随镜头俯仰的自适应系数（0 俯看 · 1 平视仰视） */
+    uSkyTop: { value: new THREE.Color(0.4, 0.6, 0.8) },
+    uSkyMid: { value: new THREE.Color(0.6, 0.75, 0.85) },
+    uSkyLift: { value: 0 },
+    /** 晨暮霞光：日出 / 日落的水平方位、主色、上缘余晖色、强度 */
+    uGlowDir: { value: new THREE.Vector3(1, 0, 0) },
+    uGlowCol: { value: new THREE.Color(1, 0.7, 0.4) },
+    uGlowCol2: { value: new THREE.Color(0.85, 0.55, 0.6) },
+    uGlowK: { value: 0 },
     uAutumnA: { value: new THREE.Color(AutumnTokens.maple) },
     uAutumnB: { value: new THREE.Color(AutumnTokens.gold) },
     uAutumnC: { value: new THREE.Color(AutumnTokens.rust) },

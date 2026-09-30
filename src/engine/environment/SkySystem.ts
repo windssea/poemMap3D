@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { MaterialTokens, SkyTokens } from '../../config/palette'
-import { GLSL_HASH } from '../rendering/ShaderLibrary'
+import { GLSL_HASH, GLSL_SKY_BASE } from '../rendering/ShaderLibrary'
 import type { SharedUniforms } from '../rendering/SharedUniforms'
 
 /**
@@ -14,9 +14,14 @@ export class SkySystem {
   constructor(shared: SharedUniforms) {
     this.mat = new THREE.ShaderMaterial({
       uniforms: {
-        uTop: { value: new THREE.Color() },
-        uMiddle: { value: new THREE.Color() },
-        uHorizon: { value: new THREE.Color() },
+        uSkyTop: shared.uSkyTop,
+        uSkyMid: shared.uSkyMid,
+        uHorizonColor: shared.uHorizonColor,
+        uSkyLift: shared.uSkyLift,
+        uGlowDir: shared.uGlowDir,
+        uGlowCol: shared.uGlowCol,
+        uGlowCol2: shared.uGlowCol2,
+        uGlowK: shared.uGlowK,
         uNight: shared.uNight,
         uTime: shared.uTime,
         uWet: shared.uWet,
@@ -28,7 +33,6 @@ export class SkySystem {
         uSunR: { value: 0.011 },
         uHalo: { value: 0.18 },
         uMoonDisc: { value: new THREE.Color(MaterialTokens.snow[1]) },
-        uSkyLift: { value: 0 },
       },
       vertexShader: /* glsl */ `
         varying vec3 vDir;
@@ -38,9 +42,6 @@ export class SkySystem {
           gl_Position = p.xyww;
         }`,
       fragmentShader: /* glsl */ `
-        uniform vec3 uTop;
-        uniform vec3 uMiddle;
-        uniform vec3 uHorizon;
         uniform float uNight;
         uniform float uTime;
         uniform float uWet;
@@ -52,22 +53,13 @@ export class SkySystem {
         uniform float uSunR;
         uniform float uHalo;
         uniform vec3 uMoonDisc;
-        uniform float uSkyLift;
         varying vec3 vDir;
+        ${GLSL_SKY_BASE}
         ${GLSL_HASH}
         void main() {
           vec3 d = normalize(vDir);
-          // 地图镜头俯看约 30°–50°，看得见的天在俯角带里，不在天顶：把三段渐变铺进这段俯角。
-          // 仰视调试机位（uSkyLift→1）拉伸到全带，站在地上也能看到顶青—中青—地平暖纸的完整渐变。
-          float y = d.y;
-          float y0 = mix(-0.78, -0.09, uSkyLift);
-          float y1 = mix(-0.16, 0.55, uSkyLift);
-          // 俯看时画面四周是这段天空。最深处带一点中段青，不要铺成宣纸白墙。
-          float lift = clamp((y - y0) / (y1 - y0), 0.0, 1.0);
-          lift = lift * lift * (3.0 - 2.0 * lift);
-          vec3 skirt = mix(uMiddle, uHorizon, 0.45) * 0.7;
-          vec3 col = mix(skirt, uMiddle, smoothstep(0.1, 0.62, lift));
-          col = mix(col, uTop, smoothstep(0.4, 0.92, lift));
+          // 底色由 skyBase 给出（俯看压进俯角带、平视仰视铺满全带，晨暮加霞光），与地形边缘雾共用
+          vec3 col = skyBase(d);
           float clearSky = 1.0 - uWet;
           float nearMoon = 0.0;
           // 日轮跟太阳同一方向。落到地平线下就不画。角半径不跟镜头距离变。
@@ -90,10 +82,13 @@ export class SkySystem {
             col = mix(col, uSunHalo, exp(-lq / (R * 1.45)) * (1.0 - disc) * uHalo * risen * clearSky);
             col = mix(col, body, disc * risen * (1.0 - uWet * 0.85));
           }
-          // 月亮是自己的像素圆盘。俯看时挂得高就永远在画面外，所以圆盘贴着地平（约 9°）。
-          if (uNight > 0.5) {
+          // 月亮是自己的像素圆盘，随夜色连续淡入（不在某个夜色值上突然出现）。
+          // 俯看时挂得高就永远在画面外，所以圆盘贴着地平（约 9°）；平视 / 仰视（uSkyLift→1）挂在真实的月光方位与高度上，
+          // 月光从哪来，月亮就在哪。
+          float moonA = smoothstep(0.2, 0.7, uNight);
+          if (moonA > 0.001) {
             vec3 moonS = normalize(uMoonDir);
-            moonS = normalize(vec3(moonS.x, 0.16 * length(moonS.xz), moonS.z));
+            moonS = normalize(vec3(moonS.x, mix(0.16 * length(moonS.xz), moonS.y, uSkyLift), moonS.z));
             float facing = dot(d, moonS);
             if (facing > 0.8) {
               vec3 upv = abs(moonS.y) > 0.97 ? vec3(1.0, 0.0, 0.0) : vec3(0.0, 1.0, 0.0);
@@ -107,10 +102,10 @@ export class SkySystem {
               vec2 mp = pq / 9.0;
               float maria = smoothstep(0.42, 0.2, length(mp - vec2(-0.25, 0.3))) * 0.8 + smoothstep(0.32, 0.12, length(mp - vec2(0.3, 0.05))) * 0.7 + smoothstep(0.26, 0.1, length(mp - vec2(-0.05, -0.4))) * 0.6;
               vec3 body = uMoonDisc * (1.18 - 0.3 * maria - 0.1 * hash12(pq) - 0.12 * smoothstep(0.7, 1.0, rr));
-              col = mix(col, body, disc * (1.0 - uWet * 0.85));
+              col = mix(col, body, disc * moonA * (1.0 - uWet * 0.85));
               float lq = length(q);
-              col += uMoonDisc * 0.22 * exp(-lq / (R * 1.35)) * (1.0 - disc) * clearSky;
-              nearMoon = exp(-lq / (R * 3.0));
+              col += uMoonDisc * 0.22 * exp(-lq / (R * 1.35)) * (1.0 - disc) * clearSky * moonA;
+              nearMoon = exp(-lq / (R * 3.0)) * moonA;
             }
           }
           if (uNight > 0.05 && d.y > 0.0) {
@@ -154,9 +149,6 @@ export class SkySystem {
 
   update(
     camera: THREE.Camera,
-    top: THREE.Color,
-    middle: THREE.Color,
-    horizon: THREE.Color,
     sunBody: THREE.Vector3,
     moonDir: THREE.Vector3,
     core: THREE.Color,
@@ -164,15 +156,11 @@ export class SkySystem {
     halo: THREE.Color,
     sunR: number,
     haloGain: number,
-    skyLift = 0,
   ): void {
     this.mesh.position.copy(camera.position)
     const far = (camera as THREE.PerspectiveCamera).far ?? 5000
     this.mesh.scale.setScalar(far * 0.9)
     const u = this.mat.uniforms
-    ;(u.uTop.value as THREE.Color).copy(top)
-    ;(u.uMiddle.value as THREE.Color).copy(middle)
-    ;(u.uHorizon.value as THREE.Color).copy(horizon)
     ;(u.uSunBody.value as THREE.Vector3).copy(sunBody)
     ;(u.uMoonDir.value as THREE.Vector3).copy(moonDir)
     ;(u.uSunCore.value as THREE.Color).copy(core)
@@ -180,7 +168,6 @@ export class SkySystem {
     ;(u.uSunHalo.value as THREE.Color).copy(halo)
     u.uSunR.value = sunR
     u.uHalo.value = haloGain
-    u.uSkyLift.value = skyLift
   }
 
   dispose(): void {

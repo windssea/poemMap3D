@@ -157,9 +157,17 @@ export class EnvironmentManager {
     horizon.lerp(this.snowSky, snowK * 0.34)
     horizon.lerp(this.mistSky, mistK * 0.4)
     mid.lerp(this.mistSky, mistK * 0.12)
-    this.sky.update(camera, top, mid, horizon, L.sunDir, L.moonDir, L.core, L.rim, L.halo, L.sunR, L.haloGain, this.skyLiftOf())
+    this.sky.update(camera, L.sunDir, L.moonDir, L.core, L.rim, L.halo, L.sunR, L.haloGain)
+    u.uSkyTop.value.copy(top)
+    u.uSkyMid.value.copy(mid)
     u.uSkyColor.value.copy(mid)
     u.uHorizonColor.value.copy(horizon)
+    u.uSkyLift.value = this.skyLiftOf()
+    /* 霞光跟着日出 / 日落的水平方位走；雨、雾天压薄 */
+    u.uGlowDir.value.set(L.sunDir.x, 0, L.sunDir.z)
+    u.uGlowCol.value.copy(L.glow)
+    u.uGlowCol2.value.copy(L.glow2)
+    u.uGlowK.value = L.glowK * (1 - 0.65 * rainK - 0.4 * snowK - 0.5 * mistK)
     const fogCol = top.copy(L.fog).lerp(this.rainSky, rainK * 0.35).lerp(this.snowSky, snowK * 0.4).lerp(this.winterFog, winter * 0.2 * (1 - L.night))
     // 白天雾色向中段青靠一点，避免雾和天色完全拧开；不再整体压暗——远处把光还回去靠的是距离，不是发灰
     if (L.night < 0.15) fogCol.lerp(mid, 0.3)

@@ -3,6 +3,7 @@ import type * as THREE from 'three'
 import type { Engine } from '../engine/core/Engine'
 import type { FrameContext } from '../engine/core/FrameContext'
 import type { Season, TimeOfDay, Weather } from '../engine/environment/types'
+import type { GroundCameraId } from '../engine/camera/GroundTestCameras'
 import type { LightingTweaks } from '../engine/rendering/LightingDebug'
 import type { Quality } from '../engine/rendering/QualityManager'
 import type { TrailDirector, TrailPort } from '../features/poetTrail/TrailDirector'
@@ -29,6 +30,7 @@ export interface EngineFacade {
   setLighting(patch: Partial<LightingTweaks>): void
   resetLighting(): void
   lighting(): LightingTweaks
+  groundTestCamera(id: GroundCameraId | null): boolean
 
   /* —— 以下为 UI 需要的补充能力 —— */
   hidePoetTrail(): void
@@ -139,6 +141,9 @@ export class EngineFacadeImpl implements EngineFacade, TourPort, TrailPort {
   }
   lighting(): LightingTweaks {
     return { ...this.engine.lighting }
+  }
+  groundTestCamera(id: GroundCameraId | null): boolean {
+    return this.engine.groundTestCamera(id)
   }
 
   flyToView(key: string): void {

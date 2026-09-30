@@ -3,6 +3,7 @@ import type { LightingTweaks, LightView } from '../engine/rendering/LightingDebu
 import { ISOLATION, PHASE0 } from '../engine/rendering/LightingDebug'
 import { TIMES, TIME_NAMES, type TimeOfDay } from '../engine/environment/types'
 import { useApp } from '../app/AppStore'
+import { GROUND_CAMERAS, type GroundCameraId } from '../engine/camera/GroundTestCameras'
 import { useServices } from '../ui/ServicesContext'
 
 const VIEWS: { id: LightView; label: string }[] = [
@@ -73,6 +74,16 @@ export function LightingDebugPanel() {
         <span>雾</span>
         <input type="checkbox" checked={t.fog} onChange={(e) => apply({ fog: e.target.checked })} />
       </label>
+      <div className="row">
+        {(Object.keys(GROUND_CAMERAS) as GroundCameraId[]).map((id) => (
+          <button key={id} className="chip" title={GROUND_CAMERAS[id].label} onClick={() => facade.groundTestCamera(id)}>
+            地面机位 {id}
+          </button>
+        ))}
+        <button className="chip" onClick={() => facade.groundTestCamera(null)}>
+          放开
+        </button>
+      </div>
       <div className="row">
         {TIMES.map((id) => (
           <button key={id} className={`chip ${time === id ? 'on' : ''}`} onClick={() => facade.setTime(id as TimeOfDay)}>

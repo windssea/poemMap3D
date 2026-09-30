@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { SkyTokens } from '../../config/palette'
+import { displayToScene } from '../rendering/DisplayColor'
 import type { TimeOfDay } from './types'
 
 interface Look {
@@ -20,6 +21,10 @@ interface Look {
   core: THREE.Color
   rim: THREE.Color
   halo: THREE.Color
+  /** 霞光：主色、上缘余晖色、强度（晨暮有，昼夜无） */
+  glow: THREE.Color
+  glow2: THREE.Color
+  glowK: number
   /** 日轮角半径，tan(半角)。镜头远近不改变它 */
   sunR: number
   /** 晕的混合强度。昼弱于晨暮 */
@@ -35,9 +40,9 @@ const PRESET: Record<TimeOfDay, { dir: [number, number, number]; sunI: number; a
   // 高度角相对世界水平面，dir 在归一化前：y / hypot(x,z) = tan(高度角)。
   // 晨约 12°（0.197 / hypot(0.86, 0.34)），昼约 54°，暮约 8°（0.124 / hypot(0.84, 0.28)）。
   // 晨 0.80 / 昼 1.06 / 暮 0.72 为 V2.0 通透感第一轮实验值（× 2.7 换算），暮靠低角度暖色直射，不整体压暗。
-  dawn: { dir: [0.86, 0.197, 0.34], sunI: 2.16, ambientI: 1.05, night: 0, exposure: 1.06, sunR: 0.0147, haloGain: 0.38 },
+  dawn: { dir: [0.86, 0.197, 0.34], sunI: 2.16, ambientI: 1.4, night: 0, exposure: 1.06, sunR: 0.0147, haloGain: 0.38 },
   day: { dir: [0.3, 0.85, 0.55], sunI: 2.86, ambientI: 1.14, night: 0, exposure: 1.08, sunR: 0.011, haloGain: 0.18 },
-  dusk: { dir: [-0.84, 0.124, 0.28], sunI: 1.94, ambientI: 0.95, night: 0, exposure: 1.08, sunR: 0.0183, haloGain: 0.4 },
+  dusk: { dir: [-0.84, 0.124, 0.28], sunI: 1.94, ambientI: 1.75, night: 0, exposure: 1.08, sunR: 0.0183, haloGain: 0.4 },
   // 太阳在西边地平线下约 18°。月光仍用 MOON，不把日轮改白充当月亮。
   night: { dir: [-0.84, -0.29, 0.28], sunI: 1.3, ambientI: 1.02, night: 1, exposure: 1.38, sunR: 0.014, haloGain: 0 },
 }
@@ -45,6 +50,10 @@ const PRESET: Record<TimeOfDay, { dir: [number, number, number]; sunI: number; a
 const lookOf = (t: TimeOfDay): Look => {
   const s = SkyTokens[t]
   const p = PRESET[t]
+  /* 晨、昼、暮的天空三段色与霞光写的是屏幕上看到的颜色（验收值），按该时段曝光反解回场景色，
+     否则 ACES 会把它们压成发灰的浅蓝；夜的天色本来就是按场景色调的，不动。 */
+  const warm = t === 'day' ? 0 : 1
+  const seen = (hex: string): THREE.Color => (t === 'night' ? new THREE.Color(hex) : displayToScene(hex, p.exposure, warm))
   return {
     sunDir: new THREE.Vector3(...p.dir).normalize(),
     moonDir: new THREE.Vector3(...MOON).normalize(),
@@ -54,13 +63,16 @@ const lookOf = (t: TimeOfDay): Look => {
     ambientGround: new THREE.Color(s.ambientGround),
     ambientI: p.ambientI,
     fog: new THREE.Color(s.fog),
-    top: new THREE.Color(s.top),
-    mid: new THREE.Color(s.mid),
-    horizon: new THREE.Color(s.horizon),
+    top: seen(s.top),
+    mid: seen(s.mid),
+    horizon: seen(s.horizon),
     cloud: new THREE.Color(s.cloud),
     core: new THREE.Color(s.core),
     rim: new THREE.Color(s.rim),
     halo: new THREE.Color(s.halo),
+    glow: seen(s.glow),
+    glow2: seen(s.glow2),
+    glowK: s.glowK,
     sunR: p.sunR,
     haloGain: p.haloGain,
     night: p.night,
@@ -84,6 +96,9 @@ const cloneLook = (L: Look): Look => ({
   core: L.core.clone(),
   rim: L.rim.clone(),
   halo: L.halo.clone(),
+  glow: L.glow.clone(),
+  glow2: L.glow2.clone(),
+  glowK: L.glowK,
   sunR: L.sunR,
   haloGain: L.haloGain,
   night: L.night,
@@ -136,6 +151,9 @@ export class TimeOfDaySystem {
     c.core.lerpColors(a.core, b.core, k)
     c.rim.lerpColors(a.rim, b.rim, k)
     c.halo.lerpColors(a.halo, b.halo, k)
+    c.glow.lerpColors(a.glow, b.glow, k)
+    c.glow2.lerpColors(a.glow2, b.glow2, k)
+    c.glowK = a.glowK + (b.glowK - a.glowK) * k
     c.sunI = a.sunI + (b.sunI - a.sunI) * k
     c.ambientI = a.ambientI + (b.ambientI - a.ambientI) * k
     c.sunR = a.sunR + (b.sunR - a.sunR) * k

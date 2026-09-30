@@ -208,15 +208,15 @@ export const WeatherTint = {
  */
 export const SkyTokens = {
   // V3.2 Phase 2（晨）：三段/日轮/雾 → 任务书 §4 晨行 + §10.1 晨日轮 + §5 晨雾；方向/强度/曝光不动
-  dawn: { top: '#A2C6D7', mid: '#D4DFDA', horizon: '#F3DEC1', sun: '#F7D9AD', core: '#FFF2D0', rim: '#F7CF94', halo: '#F3D4AB', ambientSky: '#d9dde6', ambientGround: '#8E9D92', fog: '#D4D8D1', cloud: '#E4D8C8' },
+  dawn: { top: '#A7C4D6', mid: '#D7DFDC', horizon: '#F4DEBF', glow: '#F6C98E', glow2: '#EFB9AA', glowK: 0.75, sun: '#F7D9AD', core: '#FFF2D0', rim: '#F7CF94', halo: '#F3D4AB', ambientSky: '#d9dde6', ambientGround: '#A69A86', fog: '#D4D8D1', cloud: '#E4D8C8' },
   // V3.2 Phase 1 实验：昼三段向任务书 §4 昼行靠拢（清透低饱和青蓝，不再灰白）；只动 top/mid/horizon
   // Phase 1 第 2 组：昼雾色 §5 `#CBD7D4`（偏青灰而非白）；fog 同步任务书
-  day: { top: '#79B9D9', mid: '#BEDAE5', horizon: '#E6E8DB', sun: '#FFF3DC', core: '#FFFDF1', rim: '#FFF4D6', halo: '#F7EFD6', ambientSky: '#e4eef2', ambientGround: '#90A094', fog: '#CBD7D4', cloud: '#D5E2DC' },
+  day: { top: '#89BBDD', mid: '#C3DDE9', horizon: '#EAE8DA', glow: '#F5E7C8', glow2: '#E9DCCB', glowK: 0, sun: '#FFF3DC', core: '#FFFDF1', rim: '#FFF4D6', halo: '#F7EFD6', ambientSky: '#e4eef2', ambientGround: '#90A094', fog: '#CBD7D4', cloud: '#D5E2DC' },
   // V3.2 Phase 2（暮 A｜夕照黄昏，用户已确认）：太阳低悬、暖色地平线、月亮隐藏（night=0，不画月亮）。
   // 三段/日轮/雾 → 任务书 §4 暮A 侧行 + §10.1 暮A 日轮；sun/ambient 保持原方向逻辑，只换颜色
-  dusk: { top: '#7089AB', mid: '#C7A39E', horizon: '#F2C49A', sun: '#F0AF78', core: '#FFDCAB', rim: '#F0A16A', halo: '#D77E69', ambientSky: '#B4C6D0', ambientGround: '#8A8D8B', fog: '#D4BDB0', cloud: '#E2C4AE' },
+  dusk: { top: '#7D95B0', mid: '#D6B1AD', horizon: '#F3C69B', glow: '#F19A5C', glow2: '#D88C93', glowK: 1, sun: '#F0AF78', core: '#FFDCAB', rim: '#F0A16A', halo: '#D77E69', ambientSky: '#BFB8CF', ambientGround: '#B08C74', fog: '#D4BDB0', cloud: '#E2C4AE' },
   // 夜的日轮色只用于落到地平线时的过渡，夜里不画太阳
-  night: { top: '#1D2F4A', mid: '#364B68', horizon: '#6A788C', sun: '#A5BBD8', core: '#8C5A48', rim: '#6E4038', halo: '#5C3834', ambientSky: '#8093bd', ambientGround: '#526170', fog: '#516175', cloud: '#3C5068' },
+  night: { top: '#1D2F4A', mid: '#364B68', horizon: '#6A788C', glow: '#6A788C', glow2: '#364B68', glowK: 0, sun: '#A5BBD8', core: '#8C5A48', rim: '#6E4038', halo: '#5C3834', ambientSky: '#8093bd', ambientGround: '#526170', fog: '#516175', cloud: '#3C5068' },
 } as const
 
 /** 水色：浅 → 中 → 深 */
