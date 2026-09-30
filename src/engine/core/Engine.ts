@@ -134,6 +134,7 @@ export class Engine {
     this.env = new EnvironmentManager(this.shared, this.scene, this.shadows, this.renderer.renderer, this.camera, { time: this.opts.time, season: this.opts.season, weather: this.opts.weather }, this.world.waterfalls())
     this.env.lighting = this.lighting
     this.env.setQuality(q.particles)
+    this.env.clouds.groundAt = (x, z) => this.world.sampler.groundHeightAt(x, z)
     this.raycast = new RaycastSystem(this.world.world, this.world.sampler)
     this.hover = new HoverSystem(this.renderer.canvas)
     const terrain = this.world.ctx.terrain

@@ -46,7 +46,9 @@ const PRESET: Record<TimeOfDay, { dir: [number, number, number]; sunI: number; a
   // 晨约 12°（0.197 / hypot(0.86, 0.34)），昼约 54°，暮约 8°（0.124 / hypot(0.84, 0.28)）。
   // 晨 0.80 / 昼 1.06 / 暮 0.72 为 V2.0 通透感第一轮实验值（× 2.7 换算），暮靠低角度暖色直射，不整体压暗。
   dawn: { dir: [0.86, 0.197, 0.34], sunI: 2.16, ambientI: 1.4, night: 0, exposure: 1.06, sunR: 0.0147, haloGain: 0.38 },
-  day: { dir: [0.3, 0.85, 0.55], sunI: 2.86, ambientI: 1.14, night: 0, exposure: 1.08, sunR: 0.011, haloGain: 0.18 },
+  // 昼天光 1.14 → 1.37（×1.2）：背光面、树冠背面、屋面背光处抬起来，受光面与天空不变（地面机位暗部 +10%～+12%，亮部不动；
+  // ×1.3 时俯视图的投影开始发平）。补光太弱推不动暗面（份额小），暖地面色只改色相不改亮度，都不是这里的杠杆
+  day: { dir: [0.3, 0.85, 0.55], sunI: 2.86, ambientI: 1.37, night: 0, exposure: 1.08, sunR: 0.011, haloGain: 0.18 },
   dusk: { dir: [-0.84, 0.124, 0.28], sunI: 1.94, ambientI: 1.75, night: 0, exposure: 1.08, sunR: 0.0183, haloGain: 0.4 },
   // 太阳在西边地平线下约 18°。月光仍用 MOON，不把日轮改白充当月亮。
   // 夜的层次靠月光面与背光面拉开，不全靠提曝光：曝光 1.38 → 1.3、环境光 1.02 → 0.92（月光改到东南后，北向视图朝镜头的面已被照亮；
@@ -73,7 +75,8 @@ const lookOf = (t: TimeOfDay): Look => {
     top: seen(s.top),
     mid: seen(s.mid),
     horizon: seen(s.horizon),
-    cloud: new THREE.Color(s.cloud),
+    // 云是直接看到的颜色，与天空同法按屏幕色反解（夜的云色本就是场景色）
+    cloud: seen(s.cloud),
     core: new THREE.Color(s.core),
     rim: new THREE.Color(s.rim),
     halo: new THREE.Color(s.halo),

@@ -5,6 +5,7 @@ import { WeatherTint, WinterTokens } from '../../config/palette'
 import type { SceneManager } from '../rendering/SceneManager'
 import type { ShadowManager } from '../rendering/ShadowManager'
 import type { SharedUniforms } from '../rendering/SharedUniforms'
+import { CloudSystem } from './CloudSystem'
 import { FogSystem } from './FogSystem'
 import { ParticleSystem } from './ParticleSystem'
 import { PrecipitationSystem } from './PrecipitationSystem'
@@ -27,6 +28,7 @@ export class EnvironmentManager {
   readonly fog = new FogSystem()
   readonly precipitation = new PrecipitationSystem()
   readonly particles: ParticleSystem
+  readonly clouds: CloudSystem
   private readonly hemi: THREE.HemisphereLight
   private readonly tmpColor = new THREE.Color()
   private readonly tmpTop = new THREE.Color()
@@ -61,6 +63,7 @@ export class EnvironmentManager {
     this.weather.set(initial.weather, true)
     this.sky = new SkySystem(shared)
     this.particles = new ParticleSystem(waterfalls)
+    this.clouds = new CloudSystem(shared)
     this.hemi = new THREE.HemisphereLight(new THREE.Color(1, 1, 1), new THREE.Color(0.5, 0.45, 0.4), 1)
     scene.scene.fog = this.fog.fog
     scene.attach('environment', this.hemi)
@@ -70,6 +73,7 @@ export class EnvironmentManager {
     scene.attach('environment', this.sky.mesh)
     scene.attach('effects', this.precipitation.points)
     scene.attach('effects', this.particles.group)
+    scene.attach('environment', this.clouds.mesh)
     shared.uLitSeq.value = initial.time === 'night' ? 1 : 0
   }
 
@@ -193,12 +197,14 @@ export class EnvironmentManager {
     const clim = snowClimateAt(focus.y, focus.z)
     this.precipitation.update(elapsed, focus, distance, Math.min(1, this.weather.rain + this.weather.snow * (1 - clim)), this.weather.snow * clim, pixelRatio)
     this.particles.update(elapsed, focus, distance, this.season.key, wet, pixelRatio)
+    this.clouds.update(dt, elapsed, focus, distance, this.cameraCtrl.viewDir, L.cloud, this.rainSky, wet)
   }
 
   /** 画质：粒子数量、云 */
   setQuality(particles: number): void {
     this.precipitation.scale = particles
     this.particles.scale = particles
+    this.clouds.setQuality(particles)
   }
 
   /** 天空渐变带：俯视地图镜头用俯角带（0），接近水平的机位铺满全带（1） */
@@ -211,5 +217,6 @@ export class EnvironmentManager {
     this.sky.dispose()
     this.precipitation.dispose()
     this.particles.dispose()
+    this.clouds.dispose()
   }
 }
