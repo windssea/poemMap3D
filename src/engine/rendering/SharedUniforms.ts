@@ -76,6 +76,9 @@ export function createSharedUniforms() {
     uLotus: { value: 1 },
     /** 夜里窗光、灯笼的可见范围（镜头距离，超出淡出） */
     uLitFar: { value: 400 },
+    /** 入夜点灯的进度 0–1（从 uLitCenter 向外一片片亮起，约 6.5 秒扫完；天亮时约 3 秒熄完） */
+    uLitSeq: { value: 0 },
+    uLitCenter: { value: new THREE.Vector3() },
     /** 谷地山岚浓度与所在高度（注视点附近地面） */
     uMist: { value: 0.1 },
     uMistY: { value: 60 },

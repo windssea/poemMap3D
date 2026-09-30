@@ -47,8 +47,14 @@ export class CameraController {
     this.presets = new CameraPresetRepository(sampler)
   }
 
+  /** 竖屏加宽视场角：宽高比 0.8 以下由 42° 渐变到 0.5 时的 62°（竖屏 42° 的水平视角只剩二十来度，像长焦） */
+  private fovFor(aspect: number): number {
+    return aspect >= 0.8 ? this.baseFov : this.baseFov + 20 * Math.min(1, (0.8 - aspect) / 0.3)
+  }
+
   setAspect(aspect: number): void {
     this.camera.aspect = aspect
+    if (!this.fixed) this.camera.fov = this.fovFor(aspect)
     this.camera.updateProjectionMatrix()
   }
 
@@ -125,7 +131,7 @@ export class CameraController {
   clearFixed(): void {
     if (!this.fixed) return
     this.fixed = null
-    this.camera.fov = this.baseFov
+    this.camera.fov = this.fovFor(this.camera.aspect)
     this.camera.updateProjectionMatrix()
     this.collision.reset()
   }

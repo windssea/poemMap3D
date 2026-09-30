@@ -77,16 +77,19 @@ uniform vec3 uSnowColor;
 uniform vec3 uWindow;
 uniform float uBare;
 uniform float uLitFar;
+uniform float uLitSeq;
+uniform vec3 uLitCenter;
 uniform float uDebugView;
 uniform vec3 uSunDir;
 uniform sampler2D uBakeMap;
 uniform vec4 uBakeRect;
-/** 烘焙的天空可见度：范围外为 1 */
+/** 烘焙的天空可见度：范围外为 1；外沿 12% 渐入，贴图边上的院落、山坳不在烘焙区边界起一圈亮度台阶 */
 float bakedSky(vec3 w) {
   if (uBakeRect.z < 1.0) return 1.0;
   vec2 uv = (w.xz - uBakeRect.xy) / uBakeRect.zw;
   if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) return 1.0;
-  return texture2D(uBakeMap, uv).r;
+  vec2 e = min(uv, 1.0 - uv);
+  return mix(1.0, texture2D(uBakeMap, uv).r, smoothstep(0.0, 0.12, min(e.x, e.y)));
 }
 uniform float uLotus;
 varying vec3 vBlockUv;
@@ -249,6 +252,12 @@ export class MaterialLibrary {
             // 窗光按整格均匀发光（不随窗棂像素明暗起伏，远看不闪烁），灯笼压一压亮度；
             // 离镜头远到快要换成远景那一圈之前平滑淡出，近远切换时灯不会一下亮一下灭
             float lit = 1.0 - smoothstep(uLitFar * 0.72, uLitFar, distance(vBWorld, cameraPosition));
+            // 入夜从注视处向外一片片点亮（按格取一点抖动，同一处的灯前后脚亮，不是一圈齐刷刷）
+            float cell = hash12(floor(vBWorld.xz / 3.0) + 0.37);
+            float due = clamp(distance(vBWorld.xz, uLitCenter.xz) / max(uLitFar, 1.0), 0.0, 1.0) * 0.8 + cell * 0.06;
+            lit *= smoothstep(due, due + 0.12, uLitSeq);
+            // 灯笼的火苗轻轻晃（约 1.5–2 Hz、幅度 5%）；窗光不晃——窗格闪烁此前刚修掉（a1e92b8）
+            if (!warm) lit *= 1.0 + 0.05 * sin(uTime * (9.0 + 4.0 * cell) + cell * 40.0);
             totalEmissiveRadiance += (warm ? uWindow * (0.55 + 0.15 * dot(texel.rgb, vec3(0.333))) : col * 1.6) * uNight * lit;
           }`,
         )
@@ -263,7 +272,8 @@ export class MaterialLibrary {
         .replace(
           '#include <lights_fragment_end>',
           `#include <lights_fragment_end>
-          reflectedLight.indirectDiffuse *= bakedSky(vBWorld) * aoCurve(vAo) * faceShade(vBNormal);`,
+          // 三者相乘最坏约 0.55 × 0.80 × 0.88 ≈ 0.39（院落里的南北墙），背光面只剩四成天光就死黑了；设下限保住可读性
+          reflectedLight.indirectDiffuse *= max(bakedSky(vBWorld) * aoCurve(vAo) * faceShade(vBNormal), 0.55);`,
         )
       if (kind === 'cutout') frag = frag.replace('#include <normal_fragment_begin>', 'float faceDirection = 1.0;\nvec3 normal = normalize( vNormal );\nvec3 nonPerturbedNormal = normal;')
       shader.fragmentShader = frag
@@ -281,18 +291,26 @@ export class MaterialLibrary {
         attribute vec3 aTint;
         varying vec3 vTint;
         varying vec3 vLocal;
+        varying vec3 vGWorld;
         void main() {
           vTint = aTint;
           vLocal = position / 16.0;
+          vGWorld = (modelMatrix * vec4(position, 1.0)).xyz;
           gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
         }`,
       fragmentShader: /* glsl */ `
         uniform float uNight;
         uniform float uFade;
+        uniform float uLitSeq;
+        uniform float uLitFar;
+        uniform vec3 uLitCenter;
         varying vec3 vTint;
         varying vec3 vLocal;
+        varying vec3 vGWorld;
         void main() {
-          float a = (0.08 + uNight * 0.42) * uFade;
+          // 光晕与灯笼本体同一时刻点亮（同样的点灯次序，不带逐格抖动）
+          float due = clamp(distance(vGWorld.xz, uLitCenter.xz) / max(uLitFar, 1.0), 0.0, 1.0) * 0.8 + 0.03;
+          float a = (0.08 + uNight * 0.42 * smoothstep(due, due + 0.12, uLitSeq)) * uFade;
           gl_FragColor = vec4(pow(vTint, vec3(2.2)) * a, 1.0);
           #include <colorspace_fragment>
         }`,

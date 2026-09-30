@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { CSM } from 'three/examples/jsm/csm/CSM.js'
+import { smoothstep } from '../../utils/math'
 
 /**
  * 阴影：级联阴影（CSM）。
@@ -75,6 +76,7 @@ export class ShadowManager {
       shadowBias: -0.0004,
     })
     csm.fade = true
+    this.wasVisible = false // 新的阴影图是空的：下一帧一定重画
     for (const l of csm.lights) {
       l.castShadow = this.enabled
       l.shadow.normalBias = 0.5
@@ -126,28 +128,65 @@ export class ShadowManager {
   }
 
   /**
-   * 每帧：同步光向、颜色、强度；阴影范围随镜头距离伸缩；更新级联。
+   * 每帧：同步光向、颜色、强度；阴影范围随镜头距离伸缩；更新级联；按需重画阴影图。
+   *
+   * 远处不是一刀关掉阴影，而是随镜头距离把阴影强度淡到 0（600 → 900）。此前在 900 处关 castShadow：
+   * 阴影没了还是小事，关投影后 CSM 把每盏级联灯都当普通平行光照一遍，太阳亮度按级联数叠加，推拉镜头经过这里画面整体发白；
+   * castShadow 一变还会让所有受光材质重编译。阴影最远 700 格，镜头距离过了 700 画面中心已在阴影范围外，所以淡出落在这一段。
+   *
+   * 阴影图不再每帧重画：镜头或光向动了、级联范围变了才画；静止时每 6 帧兜底画一次（船、行人、新载入的区块）。
    * @param sunDir 指向太阳的单位向量
    */
   update(_focus: THREE.Vector3, sunDir: THREE.Vector3, distance: number): void {
     const csm = this.csm
     if (!csm) return
     if (this.scanTick++ % 45 === 0) this.scan()
-    const want = this.enabled && distance < 900 && sunDir.y > 0.05
+    /* 开着阴影时级联灯一直投影，只调阴影强度：three 的 CSM 着色片段在「没有投影的平行光」分支里会把每一盏级联灯都照一遍，
+       castShadow 一关，太阳就按级联数叠加（衡两倍、高三倍）——此前镜头过 900、或光线低于 0.05 时画面发白即来自这里 */
+    const cast = this.enabled
+    const fade = (1 - smoothstep(600, 900, distance)) * smoothstep(0.02, 0.06, sunDir.y)
     for (const l of csm.lights) {
-      l.castShadow = want
+      l.castShadow = cast
+      l.shadow.intensity = fade
       l.color.copy(this.light.color)
       l.intensity = this.light.intensity
     }
     csm.lightDirection.copy(sunDir).negate().normalize()
     const far = Math.min(700, Math.max(250, distance * 2.6 + 150))
+    let rangeChanged = false
     if (Math.abs(far - this.maxFar) > this.maxFar * 0.12) {
       this.maxFar = far
       csm.maxFar = far
       csm.updateFrustums()
+      rangeChanged = true
     }
     csm.update()
+
+    const sm = this.renderer.shadowMap
+    sm.autoUpdate = false
+    const visible = cast && fade > 0.001
+    const cam = this.camera
+    /* 阴影图还没画过（刚建、刚换尺寸）就一定要画一次：投影灯没有阴影图时受光材质整个画不出来 */
+    const missing = cast && csm.lights.some((l) => !l.shadow.map)
+    if (missing) sm.needsUpdate = true
+    if (visible && cam) {
+      const moved = rangeChanged || !this.wasVisible || !cam.position.equals(this.lastPos) || !cam.quaternion.equals(this.lastQuat) || this.lastDir.distanceToSquared(sunDir) > 1e-8
+      if (moved || ++this.idleFrames >= 6) {
+        sm.needsUpdate = true
+        this.idleFrames = 0
+        this.lastPos.copy(cam.position)
+        this.lastQuat.copy(cam.quaternion)
+        this.lastDir.copy(sunDir)
+      }
+    }
+    this.wasVisible = visible
   }
+
+  private readonly lastPos = new THREE.Vector3(Infinity, 0, 0)
+  private readonly lastQuat = new THREE.Quaternion()
+  private readonly lastDir = new THREE.Vector3()
+  private idleFrames = 0
+  private wasVisible = false
 
   dispose(): void {
     this.csm?.remove()

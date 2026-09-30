@@ -33,7 +33,12 @@ interface Look {
   exposure: number
 }
 
-const MOON: [number, number, number] = [0.4, 0.5, -0.6]
+/**
+ * 月亮：东南天空、仰角约 40°。月盘与月光同一方向（天体、影子、受光面三者一致）。
+ * 地图镜头默认站在目标南侧偏东、朝北看，月光从镜头这一侧来，朝镜头的墙面与崖壁才吃得到光；
+ * 此前放在东北（[0.4, 0.5, -0.6]），朝镜头的面整片背光。代价：默认俯视镜头朝北，看不到月盘。
+ */
+const MOON: [number, number, number] = [0.55, 0.62, 0.5]
 
 const PRESET: Record<TimeOfDay, { dir: [number, number, number]; sunI: number; ambientI: number; night: number; exposure: number; sunR: number; haloGain: number }> = {
   // 强度按 Lambert（除以 π）校准：文档里的 1.0 左右对应这里的 2.7 一档。
@@ -44,7 +49,9 @@ const PRESET: Record<TimeOfDay, { dir: [number, number, number]; sunI: number; a
   day: { dir: [0.3, 0.85, 0.55], sunI: 2.86, ambientI: 1.14, night: 0, exposure: 1.08, sunR: 0.011, haloGain: 0.18 },
   dusk: { dir: [-0.84, 0.124, 0.28], sunI: 1.94, ambientI: 1.75, night: 0, exposure: 1.08, sunR: 0.0183, haloGain: 0.4 },
   // 太阳在西边地平线下约 18°。月光仍用 MOON，不把日轮改白充当月亮。
-  night: { dir: [-0.84, -0.29, 0.28], sunI: 1.3, ambientI: 1.02, night: 1, exposure: 1.38, sunR: 0.014, haloGain: 0 },
+  // 夜的层次靠月光面与背光面拉开，不全靠提曝光：曝光 1.38 → 1.3、环境光 1.02 → 0.92（月光改到东南后，北向视图朝镜头的面已被照亮；
+  // 曝光试过 1.22，南向的地面机位整体暗了一到两成，回调到 1.3）
+  night: { dir: [-0.84, -0.29, 0.28], sunI: 1.3, ambientI: 0.92, night: 1, exposure: 1.3, sunR: 0.014, haloGain: 0 },
 }
 
 const lookOf = (t: TimeOfDay): Look => {
@@ -80,6 +87,52 @@ const lookOf = (t: TimeOfDay): Look => {
   }
 }
 
+/** 两个时段外观按 k 插值，写进 c（c 可以就是 a） */
+function blend(a: Look, b: Look, k: number, c: Look): Look {
+  c.sunDir.lerpVectors(a.sunDir, b.sunDir, k).normalize()
+  c.moonDir.lerpVectors(a.moonDir, b.moonDir, k).normalize()
+  c.sun.lerpColors(a.sun, b.sun, k)
+  c.ambientSky.lerpColors(a.ambientSky, b.ambientSky, k)
+  c.ambientGround.lerpColors(a.ambientGround, b.ambientGround, k)
+  c.fog.lerpColors(a.fog, b.fog, k)
+  c.top.lerpColors(a.top, b.top, k)
+  c.mid.lerpColors(a.mid, b.mid, k)
+  c.horizon.lerpColors(a.horizon, b.horizon, k)
+  c.cloud.lerpColors(a.cloud, b.cloud, k)
+  c.core.lerpColors(a.core, b.core, k)
+  c.rim.lerpColors(a.rim, b.rim, k)
+  c.halo.lerpColors(a.halo, b.halo, k)
+  c.glow.lerpColors(a.glow, b.glow, k)
+  c.glow2.lerpColors(a.glow2, b.glow2, k)
+  c.glowK = a.glowK + (b.glowK - a.glowK) * k
+  c.sunI = a.sunI + (b.sunI - a.sunI) * k
+  c.ambientI = a.ambientI + (b.ambientI - a.ambientI) * k
+  c.sunR = a.sunR + (b.sunR - a.sunR) * k
+  c.haloGain = a.haloGain + (b.haloGain - a.haloGain) * k
+  c.night = a.night + (b.night - a.night) * k
+  c.exposure = a.exposure + (b.exposure - a.exposure) * k
+  return c
+}
+
+/**
+ * 薄暮：暮 / 晨与夜之间的过渡途中经过的中间帧（不对外，稳定的暮景、夜景不变）。
+ * 暮的杏色地平线与夜的灰蓝直接插值，屏幕上的中点是偏粉的暖灰（地平线 #D3B2A5、中段 #AD919F，饱和度 0.34 / 0.15）；
+ * 这里让天色经过红粉—紫—靛（地平线 #D4857A 0.51、中段 #8E6F9A 偏紫、天顶 #3E4C7E 靛），是「烧」过去的。
+ * 天空三段写的是屏幕色，与晨昼暮同法反解；其余取两端各半。
+ */
+const TWILIGHT = { top: '#3E4C7E', mid: '#8E6F9A', horizon: '#D4857A', fog: '#9A8A94', ambientSky: '#9AA4C4', ambientGround: '#6F5A66' }
+const twilightOf = (side: 'dawn' | 'dusk'): Look => {
+  const L = blend(lookOf(side), lookOf('night'), 0.5, lookOf(side))
+  const seen = (hex: string): THREE.Color => displayToScene(hex, L.exposure, 0.5)
+  L.top.copy(seen(TWILIGHT.top))
+  L.mid.copy(seen(TWILIGHT.mid))
+  L.horizon.copy(seen(TWILIGHT.horizon))
+  L.fog.set(TWILIGHT.fog)
+  L.ambientSky.set(TWILIGHT.ambientSky)
+  L.ambientGround.set(TWILIGHT.ambientGround)
+  return L
+}
+
 const cloneLook = (L: Look): Look => ({
   sunDir: L.sunDir.clone(),
   moonDir: L.moonDir.clone(),
@@ -105,13 +158,16 @@ const cloneLook = (L: Look): Look => ({
   exposure: L.exposure,
 })
 
-/** 时辰：晨 · 昼 · 暮 · 夜。方向、日轮和天光一起平滑过渡 */
+/** 时辰：晨 · 昼 · 暮 · 夜。方向、日轮和天光一起平滑过渡；暮 / 晨与夜之间经过薄暮 */
 export class TimeOfDaySystem {
   key: TimeOfDay
   readonly cur: Look
   private from: Look
   private to: Look
+  /** 途中经过的中间帧（暮 / 晨 ↔ 夜才有） */
+  private via: Look | null = null
   private t = 1
+  private dur = 1.4
 
   constructor(initial: TimeOfDay) {
     this.key = initial
@@ -121,44 +177,27 @@ export class TimeOfDaySystem {
   }
 
   set(key: TimeOfDay, instant = false): void {
+    const prev = this.key
     this.key = key
     this.from = cloneLook(this.cur)
     this.to = lookOf(key)
+    const side = prev === 'night' ? key : key === 'night' ? prev : null
+    this.via = !instant && (side === 'dawn' || side === 'dusk') ? twilightOf(side) : null
+    this.dur = this.via ? 2.4 : 1.4
     this.t = instant ? 1 : 0
     if (instant) this.apply(1)
   }
 
   update(dt: number): void {
     if (this.t >= 1) return
-    this.t = Math.min(1, this.t + dt / 1.4)
+    this.t = Math.min(1, this.t + dt / this.dur)
     this.apply(this.t * this.t * (3 - 2 * this.t))
   }
 
   private apply(k: number): void {
-    const a = this.from
-    const b = this.to
-    const c = this.cur
-    c.sunDir.lerpVectors(a.sunDir, b.sunDir, k).normalize()
-    c.moonDir.lerpVectors(a.moonDir, b.moonDir, k).normalize()
-    c.sun.lerpColors(a.sun, b.sun, k)
-    c.ambientSky.lerpColors(a.ambientSky, b.ambientSky, k)
-    c.ambientGround.lerpColors(a.ambientGround, b.ambientGround, k)
-    c.fog.lerpColors(a.fog, b.fog, k)
-    c.top.lerpColors(a.top, b.top, k)
-    c.mid.lerpColors(a.mid, b.mid, k)
-    c.horizon.lerpColors(a.horizon, b.horizon, k)
-    c.cloud.lerpColors(a.cloud, b.cloud, k)
-    c.core.lerpColors(a.core, b.core, k)
-    c.rim.lerpColors(a.rim, b.rim, k)
-    c.halo.lerpColors(a.halo, b.halo, k)
-    c.glow.lerpColors(a.glow, b.glow, k)
-    c.glow2.lerpColors(a.glow2, b.glow2, k)
-    c.glowK = a.glowK + (b.glowK - a.glowK) * k
-    c.sunI = a.sunI + (b.sunI - a.sunI) * k
-    c.ambientI = a.ambientI + (b.ambientI - a.ambientI) * k
-    c.sunR = a.sunR + (b.sunR - a.sunR) * k
-    c.haloGain = a.haloGain + (b.haloGain - a.haloGain) * k
-    c.night = a.night + (b.night - a.night) * k
-    c.exposure = a.exposure + (b.exposure - a.exposure) * k
+    const v = this.via
+    if (!v) blend(this.from, this.to, k, this.cur)
+    else if (k < 0.5) blend(this.from, v, k * 2, this.cur)
+    else blend(v, this.to, k * 2 - 1, this.cur)
   }
 }

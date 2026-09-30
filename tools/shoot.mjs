@@ -28,6 +28,8 @@ const base = flag('--base', 'http://localhost:5188')
 const port = Number(flag('--port', '9333'))
 /* 固定的浏览器配置目录：区块缓存（IndexedDB）留在里面，同一份代码第二次起不必重新生成世界 */
 const fixedProfile = flag('--profile', '')
+/** 每次等区块载完的上限（毫秒）；冷缓存时全国远景片生成很慢，可调小后先跑一遍预热（配合 --profile 复用缓存） */
+const settleMs = Number(flag('--settle', '60000'))
 const [scenesFile, outDir] = args
 if (!scenesFile || !outDir) {
   console.error('用法: node tools/shoot.mjs <scenes.json> <输出目录>')
@@ -54,6 +56,15 @@ const proc = spawn(exe, [
   '--enable-webgl',
   '--hide-scrollbars',
   '--mute-audio',
+  /* 验收浏览器与本机的 Edge 账号隔离：不登录、不同步、不装扩展。否则 Edge 会隐式登录系统账号，
+     把书签、扩展同步进来并弹出同步确认页（扩展开的标签页与弹窗会让页面卡住、截图挂起） */
+  '--no-first-run',
+  '--no-default-browser-check',
+  '--disable-sync',
+  '--disable-extensions',
+  '--disable-component-extensions-with-background-pages',
+  '--disable-default-apps',
+  '--disable-features=msImplicitSignin,msEdgeSyncConsent,msWebAssist,EdgeCollections',
   '--disable-background-timer-throttling',
   '--disable-renderer-backgrounding',
   '--disable-backgrounding-occluded-windows',
@@ -86,10 +97,17 @@ class Page {
       }
     })
   }
-  send(method, params = {}) {
+  send(method, params = {}, timeoutMs = 180000) {
     const id = ++this.id
     this.ws.send(JSON.stringify({ id, method, params }))
-    return new Promise((res, rej) => this.pending.set(id, { res, rej }))
+    /* 页面卡死（GPU 挂起、弹窗）时不无限等下去 */
+    return new Promise((res, rej) => {
+      const t = setTimeout(() => {
+        this.pending.delete(id)
+        rej(new Error(`${method} 超过 ${timeoutMs / 1000}s 无响应`))
+      }, timeoutMs)
+      this.pending.set(id, { res: (v) => (clearTimeout(t), res(v)), rej: (e) => (clearTimeout(t), rej(e)) })
+    })
   }
   async eval(expression) {
     const r = await this.send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true })
@@ -119,6 +137,7 @@ try {
 
   let loaded = ''
   for (const sc of scenes) {
+    try {
     const [w, h] = sc.size ?? [1440, 900]
     await page.send('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: 1, mobile: false })
     const query = sc.query ?? 'shs=summer&shw=clear&shm=day&q=mid'
@@ -142,7 +161,7 @@ try {
       while (stable < 6) {
         const ok = await page.eval(`window.__shanhe.engine.world.chunks.settled`)
         stable = ok ? stable + 1 : 0
-        if (Date.now() - t1 > 60000) {
+        if (Date.now() - t1 > settleMs) {
           console.warn(`${sc.name}: ${label} 区块未在时限内载完，照当前画面出图`)
           break
         }
@@ -164,6 +183,11 @@ try {
     const file = path.join(outDir, `${sc.name}.png`)
     fs.writeFileSync(file, Buffer.from(shot.data, 'base64'))
     console.log('->', file)
+    } catch (err) {
+      /* 单个场景失败（超时、页面卡死）：记下来，下一个场景重新载入页面 */
+      console.warn(`${sc.name}: 失败，跳过 —— ${err.message}`)
+      loaded = ''
+    }
   }
 } finally {
   proc.kill()

@@ -73,7 +73,58 @@ export function rings(img, step = 60) {
   return acc.map((a, i) => ({ r0: i * step, rgb: a.slice(0, 3).map((v) => Math.round(v / a[3])), y: Math.round(luma(a[0] / a[3], a[1] / a[3], a[2] / a[3])) }))
 }
 
-if (process.argv[1]?.endsWith('lum.mjs')) {
+/** 整幅画面（隔 3 像素取样）的平均亮度 */
+export function meanLuma(img) {
+  const { w, h, bpp, px } = img
+  let s = 0
+  let c = 0
+  for (let y = 0; y < h; y += 3)
+    for (let x = 0; x < w; x += 3) {
+      const o = (y * w + x) * bpp
+      s += luma(px[o], px[o + 1], px[o + 2])
+      c++
+    }
+  return s / c
+}
+
+/** (x, y) 周围 (2r+1)² 像素的平均 RGB；x、y 小于 1 时按画面比例 */
+export function probe(img, x, y, r = 4) {
+  const { w, h, bpp, px } = img
+  const cx = Math.round(x <= 1 ? x * (w - 1) : x)
+  const cy = Math.round(y <= 1 ? y * (h - 1) : y)
+  const a = [0, 0, 0]
+  let c = 0
+  for (let j = Math.max(0, cy - r); j <= Math.min(h - 1, cy + r); j++)
+    for (let i = Math.max(0, cx - r); i <= Math.min(w - 1, cx + r); i++) {
+      const o = (j * w + i) * bpp
+      a[0] += px[o]
+      a[1] += px[o + 1]
+      a[2] += px[o + 2]
+      c++
+    }
+  return a.map((v) => Math.round(v / c))
+}
+
+if (process.argv[1]?.endsWith('lum.mjs') && process.argv[2] === 'zoom') {
+  /* node tools/lum.mjs zoom <目录>：zoom-*.png 按距离从远到近，逐级平均亮度与相邻两级变化（超过 6% 标 !） */
+  const dir = process.argv[3]
+  const files = fs.readdirSync(dir).filter((f) => /^zoom-\d+\.png$/.test(f)).sort().reverse()
+  let prev = 0
+  for (const f of files) {
+    const y = meanLuma(decode(`${dir}/${f}`))
+    const d = prev ? ((y - prev) / prev) * 100 : 0
+    console.log(f.padEnd(16), y.toFixed(1).padStart(6), prev ? `${d >= 0 ? '+' : ''}${d.toFixed(1)}%`.padStart(8) : '', Math.abs(d) > 6 ? '!' : '')
+    prev = y
+  }
+} else if (process.argv[1]?.endsWith('lum.mjs') && process.argv[2] === 'probe') {
+  /* node tools/lum.mjs probe <png> x,y [x,y ...]：各点周围 9×9 的平均 RGB（x、y ≤ 1 为画面比例） */
+  const img = decode(process.argv[3])
+  for (const p of process.argv.slice(4)) {
+    const [x, y] = p.split(',').map(Number)
+    const c = probe(img, x, y)
+    console.log(p.padEnd(12), c.join(',').padEnd(12), '#' + c.map((v) => v.toString(16).padStart(2, '0')).join(''), Math.round(luma(...c)))
+  }
+} else if (process.argv[1]?.endsWith('lum.mjs')) {
   const [file, mode = 'ring'] = process.argv.slice(2)
   const img = decode(file)
   if (mode === 'ring') for (const r of rings(img)) console.log(String(r.r0).padStart(4), r.rgb.join(',').padEnd(12), r.y)

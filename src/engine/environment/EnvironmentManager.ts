@@ -1,5 +1,6 @@
 import * as THREE from 'three'
 import { snowClimateAt } from '../../world/climate/Climate'
+import { smoothstep } from '../../utils/math'
 import { WeatherTint, WinterTokens } from '../../config/palette'
 import type { SceneManager } from '../rendering/SceneManager'
 import type { ShadowManager } from '../rendering/ShadowManager'
@@ -30,6 +31,7 @@ export class EnvironmentManager {
   private readonly tmpColor = new THREE.Color()
   private readonly tmpTop = new THREE.Color()
   private readonly tmpMid = new THREE.Color()
+  private readonly tmpAmb = new THREE.Color()
   private readonly rainSky = new THREE.Color(WeatherTint.skyRain)
   private readonly snowSky = new THREE.Color(WeatherTint.skySnow)
   private readonly mistSky = new THREE.Color(WeatherTint.skyMist)
@@ -68,10 +70,12 @@ export class EnvironmentManager {
     scene.attach('environment', this.sky.mesh)
     scene.attach('effects', this.precipitation.points)
     scene.attach('effects', this.particles.group)
+    shared.uLitSeq.value = initial.time === 'night' ? 1 : 0
   }
 
   setTime(t: TimeOfDay, instant = false): void {
     this.time.set(t, instant)
+    if (instant) this.shared.uLitSeq.value = t === 'night' ? 1 : 0
   }
   setSeason(s: Season, instant = false): void {
     this.season.set(s, instant)
@@ -97,9 +101,20 @@ export class EnvironmentManager {
     const moonK = elev >= 0.06 ? 0 : elev <= -0.16 ? 1 : (0.06 - elev) / 0.22
     this.lightDir.copy(L.sunDir).lerp(L.moonDir, moonK)
     if (this.lightDir.lengthSq() > 1e-8) this.lightDir.normalize()
+    /* 低日照地的光比日轮略高（方位不变，日轮仍画在真实位置）：晨约 12°、暮约 8° 的掠射光会让台阶、山坳整片落进
+       山体和彼此的阴影里，平地直射只剩正午的一成多。高度 0.3 以上不抬，贴地平线处渐入。 */
+    const lift = 0.11 * smoothstep(-0.03, 0.05, elev) * smoothstep(0.3, 0.1, elev)
+    if (lift > 0) {
+      this.lightDir.y = Math.max(this.lightDir.y + lift, 0.03)
+      this.lightDir.normalize()
+    }
     u.uSunDir.value.copy(this.lightDir)
     u.uSunColor.value.copy(L.sun)
     u.uNight.value = L.night
+    /* 入夜点灯：从注视处向外一片片亮起（约 6.5 秒），天亮时约 3 秒熄完；瞬时切换时段则直接到位（见 setTime） */
+    const litWant = L.night > 0.35 ? 1 : 0
+    u.uLitSeq.value = litWant ? Math.min(1, u.uLitSeq.value + dt / 6.5) : Math.max(0, u.uLitSeq.value - dt / 3)
+    u.uLitCenter.value.copy(focus)
     ;(u.uSeasonGrass.value as THREE.Color).copy(S.grass)
     ;(u.uSeasonFoliage.value as THREE.Color).copy(S.foliage)
     u.uAutumn.value = S.autumn
@@ -126,13 +141,16 @@ export class EnvironmentManager {
     const skyK = tw?.sky ?? 1
     const sunK = tw?.sun ?? 1
     this.shadows.light.color.copy(L.sun).lerp(this.winterSun, 0.5 * winter)
-    this.fill.color.copy(L.ambientSky)
-    this.fill.intensity = (0.32 + 0.2 * L.night) * W.light * skyK
+    /* 天光随天气：天空罩上雨雪雾色时，阴影里的天光也跟着变（否则天灰了、阴影仍是晴天的蓝） */
+    const amb = this.tmpAmb.copy(L.ambientSky).lerp(this.rainSky, this.weather.rain * 0.3).lerp(this.snowSky, this.weather.snow * 0.3).lerp(this.mistSky, this.weather.mist * 0.2)
+    this.fill.color.copy(amb)
+    // 补光走直射路径，不被 AO / 烘焙 / 面向系数衰减，只抬没被太阳照到的面、不动天空和水：白天 0.32 → 0.40（约为太阳的 0.14），夜里仍是 0.52
+    this.fill.intensity = (0.4 + 0.12 * L.night) * W.light * skyK
     this.fill.position.set(focus.x - this.lightDir.x * 400, focus.y + 300, focus.z - this.lightDir.z * 400)
     this.fill.target.position.copy(focus)
     this.fill.target.updateMatrixWorld()
     this.shadows.light.intensity = L.sunI * W.light * sunK
-    this.hemi.color.copy(L.ambientSky)
+    this.hemi.color.copy(amb)
     this.hemi.groundColor.copy(L.ambientGround)
     this.hemi.intensity = L.ambientI * (0.75 + 0.25 * W.light) * skyK
     this.renderer.toneMappingExposure = L.exposure * (tw?.exposure ?? 1)
