@@ -10,6 +10,7 @@
  *   wait   setup 之后再等的毫秒数（默认 1500）
  *   probe  截图前在页面里求值并打印结果（可 await）；shot: false 则只求值不截图
  *   size   [宽, 高]，默认 1440×900
+ *   dpr    设备像素比，默认 1（高分屏上摩尔纹、窗格等与像素比有关的问题要用 2 复现）
  * 页面里可用 window.__shanhe = { engine, facade, store }。
  *
  * 每个场景都新开页面，注入固定的随机数种子，界面整个隐藏（含开发用的光照调试面板）。
@@ -139,9 +140,9 @@ try {
   for (const sc of scenes) {
     try {
     const [w, h] = sc.size ?? [1440, 900]
-    await page.send('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: 1, mobile: false })
+    await page.send('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: sc.dpr ?? 1, mobile: false })
     const query = sc.query ?? 'shs=summer&shw=clear&shm=day&q=mid'
-    const key = `${query}|${w}x${h}`
+    const key = `${query}|${w}x${h}|${sc.dpr ?? 1}`
     /* 连续几个场景地址参数相同就复用同一个页面（场景之间靠 setup 调机位），省掉重新载入 */
     if (key !== loaded || sc.fresh) {
       await page.send('Page.navigate', { url: 'about:blank' })

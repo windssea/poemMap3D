@@ -197,6 +197,7 @@ export class MaterialLibrary {
           '#include <map_fragment>',
           /* glsl */ `
           vec4 texel = texture(uBlockAtlas, vec3(vBlockUv.x, -vBlockUv.y, vBlockUv.z));
+          float winRaw = dot(texel.rgb, vec3(0.333)); // 亮窗的糊纸 / 窗棂判断用取样原值（下面一行会把 texel 随距离混向平均色）
           float tclass = mod(vFlags, 8.0);
           // 亮窗（暖色发光）的窗格：离远了平均成一片纸色，不让三像素一道的木棂在远处闪出摩尔纹
           if (mod(floor(vFlags / 8.0), 2.0) > 0.5 && mod(floor(vFlags / 32.0), 2.0) > 0.5) texel.rgb = mix(texel.rgb, vec3(0.42, 0.35, 0.24), smoothstep(12.0, 36.0, distance(vBWorld, cameraPosition)));
@@ -275,9 +276,10 @@ export class MaterialLibrary {
             if (!warm) lit *= 1.0 + 0.03 * sin(uTime * (9.0 + 4.0 * cell) + cell * 40.0);
             // 窗：近处看得见糊纸的亮格与木窗棂的暗条（纸亮、棂暗，不再是整块匀亮的「纱窗」），离远了（12→36 格）渐渐平均成一片暖光，
             // 不让三像素一道的窗棂在远处闪出摩尔纹（那一段的贴图本身也在同一距离上混向平均色，见上）
-            float paper = smoothstep(0.42, 0.68, dot(texel.rgb, vec3(0.333)));
+            float paper = smoothstep(0.42, 0.68, winRaw);
             float farK = smoothstep(12.0, 36.0, distance(vBWorld, cameraPosition));
-            float pane = mix(mix(0.10, 1.0, paper), 0.66, farK);
+            // 远处的平均亮度取田字窗的面积比（糊纸约四成）：近处的格子与远处的平均值亮度一致，过渡中不掉一档
+            float pane = mix(mix(0.10, 1.0, paper), 0.46, farK);
             totalEmissiveRadiance += (warm ? uWindow * pane : col * 1.6) * uNight * lit;
           }`,
         )

@@ -28,19 +28,21 @@ export interface BuildingParams {
   base?: 'stone' | 'wall'
   /** 园墙：是否开月洞门（默认开） */
   gate?: boolean
+  /** 游廊：立在水上（木桩入水、木板铺地），水廊 */
+  piles?: boolean
 }
 
-const stairs = (id: number, f: Direction, top = false): PackedState => packState({ id, facing: f, half: top ? 'top' : 'bottom' })
-const post = (id: number, axis: number = Axis.Y): PackedState => packState({ id, axis: axis as 0 | 1 | 2 })
-const range = (a: number, b: number): number[] => Array.from({ length: b - a + 1 }, (_, i) => a + i)
-const bounds = (w: number, d: number) => {
+export const stairs = (id: number, f: Direction, top = false): PackedState => packState({ id, facing: f, half: top ? 'top' : 'bottom' })
+export const post = (id: number, axis: number = Axis.Y): PackedState => packState({ id, axis: axis as 0 | 1 | 2 })
+export const range = (a: number, b: number): number[] => Array.from({ length: b - a + 1 }, (_, i) => a + i)
+export const bounds = (w: number, d: number) => {
   const hw = Math.floor(w / 2)
   const hd = Math.floor(d / 2)
   return { x0: -hw, x1: w % 2 ? hw : hw - 1, z0: -hd, z1: d % 2 ? hd : hd - 1 }
 }
 
 /** 屋顶下山墙补齐：墙面所在列从墙顶补到屋面下 */
-function fillGables(b: StructureBuilder, xs: number[], z0: number, z1: number, fromY: number, fill: PackedState): void {
+export function fillGables(b: StructureBuilder, xs: number[], z0: number, z1: number, fromY: number, fill: PackedState): void {
   for (const x of xs)
     for (let z = z0; z <= z1; z++) {
       let top = fromY
@@ -51,7 +53,7 @@ function fillGables(b: StructureBuilder, xs: number[], z0: number, z1: number, f
 }
 
 /** 台基 + 正面台阶 */
-function platform(b: StructureBuilder, x0: number, x1: number, z0: number, z1: number, h: number, mat: number, stairId: number, both = false): void {
+export function platform(b: StructureBuilder, x0: number, x1: number, z0: number, z1: number, h: number, mat: number, stairId: number, both = false): void {
   b.box(x0, 0, z0, x1, h - 1, z1, S(mat))
   const steps = (z: number, f: Direction, dz: number) => {
     for (let k = 0; k < h; k++) for (let x = -1; x <= 1; x++) b.set(x, h - 1 - k, z + dz * (k + 1), stairs(stairId, f))
@@ -751,7 +753,9 @@ export function corridor(p: BuildingParams = {}): VoxelStructure {
   const L = p.length ?? 9
   const b = new StructureBuilder('corridor')
   const hl = Math.floor(L / 2)
-  b.box(-hl, 0, -1, hl, 0, 1, S(B.PAVING))
+  // 水廊（piles）：木桩入水、木板铺地；否则是石板铺地的陆上游廊
+  b.box(-hl, 0, -1, hl, 0, 1, S(p.piles ? B.DARK_PLANKS : B.PAVING))
+  if (p.piles) for (let x = -hl; x <= hl; x += 3) for (const z of [-1, 1]) for (let y = -4; y < 0; y++) b.set(x, y, z, S(B.STONE_BRICK))
   for (let x = -hl; x <= hl; x++)
     for (const z of [-1, 1]) {
       if ((x + hl) % 3 === 0 || x === hl) for (let y = 1; y <= 3; y++) b.set(x, y, z, post(B.PILLAR))

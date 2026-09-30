@@ -256,12 +256,20 @@ const CHENGDU: LandmarkDefinition = {
   vegetationProfile: { weights: { bamboo: 2, broadleaf: 3, pine: 1 }, density: 0.9 },
 }
 
-/**
- * 苏州：水城——两横两纵河道，枕河人家，石拱桥；城北北寺塔；西北一座园林：
- * 园子在河东岸一片平地上：北面粉墙黛瓦作背景，远香堂（厅堂）与见山楼（两层）靠墙而立，
- * 池南一道隔墙开月洞门、门里框出一座太湖石峰（瘦、皱、漏、透）；东侧游廊、池边重檐亭；竹、柳、桃点缀其间。
- */
 const houseRow = (xs: readonly number[], z: number, rot: number, seed: number): StructureSpec[] => xs.map((x, i) => ({ b: 'house' as const, x, z, rot, p: { seed: seed + i, lanterns: i % 2 === 0 } }))
+/**
+ * 苏州：园林之城。地形是一条南北向的狭长平地，被运河切成三块方正的「岛」，西边是大湖——
+ * 按苏州古典园林来设计，三进三园，沿中轴（x = 8）用桥与园门相连：
+ *
+ *  · 北园（拙政园式水园）：四面粉墙，南墙正中园门，门内花街铺地、花台；过庭是远香堂（四面厅）隔池北望——
+ *    池心一座荷风四面亭（小岛），九曲桥自西岸、自堂前两路通到岛上；北岸见山楼（两层）、双檐亭，
+ *    东北岸石舫（前舱敞台、中舱花窗、后舱两层楼）船尾靠岸船头入水；西岸一道游廊、东岸廊与假山峰石；北墙开月洞门，框出墙外的山色。
+ *  · 中园（网师园式书斋小院）：北门、南门，门内花街铺地、假山与松，正厅看松读画，两隅半亭、花台。
+ *  · 南园（留园式峰石庭院）：北门入，涵碧山房（四面厅）面池，池心冠云峰（高耸的太湖石）立在小岛上，九曲桥通岛，
+ *    曲溪楼、双檐亭、游廊环池。
+ *  · 园外：运河东岸、城北的北寺塔作借景；石拱桥跨运河通东岸。
+ * 西边大湖是天然的，湖上水榭与游廊由北园西岸伸出（水廊、立在木桩上）。
+ */
 const SUZHOU: LandmarkDefinition = {
   id: 'suzhou',
   name: '苏州',
@@ -275,44 +283,95 @@ const SUZHOU: LandmarkDefinition = {
     { t: 'canal', pts: [[-48, 14], [48, 14]], w: 2 },
     { t: 'canal', pts: [[-6, -44], [-6, 44]], w: 2 },
     { t: 'canal', pts: [[22, -44], [22, 44]], w: 2 },
-    { t: 'lake', x: -28, z: -26, rx: 8, rz: 6, depth: 2 },
+    // 北园：池（x 0…16、z −35…−23）与池心小岛
+    { t: 'lake', x: 8, z: -30, rx: 10, rz: 7, depth: 2 },
+    { t: 'island', x: 8, z: -30, r: 3.2, dy: 1 },
+    // 南园：池（x 1…15、z 30…38）与池心小岛（冠云峰立在岛上）
+    { t: 'lake', x: 8, z: 34, rx: 9, rz: 5, depth: 2 },
+    { t: 'island', x: 8, z: 34, r: 3.4, dy: 1 },
   ],
   structures: [
-    ...houseRow([-38, -30, -20, 4, 12, 30, 38], -13, 0, 80),
-    ...houseRow([-38, -30, -20, 4, 12, 30, 38], -3, 2, 90),
-    ...houseRow([-38, -30, -20, 4, 12, 30, 38], 9, 0, 100),
-    ...houseRow([-38, -30, -20, 4, 12, 30, 38], 19, 2, 110),
-    { b: 'bridge', x: 9, z: -8, rot: 1, atLevel: true, p: { length: 7 } },
-    { b: 'bridge', x: -26, z: 14, rot: 1, atLevel: true, p: { length: 7 } },
-    { b: 'bridge', x: 34, z: 14, rot: 1, atLevel: true, p: { length: 7 } },
-    { b: 'bridge', x: -6, z: 3, rot: 0, atLevel: true, p: { length: 7 } },
+    /* ——— 北园（x −4…20、z −42…−10）：按各建筑的实际占用尺寸排，池心留出 13×9 的水面 ——— */
+    // 园墙：北墙、西墙、东墙；南墙正中是园门
+    { b: 'gardenWall', x: -4, z: -42, p: { length: 25, height: 5 } },
+    { b: 'gardenWall', x: -4, z: -42, rot: 1, p: { length: 31, height: 4, gate: false } },
+    { b: 'gardenWall', x: 20, z: -42, rot: 1, p: { length: 31, height: 4, gate: false } },
+    { b: 'gardenWall', x: -4, z: -10, p: { length: 7, height: 4, gate: false } },
+    { b: 'gardenWall', x: 14, z: -10, p: { length: 7, height: 4, gate: false } },
+    { b: 'gardenGate', x: 8, z: -10, p: { width: 11 } },
+    // 庭前：花街铺地、两座花台
+    { b: 'gardenPaving', x: 8, z: -12, p: { width: 13, depth: 3 } },
+    { b: 'flowerBed', x: 0, z: -12, p: { seed: 11 } },
+    { b: 'flowerBed', x: 16, z: -12, p: { seed: 12 } },
+    // 远香堂（面北临池）居南，占 z −22…−12 内
+    { b: 'gardenHall', x: 8, z: -18, rot: 2, p: { width: 9, depth: 5, lanterns: true } },
+    // 池（x 2…14、z −35…−25）居中；池心荷风亭与通向它的九曲桥（自堂前北行）
+    { b: 'pavilion', x: 8, z: -30, p: { width: 5 } },
+    { b: 'zigzagBridge', x: 8, z: -26, rot: 1, atLevel: true, overWater: true, p: { length: 5 } },
+    // 北岸：石舫（船尾靠北岸、船头入池）居东，见山楼居西北角。池面留空——水是园的主体，建筑只沿岸排
+    { b: 'stoneBoat', x: 11, z: -36, atLevel: true, overWater: true },
+    { b: 'loft', x: 0, z: -38, p: { width: 7, depth: 5, seed: 121, lanterns: true } },
+    // 东西两岸：峰石（贴墙，不进池）
+    { b: 'rockery', x: 17, z: -24, p: { seed: 3, height: 11 } },
+    { b: 'rockery', x: -1, z: -25, p: { seed: 5, height: 7 } },
+    ...lamps([5, 11], [-9]),
+
+    /* ——— 中园（x −4…20、z −6…12）：书斋小院 ——— */
+    { b: 'bridge', x: 8, z: -8, rot: 1, atLevel: true, p: { length: 7 } },
+    { b: 'gardenWall', x: -4, z: -6, p: { length: 7, height: 4, gate: false } },
+    { b: 'gardenWall', x: 14, z: -6, p: { length: 7, height: 4, gate: false } },
+    { b: 'gardenGate', x: 8, z: -6, rot: 2, p: { width: 11 } },
+    { b: 'gardenWall', x: -4, z: -6, rot: 1, p: { length: 19, height: 4, gate: false } },
+    { b: 'gardenWall', x: 20, z: -6, rot: 1, p: { length: 19, height: 4, gate: false } },
+    { b: 'gardenWall', x: -4, z: 12, p: { length: 7, height: 4, gate: false } },
+    { b: 'gardenWall', x: 14, z: 12, p: { length: 7, height: 4, gate: false } },
+    { b: 'gardenGate', x: 8, z: 12, p: { width: 11 } },
+    { b: 'gardenPaving', x: 8, z: -2, p: { width: 11, depth: 5 } },
+    { b: 'rockery', x: 0, z: -2, p: { seed: 7, height: 7 } },
+    { b: 'rockery', x: 16, z: -2, p: { seed: 9, height: 5 } },
+    { b: 'gardenHall', x: 8, z: 5, p: { width: 7, depth: 5, lanterns: true } },
+    { b: 'flowerBed', x: 0, z: 9, p: { seed: 13 } },
+    { b: 'flowerBed', x: 16, z: 9, p: { seed: 14 } },
+
+    /* ——— 南园（x −4…20、z 16…42）：峰石庭院，池居北、厅居南 ——— */
+    { b: 'bridge', x: 8, z: 14, rot: 1, atLevel: true, p: { length: 7 } },
+    { b: 'gardenWall', x: -4, z: 17, p: { length: 7, height: 4, gate: false } },
+    { b: 'gardenWall', x: 14, z: 17, p: { length: 7, height: 4, gate: false } },
+    { b: 'gardenGate', x: 8, z: 17, rot: 2, p: { width: 11 } },
+    { b: 'gardenWall', x: -4, z: 17, rot: 1, p: { length: 26, height: 4, gate: false } },
+    { b: 'gardenWall', x: 20, z: 17, rot: 1, p: { length: 26, height: 4, gate: false } },
+    { b: 'gardenWall', x: -4, z: 42, p: { length: 25, height: 5 } },
+    { b: 'gardenPaving', x: 8, z: 20, p: { width: 9, depth: 3 } },
+    { b: 'gardenHall', x: 8, z: 26, rot: 2, p: { width: 9, depth: 5, lanterns: true } },
+    { b: 'rockery', x: 8, z: 34, p: { seed: 15, height: 14 } },
+    { b: 'pavilion', x: 1, z: 39, p: { width: 5, double: true } },
+    { b: 'flowerBed', x: 15, z: 39, p: { seed: 16 } },
+    { b: 'flowerBed', x: 13, z: 21, p: { seed: 17 } },
+    { b: 'flowerBed', x: 3, z: 21, p: { seed: 18 } },
+
+    /* ——— 园外：东岸石桥、北寺塔（借景） ——— */
     { b: 'bridge', x: 22, z: -22, rot: 0, atLevel: true, p: { length: 7 } },
     { b: 'pagoda', x: 32, z: -28, p: { levels: 9, width: 7, tile: 'gray' } },
-    { b: 'waterPavilion', x: -28, z: -18, rot: 2, atLevel: true, overWater: true, p: { width: 7, depth: 5 } },
-    // 园子在河东岸的一片平地上（西是河与池，东是运河，北面地势抬高成靠山）：
-    // 北面一道粉墙作背景，堂与楼靠墙而立；池南一道隔墙开月洞门，门里框出一座太湖石峰（框景）；东侧游廊、池边亭
-    { b: 'gardenWall', x: -27, z: -41, p: { length: 21, height: 5, gate: false } },
-    { b: 'hall', x: -16, z: -37, p: { width: 9, depth: 5, tile: 'gray', terrace: 1, lanterns: true } },
-    { b: 'loft', x: -24, z: -37, p: { width: 7, depth: 5, seed: 121, lanterns: true } },
-    { b: 'gardenWall', x: -25, z: -31, p: { length: 13, height: 4 } },
-    { b: 'rockery', x: -18, z: -27, p: { seed: 3, height: 9 } },
-    { b: 'rockery', x: -9, z: -28, p: { seed: 5, height: 6 } },
-    { b: 'pavilion', x: -14, z: -24, p: { width: 5, double: true } },
-    { b: 'corridor', x: -9, z: -33, rot: 1, p: { length: 7 } },
-    // 河西岸高处的重檐亭，遥望园中
-    { b: 'pavilion', x: -40, z: -30, p: { width: 5, double: true } },
-    ...lamps([-2], [-12, 22, 30]),
+    ...lamps([30], [-20, -12]),
   ],
   trees: [
-    { type: 'willow', variant: 2, pts: [[-36, -22], [-20, -22]], n: 3 },
-    { type: 'peach', pts: [[-22, -34], [-14, -24]], n: 2 },
-    { type: 'bamboo', pts: [[-27, -39], [-9, -39]], n: 4 },
-    { type: 'willow', variant: 2, pts: [[-22, -28], [-19, -23]], n: 2 },
-    { type: 'pine', variant: 1, pts: [[-44, -36], [-40, -24]], n: 2 },
-    { type: 'willow', variant: 0, pts: [[-46, 11], [-34, 11]], n: 2 },
-    { type: 'willow', variant: 0, pts: [[26, -5], [44, -5]], n: 2 },
+    // 北园：池岸垂柳、墙下竹丛
+    { type: 'willow', variant: 2, pts: [[3, -26], [3, -34]], n: 2 },
+    { type: 'willow', variant: 2, pts: [[13, -26], [13, -34]], n: 2 },
+    { type: 'bamboo', pts: [[-3, -41], [19, -41]], n: 7 },
+    { type: 'pine', variant: 1, pts: [[-3, -14], [-2, -12]], n: 2 },
+    // 中园：松竹
+    { type: 'pine', variant: 1, pts: [[-2, 3], [-2, 8]], n: 2 },
+    { type: 'bamboo', pts: [[18, 3], [18, 8]], n: 3 },
+    // 南园：池岸柳、墙下竹
+    { type: 'willow', variant: 2, pts: [[1, 30], [1, 36]], n: 2 },
+    { type: 'willow', variant: 2, pts: [[15, 30], [15, 36]], n: 2 },
+    { type: 'bamboo', pts: [[-3, 41], [19, 41]], n: 6 },
+    // 园外：河岸柳
+    { type: 'willow', variant: 0, pts: [[26, -40], [44, -40]], n: 3 },
+    { type: 'willow', variant: 0, pts: [[26, 20], [44, 20]], n: 3 },
   ],
-  vegetationProfile: { weights: { willow: 3, broadleaf: 2, peach: 1, bamboo: 1 }, density: 0.7 },
+  vegetationProfile: { weights: { willow: 3, broadleaf: 2, peach: 1, bamboo: 2 }, density: 0.7 },
 }
 
 

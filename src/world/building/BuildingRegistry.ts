@@ -26,8 +26,9 @@ import {
   rockery,
   gardenWall,
 } from './BuildingFactory'
+import { flowerBed, gardenGate, gardenHall, gardenPaving, stoneBoat, zigzagBridge } from './GardenBuildings'
 
-export type BuildingId = 'grandTower' | 'waterPavilion' | 'corridor' | 'rockery' | 'gardenWall' | 'loft' | 'courtyard' | 'shop' | 'stall' | 'bellTower' | 'archway' | 'lamp' | 'house' | 'hall' | 'pavilion' | 'pagoda' | 'brickPagoda' | 'gate' | 'wall' | 'tower' | 'bridge' | 'stupa' | 'terrace' | 'hut'
+export type BuildingId = 'grandTower' | 'waterPavilion' | 'corridor' | 'rockery' | 'gardenWall' | 'gardenHall' | 'zigzagBridge' | 'stoneBoat' | 'gardenGate' | 'gardenPaving' | 'flowerBed' | 'loft' | 'courtyard' | 'shop' | 'stall' | 'bellTower' | 'archway' | 'lamp' | 'house' | 'hall' | 'pavilion' | 'pagoda' | 'brickPagoda' | 'gate' | 'wall' | 'tower' | 'bridge' | 'stupa' | 'terrace' | 'hut'
 
 export interface BuildingDefinition {
   id: BuildingId
@@ -45,6 +46,12 @@ const defs: BuildingDefinition[] = [
   { id: 'corridor', name: '游廊', entrance: 'none', foundation: 'stone', build: corridor },
   { id: 'rockery', name: '假山', entrance: 'none', foundation: 'none', build: rockery },
   { id: 'gardenWall', name: '园墙', entrance: 'none', foundation: 'stone', build: gardenWall },
+  { id: 'gardenHall', name: '四面厅', entrance: 'both', foundation: 'stone', build: gardenHall },
+  { id: 'zigzagBridge', name: '九曲桥', entrance: 'none', foundation: 'none', build: zigzagBridge },
+  { id: 'stoneBoat', name: '石舫', entrance: 'none', foundation: 'none', build: stoneBoat },
+  { id: 'gardenGate', name: '园门', entrance: 'both', foundation: 'stone', build: gardenGate },
+  { id: 'gardenPaving', name: '花街铺地', entrance: 'none', foundation: 'none', build: gardenPaving },
+  { id: 'flowerBed', name: '花台', entrance: 'none', foundation: 'stone', build: flowerBed },
   { id: 'loft', name: '楼', entrance: 'front', foundation: 'stone', build: loft },
   { id: 'courtyard', name: '四合院', entrance: 'front', foundation: 'stone', build: courtyard },
   { id: 'shop', name: '店铺', entrance: 'front', foundation: 'stone', build: shop },

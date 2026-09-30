@@ -184,9 +184,12 @@ function paint(p: TexturePattern, x: number, y: number, c: [number, number, numb
       return pick(c, clump < 0.3 ? 1 : r > 0.88 ? 2 : 0)
     }
     case 'lattice': {
-      if (x === 0 || x === 15 || y === 0 || y === 15) return pick(c, 0)
-      if (x % 3 === 0 || y % 3 === 0) return pick(c, 1)
-      return pick(c, r < 0.3 ? 3 : 2)
+      // 粗「田」字窗：2 像素外框、2 像素十字，四个 5×5 的糊纸大格。
+      // 此前是 3 像素一道的细棂（像纱窗），缩小到一两个像素就在屏幕上混叠成摩尔纹、镜头一动就闪；
+      // 大格的周期 8 像素，要到很远（一格不足两个像素）才会混叠，而那时着色器已把它平均成一片暖光。
+      if (x < 2 || x > 13 || y < 2 || y > 13) return pick(c, 0)
+      if (x === 7 || x === 8 || y === 7 || y === 8) return pick(c, 1)
+      return pick(c, r < 0.25 ? 3 : 2)
     }
     case 'gold':
       return pick(c, (x + y) % 7 === 0 ? 2 : r < 0.2 ? 3 : r < 0.5 ? 1 : 0)
