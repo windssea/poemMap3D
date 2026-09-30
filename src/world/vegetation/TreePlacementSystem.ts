@@ -107,7 +107,7 @@ export class TreePlacementSystem {
     const profile = s.landmark >= 0 ? this.profileOf(s.landmark) : null
     const weights = { ...bd.trees, ...(profile?.weights ?? {}) }
     if (!Object.values(weights).some((w) => w && w > 0)) return null
-    if (s.slope > (s.biome === BiomeId.Cliff ? 3 : 2)) return null
+    if (s.slope > (s.biome === BiomeId.Cliff ? 3.4 : 2.6)) return null // 陡坡上也长松：此前 2 以上一棵不长，山体一片光秃
     if (s.field) return null
 
     const space = this.spaceClass(x, z, s.biome)

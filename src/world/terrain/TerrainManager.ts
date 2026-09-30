@@ -357,10 +357,11 @@ export class TerrainManager {
       /* 大块岩面：按低频噪声分出成片的「岩区」，岩区里中等坡度就露岩，岩区外只有很陡处才露岩——
          不再草、土、岩一层层横着交替（千层糕） */
       const rockZone = this.nMisc(c.x / 110 + 13, c.z / 110 - 7) > 0.12 && this.macro.relief(c.x, c.z) > 7
-      if (slope > (rockZone ? 1.3 : 3.2)) {
+      // 岩面门槛比旧值（岩区 1.3 / 别处 3.2 / 台阶侧面 1.1）放宽：中等坡度保留草皮与土层，不让整面山坡都是岩墙
+      if (slope > (rockZone ? 1.9 : 3.7)) {
         top = rockZone || n2 > 0 ? B.ROCK : B.STONE
         soil = rock
-      } else if (slope > 1.1) soil = rock // 缓坡的台阶侧面：土层换岩，不露一道道褐土
+      } else if (slope > 1.6) soil = rock // 陡一些的台阶侧面：土层换岩
     }
     if (macroKind === MacroKind.Karst) {
       // 峰林是灰白石灰岩：陡处露岩，平处红壤
@@ -377,6 +378,19 @@ export class TerrainManager {
     if (biome === BiomeId.Taiga || (lat > 43 && lng > 121 && biome === BiomeId.Plain)) soil = B.BLACK_EARTH
     if (biome === BiomeId.Plateau && n2 > 0.45) top = B.GRAVEL
     if (biome === BiomeId.Snow && slope > 2.2) top = B.ROCK
+    if (biome === BiomeId.Cliff && macroKind !== MacroKind.Karst) {
+      /* 悬崖不是一整面同色的岩墙：深浅两种岩石成片交错（石青的浅岩、黛色的深岩），背阴处长一片苔石，较缓的崖坎上留一层草皮 */
+      const cn = this.nMisc(c.x / 13 + 500, c.z / 13)
+      if (slope < 5 && n2 > 0.25) {
+        top = B.GRASS
+        soil = B.DIRT
+        soilDepth = 1
+      } else {
+        top = cn > 0.3 ? B.STONE : cn < -0.4 ? B.MOSS_STONE : B.ROCK
+        soil = cn > 0.1 ? B.STONE : B.ROCK
+        rock = cn > 0.1 ? B.STONE : B.ROCK
+      }
+    }
 
     let shore = 0
     if (inWater) {

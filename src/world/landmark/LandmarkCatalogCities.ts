@@ -256,7 +256,11 @@ const CHENGDU: LandmarkDefinition = {
   vegetationProfile: { weights: { bamboo: 2, broadleaf: 3, pine: 1 }, density: 0.9 },
 }
 
-/** 苏州：水城——两横两纵河道，枕河人家，石拱桥；城北北寺塔；西北园林（池、水榭、游廊、假山、重檐亭） */
+/**
+ * 苏州：水城——两横两纵河道，枕河人家，石拱桥；城北北寺塔；西北一座园林：
+ * 园子在河东岸一片平地上：北面粉墙黛瓦作背景，远香堂（厅堂）与见山楼（两层）靠墙而立，
+ * 池南一道隔墙开月洞门、门里框出一座太湖石峰（瘦、皱、漏、透）；东侧游廊、池边重檐亭；竹、柳、桃点缀其间。
+ */
 const houseRow = (xs: readonly number[], z: number, rot: number, seed: number): StructureSpec[] => xs.map((x, i) => ({ b: 'house' as const, x, z, rot, p: { seed: seed + i, lanterns: i % 2 === 0 } }))
 const SUZHOU: LandmarkDefinition = {
   id: 'suzhou',
@@ -285,16 +289,26 @@ const SUZHOU: LandmarkDefinition = {
     { b: 'bridge', x: 22, z: -22, rot: 0, atLevel: true, p: { length: 7 } },
     { b: 'pagoda', x: 32, z: -28, p: { levels: 9, width: 7, tile: 'gray' } },
     { b: 'waterPavilion', x: -28, z: -18, rot: 2, atLevel: true, overWater: true, p: { width: 7, depth: 5 } },
-    { b: 'corridor', x: -28, z: -36, p: { length: 13 } },
+    // 园子在河东岸的一片平地上（西是河与池，东是运河，北面地势抬高成靠山）：
+    // 北面一道粉墙作背景，堂与楼靠墙而立；池南一道隔墙开月洞门，门里框出一座太湖石峰（框景）；东侧游廊、池边亭
+    { b: 'gardenWall', x: -27, z: -41, p: { length: 21, height: 5, gate: false } },
+    { b: 'hall', x: -16, z: -37, p: { width: 9, depth: 5, tile: 'gray', terrace: 1, lanterns: true } },
+    { b: 'loft', x: -24, z: -37, p: { width: 7, depth: 5, seed: 121, lanterns: true } },
+    { b: 'gardenWall', x: -25, z: -31, p: { length: 13, height: 4 } },
+    { b: 'rockery', x: -18, z: -27, p: { seed: 3, height: 9 } },
+    { b: 'rockery', x: -9, z: -28, p: { seed: 5, height: 6 } },
+    { b: 'pavilion', x: -14, z: -24, p: { width: 5, double: true } },
+    { b: 'corridor', x: -9, z: -33, rot: 1, p: { length: 7 } },
+    // 河西岸高处的重檐亭，遥望园中
     { b: 'pavilion', x: -40, z: -30, p: { width: 5, double: true } },
-    { b: 'rockery', x: -39, z: -21, p: { seed: 3 } },
-    { b: 'rockery', x: -17, z: -30, p: { seed: 5 } },
     ...lamps([-2], [-12, 22, 30]),
   ],
   trees: [
     { type: 'willow', variant: 2, pts: [[-36, -22], [-20, -22]], n: 3 },
     { type: 'peach', pts: [[-22, -34], [-14, -24]], n: 2 },
-    { type: 'bamboo', pts: [[-44, -38], [-44, -24]], n: 2 },
+    { type: 'bamboo', pts: [[-27, -39], [-9, -39]], n: 4 },
+    { type: 'willow', variant: 2, pts: [[-22, -28], [-19, -23]], n: 2 },
+    { type: 'pine', variant: 1, pts: [[-44, -36], [-40, -24]], n: 2 },
     { type: 'willow', variant: 0, pts: [[-46, 11], [-34, 11]], n: 2 },
     { type: 'willow', variant: 0, pts: [[26, -5], [44, -5]], n: 2 },
   ],

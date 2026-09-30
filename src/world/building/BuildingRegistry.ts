@@ -24,9 +24,10 @@ import {
   waterPavilion,
   corridor,
   rockery,
+  gardenWall,
 } from './BuildingFactory'
 
-export type BuildingId = 'grandTower' | 'waterPavilion' | 'corridor' | 'rockery' | 'loft' | 'courtyard' | 'shop' | 'stall' | 'bellTower' | 'archway' | 'lamp' | 'house' | 'hall' | 'pavilion' | 'pagoda' | 'brickPagoda' | 'gate' | 'wall' | 'tower' | 'bridge' | 'stupa' | 'terrace' | 'hut'
+export type BuildingId = 'grandTower' | 'waterPavilion' | 'corridor' | 'rockery' | 'gardenWall' | 'loft' | 'courtyard' | 'shop' | 'stall' | 'bellTower' | 'archway' | 'lamp' | 'house' | 'hall' | 'pavilion' | 'pagoda' | 'brickPagoda' | 'gate' | 'wall' | 'tower' | 'bridge' | 'stupa' | 'terrace' | 'hut'
 
 export interface BuildingDefinition {
   id: BuildingId
@@ -43,6 +44,7 @@ const defs: BuildingDefinition[] = [
   { id: 'waterPavilion', name: '水榭', entrance: 'none', foundation: 'none', build: waterPavilion },
   { id: 'corridor', name: '游廊', entrance: 'none', foundation: 'stone', build: corridor },
   { id: 'rockery', name: '假山', entrance: 'none', foundation: 'none', build: rockery },
+  { id: 'gardenWall', name: '园墙', entrance: 'none', foundation: 'stone', build: gardenWall },
   { id: 'loft', name: '楼', entrance: 'front', foundation: 'stone', build: loft },
   { id: 'courtyard', name: '四合院', entrance: 'front', foundation: 'stone', build: courtyard },
   { id: 'shop', name: '店铺', entrance: 'front', foundation: 'stone', build: shop },

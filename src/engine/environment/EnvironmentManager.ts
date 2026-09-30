@@ -118,7 +118,8 @@ export class EnvironmentManager {
     /* 入夜点灯：从注视处向外一片片亮起（约 6.5 秒），天亮时约 3 秒熄完；瞬时切换时段则直接到位（见 setTime） */
     const litWant = L.night > 0.35 ? 1 : 0
     u.uLitSeq.value = litWant ? Math.min(1, u.uLitSeq.value + dt / 6.5) : Math.max(0, u.uLitSeq.value - dt / 3)
-    u.uLitCenter.value.copy(focus)
+    // 点灯中心在入夜前一直跟着注视点，入夜（开始点灯）那一刻定下，点灯、熄灯期间不再随镜头走
+    if (u.uLitSeq.value <= 0.001) u.uLitCenter.value.copy(focus)
     ;(u.uSeasonGrass.value as THREE.Color).copy(S.grass)
     ;(u.uSeasonFoliage.value as THREE.Color).copy(S.foliage)
     u.uAutumn.value = S.autumn
@@ -149,7 +150,7 @@ export class EnvironmentManager {
     const amb = this.tmpAmb.copy(L.ambientSky).lerp(this.rainSky, this.weather.rain * 0.3).lerp(this.snowSky, this.weather.snow * 0.3).lerp(this.mistSky, this.weather.mist * 0.2)
     this.fill.color.copy(amb)
     // 补光走直射路径，不被 AO / 烘焙 / 面向系数衰减，只抬没被太阳照到的面、不动天空和水：白天 0.32 → 0.40（约为太阳的 0.14），夜里仍是 0.52
-    this.fill.intensity = (0.4 + 0.12 * L.night) * W.light * skyK
+    this.fill.intensity = (0.4 + 0.4 * L.night) * W.light * skyK
     this.fill.position.set(focus.x - this.lightDir.x * 400, focus.y + 300, focus.z - this.lightDir.z * 400)
     this.fill.target.position.copy(focus)
     this.fill.target.updateMatrixWorld()

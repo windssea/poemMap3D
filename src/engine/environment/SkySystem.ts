@@ -88,7 +88,7 @@ export class SkySystem {
           float moonA = smoothstep(0.2, 0.7, uNight);
           if (moonA > 0.001) {
             vec3 moonS = normalize(uMoonDir);
-            moonS = normalize(vec3(moonS.x, mix(0.16 * length(moonS.xz), moonS.y, uSkyLift), moonS.z));
+            moonS = normalize(vec3(moonS.x, mix(0.22 * length(moonS.xz), moonS.y, uSkyLift), moonS.z));
             float facing = dot(d, moonS);
             if (facing > 0.8) {
               vec3 upv = abs(moonS.y) > 0.97 ? vec3(1.0, 0.0, 0.0) : vec3(0.0, 1.0, 0.0);

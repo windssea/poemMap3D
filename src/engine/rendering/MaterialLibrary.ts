@@ -229,6 +229,20 @@ export class MaterialLibrary {
             vec3 crown = col * mix(1.0, 1.1, smoothstep(0.15, 0.75, sun));
             col = mix(crown, wall, steep);
             col *= mix(1.0, 0.8, smoothstep(0.2, 0.75, -rn.y));
+            // 岩面不成一整面同色的墙：大块明暗斑驳；铁锈赭黄的染痕与竖向雨痕；低处背阴处的青苔。
+            // 细部（染痕、雨痕、苔）随距离淡去——远看只剩大块明暗，不让远山起一层噪点
+            float rd = distance(vBWorld, cameraPosition);
+            float fineK = 1.0 - smoothstep(120.0, 420.0, rd);
+            float big = hash12(floor(vBWorld.xz / 9.0) + floor(vBWorld.y / 7.0) * 17.3);
+            col *= 0.86 + 0.26 * big;
+            float stain = hash12(floor(vBWorld.xz / 4.0) + floor(vBWorld.y / 3.0) * 7.7);
+            col = mix(col, col * vec3(1.22, 1.0, 0.74), smoothstep(0.62, 0.92, stain) * 0.55 * steep * fineK);
+            float streak = hash12(floor(vBWorld.xz / 2.0) + 11.3);
+            col *= 1.0 - 0.14 * smoothstep(0.7, 1.0, streak) * steep * fineK;
+            float lowK = 1.0 - smoothstep(110.0, 150.0, vBWorld.y);
+            float mossN = hash12(floor(vBWorld.xz / 2.0) + floor(vBWorld.y / 2.0) * 3.1);
+            float moss = smoothstep(0.62, 0.88, mossN) * lowK * (0.45 + 0.55 * (1.0 - steep)) * fineK;
+            col = mix(col, col * vec3(0.62, 1.22, 0.55), moss * 0.7);
           }
           // 受光面提气约 9%：草坡、树冠、白墙、屋面、石阶、河岸、塔身。背光面不动。
           float sunLit = smoothstep(0.35, 0.82, dot(normalize(vBNormal), normalize(uSunDir)));
@@ -252,13 +266,19 @@ export class MaterialLibrary {
             // 窗光按整格均匀发光（不随窗棂像素明暗起伏，远看不闪烁），灯笼压一压亮度；
             // 离镜头远到快要换成远景那一圈之前平滑淡出，近远切换时灯不会一下亮一下灭
             float lit = 1.0 - smoothstep(uLitFar * 0.72, uLitFar, distance(vBWorld, cameraPosition));
-            // 入夜从注视处向外一片片点亮（按格取一点抖动，同一处的灯前后脚亮，不是一圈齐刷刷）
+            // 入夜从点灯中心向外一圈圈柔和亮起：中心在入夜那一刻定下、不随镜头走；半径用固定的 400 格，不随镜头距离变；
+            // 亮起的前沿宽 0.25（灯是渐亮，不是一格格蹦出来），没有逐格抖动——否则平移镜头时灯会忽明忽暗
+            float due = clamp(distance(vBWorld.xz, uLitCenter.xz) / 400.0, 0.0, 1.0) * 0.75;
+            lit *= smoothstep(due, due + 0.25, uLitSeq);
             float cell = hash12(floor(vBWorld.xz / 3.0) + 0.37);
-            float due = clamp(distance(vBWorld.xz, uLitCenter.xz) / max(uLitFar, 1.0), 0.0, 1.0) * 0.8 + cell * 0.06;
-            lit *= smoothstep(due, due + 0.12, uLitSeq);
-            // 灯笼的火苗轻轻晃（约 1.5–2 Hz、幅度 5%）；窗光不晃——窗格闪烁此前刚修掉（a1e92b8）
-            if (!warm) lit *= 1.0 + 0.05 * sin(uTime * (9.0 + 4.0 * cell) + cell * 40.0);
-            totalEmissiveRadiance += (warm ? uWindow * (0.55 + 0.15 * dot(texel.rgb, vec3(0.333))) : col * 1.6) * uNight * lit;
+            // 灯笼的火苗轻轻晃（约 1.5–2 Hz、幅度 3%）；窗光不晃——窗格闪烁此前刚修掉（a1e92b8）
+            if (!warm) lit *= 1.0 + 0.03 * sin(uTime * (9.0 + 4.0 * cell) + cell * 40.0);
+            // 窗：近处看得见糊纸的亮格与木窗棂的暗条（纸亮、棂暗，不再是整块匀亮的「纱窗」），离远了（12→36 格）渐渐平均成一片暖光，
+            // 不让三像素一道的窗棂在远处闪出摩尔纹（那一段的贴图本身也在同一距离上混向平均色，见上）
+            float paper = smoothstep(0.42, 0.68, dot(texel.rgb, vec3(0.333)));
+            float farK = smoothstep(12.0, 36.0, distance(vBWorld, cameraPosition));
+            float pane = mix(mix(0.10, 1.0, paper), 0.66, farK);
+            totalEmissiveRadiance += (warm ? uWindow * pane : col * 1.6) * uNight * lit;
           }`,
         )
         .replace(
@@ -308,9 +328,9 @@ export class MaterialLibrary {
         varying vec3 vLocal;
         varying vec3 vGWorld;
         void main() {
-          // 光晕与灯笼本体同一时刻点亮（同样的点灯次序，不带逐格抖动）
-          float due = clamp(distance(vGWorld.xz, uLitCenter.xz) / max(uLitFar, 1.0), 0.0, 1.0) * 0.8 + 0.03;
-          float a = (0.08 + uNight * 0.42 * smoothstep(due, due + 0.12, uLitSeq)) * uFade;
+          // 光晕与灯笼本体同一时刻点亮（同样的点灯次序）
+          float due = clamp(distance(vGWorld.xz, uLitCenter.xz) / 400.0, 0.0, 1.0) * 0.75;
+          float a = (0.08 + uNight * 0.42 * smoothstep(due, due + 0.25, uLitSeq)) * uFade;
           gl_FragColor = vec4(pow(vTint, vec3(2.2)) * a, 1.0);
           #include <colorspace_fragment>
         }`,

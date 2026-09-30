@@ -120,13 +120,33 @@ export class WorldManager {
     await ready
     gen.activate()
     mesher.activate()
-    return new WorldManager(ctx, gen, mesher, opts.scene, opts.materials, opts.shared, opts.quality)
+    const wm = new WorldManager(ctx, gen, mesher, opts.scene, opts.materials, opts.shared, opts.quality)
+    wm.initData = { macro, anchors: opts.anchors, seed }
+    void wm.setQuality(opts.quality)
+    return wm
   }
 
   setQuality(q: QualityPreset): void {
     this.quality = q
     this.chunks.uploadsPerFrame = q.uploadsPerFrame
     this.sizeCaches(q)
+    void this.ensureWorkers(q)
+  }
+
+  /** 生成 Worker 的初始化数据（宏观网格、名胜锚点、种子）：运行中补 Worker 时用 */
+  initData: { macro: MacroGridData; anchors: PlaceAnchor[]; seed: number } | null = null
+
+  /**
+   * 渲染视距放大后补 Worker：区块数近似按倍数平方增加，而单个区块只要两三毫秒——慢在 Worker 满载、任务排队，不在上传。
+   * 目标数 = 画质预设的 Worker 数 × 视距倍数，不超过 6 个与（核数 − 1）。
+   */
+  private async ensureWorkers(q: QualityPreset): Promise<void> {
+    const d = this.initData
+    if (!d || q.viewK <= 1) return
+    const cores = typeof navigator !== 'undefined' ? navigator.hardwareConcurrency || 4 : 4
+    const want = Math.min(6, Math.max(1, cores - 1), Math.round(q.workers * q.viewK))
+    if (want <= this.generators.size) return
+    await this.generators.grow(want, { type: 'init', macro: d.macro, anchors: d.anchors, seed: d.seed })
   }
 
   /** 区块缓存按渲染半径放大：近景圈约 π·r² 块，远景（2×2 合并）与远景片（8×8 合并）按各自半径折算，留三成余量（镜头来回扫不必重新生成） */

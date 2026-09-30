@@ -38,13 +38,35 @@ export class WorkerPool {
   done = 0
   onError: ((msg: string) => void) | null = null
 
-  constructor(factory: () => Worker, count: number) {
-    for (let i = 0; i < count; i++) {
-      const w = factory()
-      w.onmessage = (e: MessageEvent<WorkerResponse>) => this.receive(w, e.data)
-      w.onerror = (e) => this.onError?.(e.message)
+  constructor(
+    private readonly factory: () => Worker,
+    count: number,
+  ) {
+    for (let i = 0; i < count; i++) this.workers.push(this.spawn())
+  }
+
+  private spawn(): Worker {
+    const w = this.factory()
+    w.onmessage = (e: MessageEvent<WorkerResponse>) => this.receive(w, e.data)
+    w.onerror = (e) => this.onError?.(e.message)
+    return w
+  }
+
+  /**
+   * 运行中补 Worker 到 total 个：新 Worker 先按 init 握手（与启动时那批一样），握手完才接任务。
+   * 「渲染视距」调大时区块数成倍增加，启动时那 2–3 个 Worker 忙不过来（队列里几百上千个任务、Worker 始终满载），
+   * 补足后生成速度近似按 Worker 数增长。只增不减。
+   */
+  async grow(total: number, init: WorkerRequest): Promise<void> {
+    const added: Worker[] = []
+    while (this.workers.length + added.length < total) added.push(this.spawn())
+    if (!added.length) return
+    await Promise.all(added.map((w) => this.direct(w, init, [], (r) => r.type === 'ready')))
+    for (const w of added) {
       this.workers.push(w)
+      this.idle.push(w)
     }
+    this.pump()
   }
 
   get size(): number {

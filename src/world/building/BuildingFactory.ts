@@ -26,6 +26,8 @@ export interface BuildingParams {
   plan?: 'square' | 'cross'
   top?: 'xieshan' | 'cross' | 'cuanjian' | 'wudian'
   base?: 'stone' | 'wall'
+  /** 园墙：是否开月洞门（默认开） */
+  gate?: boolean
 }
 
 const stairs = (id: number, f: Direction, top = false): PackedState => packState({ id, facing: f, half: top ? 'top' : 'bottom' })
@@ -387,6 +389,33 @@ export function wallSegment(p: BuildingParams = {}): VoxelStructure {
   return b.build()
 }
 
+/* ================= 园墙：粉墙黛瓦、月洞门、花窗 ================= */
+
+/** 沿 X 通长的园墙：下砌青砖勒脚，粉墙，顶上灰瓦压檐；中间一座月洞门（圆洞，青砖镶边），两侧每隔六格一扇漏窗 */
+export function gardenWall(p: BuildingParams = {}): VoxelStructure {
+  const L = p.length ?? 21
+  const h = p.height ?? 5
+  const b = new StructureBuilder('garden-wall')
+  const cx = Math.floor(L / 2)
+  const cy = 2.2
+  for (let x = 0; x < L; x++) {
+    for (let y = 0; y < h; y++) b.set(x, y, 0, S(y === 0 ? B.STONE_BRICK : B.PLASTER))
+    b.set(x, h, 0, S(B.ROOF_GRAY_SLAB))
+    if (x % 4 === 0) b.set(x, h + 1, 0, S(B.ROOF_GRAY_SLAB))
+    // 花窗：两侧对称，离月洞门至少 4 格
+    const dx = Math.abs(x - cx)
+    if (dx >= 4 && dx % 6 === 4 && x > 1 && x < L - 2) for (const y of [2, 3]) b.set(x, y, 0, packState({ id: B.LATTICE_WINDOW, facing: Direction.South }))
+  }
+  // 月洞门：圆洞半径 2.3，外圈 0.8 格宽的青砖边
+  for (let x = cx - 4; x <= cx + 4 && (p.gate ?? true); x++)
+    for (let y = 0; y <= h; y++) {
+      const d = Math.hypot(x - cx, y - cy)
+      if (d < 2.3) b.set(x, y, 0, 0 as PackedState)
+      else if (d < 3.1 && y < h) b.set(x, y, 0, S(B.STONE_BRICK))
+    }
+  return b.build()
+}
+
 /* ================= 拱桥 ================= */
 export function archBridge(p: BuildingParams = {}): VoxelStructure {
   const L = (p.length ?? 11) | 1
@@ -743,6 +772,12 @@ export function corridor(p: BuildingParams = {}): VoxelStructure {
 export function rockery(p: BuildingParams = {}): VoxelStructure {
   const r = new Random(p.seed ?? 9)
   const b = new StructureBuilder('rockery')
+  /* 太湖石峰：height > 0 时在石丛中立一座瘦高的孤峰，石身按哈希镂空成洞（瘦、皱、漏、透），顶上一点苔 */
+  const peak = p.height ?? 0
+  if (peak > 0) {
+    b.blob(0, peak / 2, 0, 1.4, peak / 2 + 0.4, 1.2, S(B.LIMESTONE), (x, y, z, dd) => y >= 0 && (dd < 0.42 || y < 2 || ((x * 5 + y * 11 + z * 3 + (p.seed ?? 9)) % 5) !== 0), false)
+    b.blob(0.6, peak - 0.6, 0, 0.9, 0.9, 0.8, S(B.MOSS_STONE), (_x, _y, _z, dd) => dd < 0.85, false)
+  }
   const n = 3 + r.int(0, 2)
   for (let i = 0; i < n; i++) {
     const cx = r.int(-3, 3)
