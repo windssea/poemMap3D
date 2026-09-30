@@ -26,8 +26,18 @@ varying vec3 vBWorld;
 varying vec3 vBNormal;
 `
 
-/** 雾之后再按边缘雾图混向雾色：地图四边、远海、海南以南渐隐；极远边带向地平线天色收敛 */
-const EDGE_FOG_FRAGMENT = (v: string) => `#include <fog_fragment>
+/**
+ * 雾之后再按边缘雾图混向雾色：地图四边、远海、海南以南渐隐；极远边带向地平线天色收敛。
+ * 空气透视只看「像素到镜头的世界距离」——近景、远景、远景片、全国覆盖图共用这一条，
+ * 与区块层级无关，所以层与层的交界上不会有亮度 / 饱和度的台阶。
+ */
+const EDGE_FOG_FRAGMENT = (v: string) => `#ifdef USE_FOG
+ { float apD = length(${v} - cameraPosition);
+   float ap = smoothstep(uMistNear * 1.3, uMistNear * 4.0 + 260.0, apD) * 0.42 * uFogOn;
+   vec3 grey = vec3(dot(gl_FragColor.rgb, vec3(0.3, 0.59, 0.11)));
+   gl_FragColor.rgb = mix(gl_FragColor.rgb, mix(grey, fogColor, 0.4), ap); }
+#endif
+#include <fog_fragment>
 #ifdef USE_FOG
  vec2 fuv = (${v}.xz - uFogRect.xy) / uFogRect.zw;
  vec3 edgeFogCol = mix(fogColor, uHorizonColor, edgeBandK(fuv));
@@ -43,6 +53,19 @@ const maskDiscard = (threshold: number) => /* glsl */ `
    if (mk.x > 0.0 && mk.y > 0.0 && mk.x < 1.0 && mk.y < 1.0 && texture2D(uChunkMask, mk).r > ${threshold.toFixed(2)}) discard; }`
 const FAR_MASK = maskDiscard(0.9)
 const COARSE_MASK = maskDiscard(0.6)
+
+/** 光照调试视图只编进开发构建：生产着色器里没有这些分支 */
+const DEBUG_VIEW_BLOCK = import.meta.env.DEV
+  ? /* glsl */ `
+          if (uDebugView > 0.5) {
+            if (uDebugView < 1.5) outgoingLight = col;
+            else if (uDebugView < 2.5) outgoingLight = col * aoCurve(vAo);
+            else if (uDebugView < 3.5) outgoingLight = col * faceShade(vBNormal);
+            else if (uDebugView < 4.5) outgoingLight = reflectedLight.directDiffuse;
+            else outgoingLight = fogHeat(max(edgeFog(vBWorld), valleyMist(vBWorld)));
+          }`
+  : ''
+const DEBUG_VIEW_OVERVIEW = import.meta.env.DEV ? 'if (uDebugView > 4.5) outgoingLight = fogHeat(max(edgeFog(vOWorld), valleyMist(vOWorld)));' : ''
 
 const BLOCK_FRAGMENT_DECL = /* glsl */ `
 uniform highp sampler2DArray uBlockAtlas;
@@ -171,7 +194,6 @@ export class MaterialLibrary {
           '#include <map_fragment>',
           /* glsl */ `
           vec4 texel = texture(uBlockAtlas, vec3(vBlockUv.x, -vBlockUv.y, vBlockUv.z));
-          ${tier === 'near' ? '' : `texel.rgb = mix(texel.rgb, vec3(dot(texel.rgb, vec3(0.3, 0.59, 0.11))), 0.55);`}
           float tclass = mod(vFlags, 8.0);
           // 亮窗（暖色发光）的窗格：离远了平均成一片纸色，不让三像素一道的木棂在远处闪出摩尔纹
           if (mod(floor(vFlags / 8.0), 2.0) > 0.5 && mod(floor(vFlags / 32.0), 2.0) > 0.5) texel.rgb = mix(texel.rgb, vec3(0.42, 0.35, 0.24), smoothstep(12.0, 36.0, distance(vBWorld, cameraPosition)));
@@ -214,11 +236,6 @@ export class MaterialLibrary {
             || abs(tile - 38.0) < 0.5 || abs(tile - 40.0) < 0.5 || abs(tile - 41.0) < 0.5 || abs(tile - 42.0) < 0.5
             || abs(tile - 6.0) < 0.5 || abs(tile - 7.0) < 0.5 || abs(tile - 48.0) < 0.5;
           if (litSurf) col *= mix(1.0, 1.09, sunLit);
-          ${tier === 'near' ? '' : `float farL = dot(col, vec3(0.299, 0.587, 0.114));
-          col = mix(vec3(farL), col, 0.84);
-          float farL2 = dot(col, vec3(0.299, 0.587, 0.114));
-          float pulled = mix(farL2, 0.42, 0.26);
-          col *= clamp(pulled / max(farL2, 0.05), 0.84, 1.08);`}
           diffuseColor.rgb *= col;
           ${kind === 'translucent' ? 'diffuseColor.a = texel.a;' : ''}
           `,
@@ -238,13 +255,7 @@ export class MaterialLibrary {
         .replace(
           '#include <opaque_fragment>',
           `outgoingLight = desaturate(outgoingLight, uSaturation);
-          if (uDebugView > 0.5) {
-            if (uDebugView < 1.5) outgoingLight = col;
-            else if (uDebugView < 2.5) outgoingLight = col * aoCurve(vAo);
-            else if (uDebugView < 3.5) outgoingLight = col * faceShade(vBNormal);
-            else if (uDebugView < 4.5) outgoingLight = reflectedLight.directDiffuse;
-            else outgoingLight = fogHeat(max(edgeFog(vBWorld), valleyMist(vBWorld)));
-          }
+          ${DEBUG_VIEW_BLOCK}
           #include <opaque_fragment>`,
         )
         .replace('#include <fog_fragment>', EDGE_FOG_FRAGMENT('vBWorld'))
@@ -449,13 +460,15 @@ export class MaterialLibrary {
           '#include <map_fragment>',
           `vec3 col = seasonTint(vOColor, vKind, vOWorld);
            col = applySnow(col, vONormal, vOWorld * 0.125, uSnowColor, snowClimate(vOWorld));
+           // 与远景片（4×4×4 方块）对齐：同一片地表，覆盖图偏暗偏绿。逐通道实测的比值（见 tools/tier-color-match.mjs）
+           col *= vec3(1.11, 1.035, 1.06);
            diffuseColor.rgb *= col;`,
         )
         .replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\n reflectedLight.indirectDiffuse *= faceShade(vONormal);')
         .replace(
           '#include <opaque_fragment>',
           `outgoingLight = desaturate(outgoingLight, uSaturation);
-          if (uDebugView > 4.5) outgoingLight = fogHeat(max(edgeFog(vOWorld), valleyMist(vOWorld)));
+          ${DEBUG_VIEW_OVERVIEW}
           #include <opaque_fragment>`,
         )
         .replace('#include <fog_fragment>', EDGE_FOG_FRAGMENT('vOWorld'))

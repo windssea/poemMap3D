@@ -17,9 +17,13 @@ describe('新城山', () => {
     let jump = 0
     for (let i = 1; i < row.length; i++) jump = Math.max(jump, Math.abs(row[i] - row[i - 1]))
     expect(jump).toBeLessThanOrEqual(14)
-    /* 山脚厅堂 footprint（杭州西 hall 684..696 × 300..314）整片高差不埋：都在 60 以下 */
-    for (let x = 684; x <= 696; x += 4)
-      for (let z = 300; z <= 314; z += 7) expect(Math.round(t.column(x, z).height)).toBeLessThanOrEqual(58)
+    /* 山脚厅堂 footprint（杭州西 hall 684..696 × 300..314）：都在 58 以下，且整片平缓——
+       削低若排在杭州的压平与造山之前，这里会抬到 46–53、高差近十格，台面不再平 */
+    const hs: number[] = []
+    for (let x = 684; x <= 696; x += 2)
+      for (let z = 300; z <= 314; z += 2) hs.push(Math.round(t.column(x, z).height))
+    expect(Math.max(...hs)).toBeLessThanOrEqual(58)
+    expect(Math.max(...hs) - Math.min(...hs)).toBeLessThanOrEqual(6)
     /* 旧峰不再被削平 */
     const old = [327, 331, 335].map((z) => Math.round(t.column(563, z).height))
     expect(old[0] === 96 && old[1] === 96 && old[2] === 96).toBe(false)

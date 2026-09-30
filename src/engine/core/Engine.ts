@@ -79,6 +79,8 @@ export class Engine {
   /** 光照调试。默认就是平衡后的白天参数，滑条只做对照 */
   readonly lighting: LightingTweaks
   private shadowOn: boolean
+  /** 世界图层调试是否正在强制显隐（退回 'all' 时据此恢复一次） */
+  private debugWorldActive = false
 
   constructor(
     private readonly container: HTMLElement,
@@ -313,11 +315,14 @@ export class Engine {
   private applyDebugWorld(): void {
     const mode = this.lighting.world
     if (mode === 'all') {
-      // 从调试模式退回时恢复区块与覆盖图的正常可见性
+      // 只在刚从调试模式退回的那一帧恢复区块与覆盖图的可见性；平时什么都不做
+      if (!this.debugWorldActive) return
+      this.debugWorldActive = false
       this.world.chunks.restoreVisibility()
       this.world.overview.group.visible = true
       return
     }
+    this.debugWorldActive = true
     this.world.chunks.applyTierVisibility((tier) => mode === 'near' ? tier === 1 : mode === 'far' && tier !== 1)
     this.world.overview.group.visible = mode === 'far'
   }

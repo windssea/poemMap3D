@@ -86,7 +86,7 @@ export function generateCoarseRegion(terrain: TerrainManager, landmarks: Landmar
 
   for (let k = 0; k < solid.length; k++) {
     if (solid[k] >= 16) vol.data[k] = S(sid[k])
-    else if (leaf[k] >= 8 && !vol.data[k]) vol.data[k] = S(lid[k])
+    else if (leaf[k] >= 12 && !vol.data[k]) vol.data[k] = S(lid[k])
   }
   return { volume: vol, trees: list.length, structures: placements.length }
 }

@@ -220,9 +220,11 @@ export class TerrainManager {
    * 削低从矩形边缘渐入（边缘环上不动，不立新坎），到中心处把山峰收到六成半：
    * 峰高 由 84 上下收到 65 上下，东侧缓缓过渡到 42–52 的河岸平地——一面再普通不过的山坡。
    * 山脚的厅堂、亭台取整后的地形再落位，照旧不受影响。
+   * 必须排在地标修改器之后：杭州的压平台面、造山叠上去后再整体向 40 收拢，西 hall 一带才是一片低而平的台地（提前削低则造山原样叠在其上，台面抬高、起伏加大）。
+   * 只削低不抬高：不高于 40 的地面原样保留。
    */
   private xinchengHill(x: number, z: number, h: number): number {
-    if (x < 636 || x > 706 || z < 258 || z > 328) return h
+    if (h <= 40 || x < 636 || x > 706 || z < 258 || z > 328) return h
     const dEdge = Math.min(x - 636, 706 - x, z - 258, 328 - z)
     const mask = smoothstep(0, 24, dEdge)
     if (mask <= 0) return h
