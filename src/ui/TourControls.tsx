@@ -20,7 +20,7 @@ function SettingsPop() {
   const ts = useApp((s) => s.tourState)
   return (
     <div className="panel settings-pop" data-pop onClick={(e) => e.stopPropagation()}>
-      <div className="tp-h">巡游设置</div>
+      <div className="tp-h">漫游设置</div>
       {OPTIONS.map((o) => (
         <div key={o.key} className="amb-row">
           <span className="ap-k">{o.label}</span>
@@ -35,17 +35,18 @@ function SettingsPop() {
   )
 }
 
-/** 底栏里的巡游按钮与设置 */
+/** 底栏「漫游」组：开始 / 停止漫游与漫游设置 */
 export function TourControls() {
   const { facade, store } = useServices()
   const ts = useApp((s) => s.tourState)
   const open = useApp((s) => s.ui.tourSettingsOpen)
   return (
     <div className="panel grp" style={{ position: 'relative' }}>
-      <button className={`ico ${ts.active ? 'on' : ''}`} title={ts.active ? '停止巡游' : '开始巡游'} onClick={() => (ts.active ? facade.stopTour() : facade.startTour())}>
+      <span className="lab">漫游</span>
+      <button className={`ico ${ts.active ? 'on' : ''}`} title={ts.active ? '停止漫游' : '开始漫游（自动依次游览各地与诗）'} onClick={() => (ts.active ? facade.stopTour() : facade.startTour())}>
         <Icon name={ts.active ? 'stop' : 'play'} />
       </button>
-      <button className={`ico ${open ? 'on' : ''}`} title="巡游设置" data-pop-toggle onClick={() => store.set((s) => ({ ui: { ...s.ui, tourSettingsOpen: !s.ui.tourSettingsOpen } }))}>
+      <button className={`ico ${open ? 'on' : ''}`} title="漫游设置" data-pop-toggle onClick={() => store.set((s) => ({ ui: { ...s.ui, tourSettingsOpen: !s.ui.tourSettingsOpen } }))}>
         <Icon name="gear" />
       </button>
       {open && !ts.active && <SettingsPop />}
@@ -53,7 +54,7 @@ export function TourControls() {
   )
 }
 
-/** 巡游中：收起其余控件，只留巡游条；右侧展开题诗立轴 */
+/** 漫游中：收起其余控件，只留漫游条；右侧展开题诗立轴 */
 export function TourCaption() {
   const { poetry, facade, store, places } = useServices()
   const ts = useApp((s) => s.tourState)
@@ -71,10 +72,10 @@ export function TourCaption() {
       <div className="tourbar">
         <span className="tb-dot" />
         <span className="tb-t">
-          巡游中 · {ts.region}
+          漫游中 · {ts.region}
           {placeName && ` · ${placeName}`}
         </span>
-        <button title="巡游设置" data-pop-toggle onClick={() => store.set((s) => ({ ui: { ...s.ui, tourSettingsOpen: !s.ui.tourSettingsOpen } }))}>
+        <button title="漫游设置" data-pop-toggle onClick={() => store.set((s) => ({ ui: { ...s.ui, tourSettingsOpen: !s.ui.tourSettingsOpen } }))}>
           设置
         </button>
         <button className="stop" onClick={() => facade.stopTour()}>

@@ -55,7 +55,7 @@ export async function bootstrap(container: HTMLElement): Promise<AppServices> {
   const trails = new TrailRepository(trailData)
 
   const s0 = store.get()
-  const engine = new Engine(container, { quality: s0.quality || undefined, time: s0.time, season: s0.season, weather: s0.weather })
+  const engine = new Engine(container, { quality: s0.quality || undefined, viewRange: s0.viewRange, time: s0.time, season: s0.season, weather: s0.weather })
   engine.events.on('progress', ({ label, value }) => setLoading(label, 0.1 + value * 0.85))
   const anchors = places.all().map((p) => ({ id: p.id, name: p.name, lng: p.lng, lat: p.lat, weight: p.poemIds.length }))
   await engine.init({ landmask, anchors })

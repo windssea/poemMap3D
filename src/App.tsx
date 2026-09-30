@@ -52,7 +52,7 @@ export function App() {
       const el = e.target as Element | null
       if (el?.closest('[data-pop], [data-pop-toggle]')) return
       const ui = services.store.get().ui
-      if (ui.ambienceOpen || ui.tourSettingsOpen || ui.soundOpen) services.store.set((s) => ({ ui: closedPops(s.ui) }))
+      if (ui.ambienceOpen || ui.tourSettingsOpen || ui.settingsOpen) services.store.set((s) => ({ ui: closedPops(s.ui) }))
     }
     window.addEventListener('pointerdown', onDown, true)
     return () => window.removeEventListener('pointerdown', onDown, true)

@@ -5,7 +5,7 @@ import type { FrameContext } from '../engine/core/FrameContext'
 import type { Season, TimeOfDay, Weather } from '../engine/environment/types'
 import type { GroundCameraId } from '../engine/camera/GroundTestCameras'
 import type { LightingTweaks } from '../engine/rendering/LightingDebug'
-import type { Quality } from '../engine/rendering/QualityManager'
+import type { Quality, ViewRange } from '../engine/rendering/QualityManager'
 import type { TrailDirector, TrailPort } from '../features/poetTrail/TrailDirector'
 import type { TourPort, TourService } from '../features/tour/TourService'
 import type { AppStore } from './AppStore'
@@ -27,6 +27,7 @@ export interface EngineFacade {
   showPoetTrail(poetId: string): void
 
   setQuality(level: Quality): void
+  setViewRange(v: ViewRange): void
   setLighting(patch: Partial<LightingTweaks>): void
   resetLighting(): void
   lighting(): LightingTweaks
@@ -131,6 +132,11 @@ export class EngineFacadeImpl implements EngineFacade, TourPort, TrailPort {
   setQuality(level: Quality): void {
     this.engine.setQuality(level)
     this.store.set({ quality: level })
+  }
+
+  setViewRange(v: ViewRange): void {
+    this.engine.setViewRange(v)
+    this.store.set({ viewRange: v })
   }
 
   setLighting(patch: Partial<LightingTweaks>): void {

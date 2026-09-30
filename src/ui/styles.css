@@ -951,11 +951,15 @@ textarea,
   user-select: text;
 }
 
-/* 背景音选单：在按钮上方展开 */
-.sound-pop {
+/* 设置卡：在「设置」组上方展开，贴右 */
+.set-pop {
   right: 0;
   left: auto;
   white-space: nowrap;
+  min-width: 300px;
+}
+.set-pop .amb-row {
+  flex-wrap: wrap;
 }
 
 /* 按钮组、搜索框加一道细内框（像装裱的边线），与方块世界的方正一致 */

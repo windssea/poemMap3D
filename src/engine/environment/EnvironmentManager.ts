@@ -179,7 +179,7 @@ export class EnvironmentManager {
     horizon.lerp(this.snowSky, snowK * 0.34)
     horizon.lerp(this.mistSky, mistK * 0.4)
     mid.lerp(this.mistSky, mistK * 0.12)
-    this.sky.update(camera, L.sunDir, this.placeMoon(camera), L.core, L.rim, L.halo, L.sunR, L.haloGain)
+    this.sky.update(camera, L.sunDir, L.moonDir, L.core, L.rim, L.halo, L.sunR, L.haloGain)
     u.uSkyTop.value.copy(top)
     u.uSkyMid.value.copy(mid)
     u.uSkyColor.value.copy(mid)
@@ -198,35 +198,6 @@ export class EnvironmentManager {
     this.precipitation.update(elapsed, focus, distance, Math.min(1, this.weather.rain + this.weather.snow * (1 - clim)), this.weather.snow * clim, pixelRatio)
     this.particles.update(elapsed, focus, distance, this.season.key, wet, pixelRatio)
     this.clouds.update(dt, elapsed, focus, distance, this.cameraCtrl.viewDir, L.cloud, this.rainSky, wet)
-  }
-
-  /** 看得见的月盘方向（与照地的月光分开，见 placeMoon） */
-  readonly moonShown = new THREE.Vector3(0, 0.4, 1).normalize()
-  private moonAz = Number.NaN
-  private moonEl = 0.42
-
-  /**
-   * 月盘放在哪。照地的月光在东南（镜头一侧，朝镜头的面才吃得到光），可镜头多半朝北看，月盘挂在月光方位上就永远在身后。
-   * 所以月盘与月光分开（参考页同法）：月盘在天上不动，只要还在画面里；镜头转开、月盘出了画面（左右或上下），
-   * 就在画面外悄悄挪到新视向偏左、看得见的那片天的上沿之下——看不到它跳，转回来也总有一轮月。
-   * 高度至多约 35°；俯看得太陡、画面里几乎没有天时不挪（本来也看不见）。影子与水面月光仍按真实的月光方向。
-   */
-  private placeMoon(camera: THREE.PerspectiveCamera): THREE.Vector3 {
-    const v = this.cameraCtrl.viewDir
-    const camAz = Math.atan2(v.x, v.z)
-    const vfov = THREE.MathUtils.degToRad(camera.fov)
-    const hfov = 2 * Math.atan(Math.tan(vfov / 2) * camera.aspect)
-    const viewEl = Math.asin(THREE.MathUtils.clamp(v.y, -1, 1))
-    const topEdge = viewEl + vfov / 2
-    const off = Number.isNaN(this.moonAz) ? Infinity : Math.abs(Math.atan2(Math.sin(this.moonAz - camAz), Math.cos(this.moonAz - camAz)))
-    const outside = off > hfov / 2 + 0.12 || this.moonEl > topEdge + 0.03 || this.moonEl < viewEl - vfov / 2 - 0.03
-    if ((outside && topEdge > 0.11) || Number.isNaN(this.moonAz)) {
-      this.moonAz = camAz + Math.min(0.4, hfov * 0.28)
-      // 挂高：贴着可见天空的上沿（留约 4°，月盘半径约 2°），至多约 35°；此前留 7°、至多 24°，看着太低
-      this.moonEl = THREE.MathUtils.clamp(topEdge - 0.07, 0.06, 0.62)
-    }
-    const el = this.moonEl
-    return this.moonShown.set(Math.sin(this.moonAz) * Math.cos(el), Math.sin(el), Math.cos(this.moonAz) * Math.cos(el))
   }
 
   /** 画质：粒子数量、云 */

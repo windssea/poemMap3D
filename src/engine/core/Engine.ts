@@ -16,7 +16,7 @@ import { type RayHit, RaycastSystem } from '../interaction/RaycastSystem'
 import { SelectionSystem } from '../interaction/SelectionSystem'
 import { ChunkDebugOverlay } from '../../devtools/ChunkDebugOverlay'
 import { MaterialLibrary } from '../rendering/MaterialLibrary'
-import { type Quality, QualityManager } from '../rendering/QualityManager'
+import { type Quality, QualityManager, type ViewRange } from '../rendering/QualityManager'
 import { RendererManager } from '../rendering/RendererManager'
 import { RenderPipeline } from '../rendering/RenderPipeline'
 import { SceneManager } from '../rendering/SceneManager'
@@ -41,6 +41,7 @@ export interface EngineEvents {
 
 export interface EngineOptions {
   quality?: Quality
+  viewRange?: ViewRange
   time: TimeOfDay
   season: Season
   weather: Weather
@@ -87,7 +88,7 @@ export class Engine {
     private readonly container: HTMLElement,
     private readonly opts: EngineOptions,
   ) {
-    this.quality = new QualityManager(opts.quality)
+    this.quality = new QualityManager(opts.quality, opts.viewRange)
     const q = this.quality.preset
     this.renderer = new RendererManager(container, q.pixelRatio)
     this.materials = new MaterialLibrary(this.shared, q.anisotropy)
@@ -284,6 +285,10 @@ export class Engine {
   }
   setQuality(q: Quality): void {
     this.quality.set(q)
+  }
+  /** 渲染视距：近景 / 远景 / 远景片的半径与缓存一起放大（见 VIEW_RANGES） */
+  setViewRange(v: ViewRange): void {
+    this.quality.setViewRange(v)
   }
   setThemeFog(k: number): void {
     this.env.fog.extra = k

@@ -2,7 +2,7 @@ import { useSyncExternalStore } from 'react'
 import { SOUND_MODES, type SoundMode } from './AmbientSound'
 import type { CameraLevel } from '../engine/camera/CameraPose'
 import type { Season, TimeOfDay, Weather } from '../engine/environment/types'
-import type { Quality } from '../engine/rendering/QualityManager'
+import type { Quality, ViewRange } from '../engine/rendering/QualityManager'
 import type { TrailPhase } from '../features/poetTrail/TrailDirector'
 
 export type PanelState = 'none' | 'place' | 'poem'
@@ -43,9 +43,11 @@ export interface AppState {
   weather: Weather
   time: TimeOfDay
   quality: Quality
+  /** 渲染视距档（0 标准 · 1 远 · 2 更远 · 3 极远） */
+  viewRange: ViewRange
   tourState: TourState
   trailState: { poet: string | null; picking: boolean; phase: TrailPhase; prog: number; verseIdx: number }
-  ui: { ambienceOpen: boolean; hidden: boolean; tourSettingsOpen: boolean; soundOpen: boolean }
+  ui: { ambienceOpen: boolean; hidden: boolean; tourSettingsOpen: boolean; settingsOpen: boolean }
   /** 点地标时镜头自动取景 */
   autoCamera: boolean
   /** 背景音 */
@@ -81,9 +83,10 @@ function initial(): AppState {
     weather: read<Weather>('shw', (v) => ['clear', 'rain', 'snow', 'mist'].includes(v), 'clear'),
     time: read<TimeOfDay>('shm', (v) => ['dawn', 'day', 'dusk', 'night'].includes(v), 'day'),
     quality: (params.get('q') as Quality) || read<Quality>('shq', (v) => ['low', 'mid', 'high'].includes(v), undefined as unknown as Quality),
+    viewRange: Number(read<string>('shv', (v) => ['0', '1', '2', '3'].includes(v), '0')) as ViewRange,
     tourState: { active: false, paused: false, region: '', stopName: '', poemId: null, round: 0, index: 0, total: 0, settings: DEFAULT_TOUR_SETTINGS },
     trailState: { poet: null, picking: false, phase: 'done', prog: 0, verseIdx: -1 },
-    ui: { ambienceOpen: false, hidden: false, tourSettingsOpen: false, soundOpen: false },
+    ui: { ambienceOpen: false, hidden: false, tourSettingsOpen: false, settingsOpen: false },
     autoCamera: read<string>('shac', (v) => v === '0' || v === '1', '0') === '1',
     sound: read<SoundMode>('shsd', (v) => (SOUND_MODES as readonly string[]).includes(v), 'off'),
     debug: { chunks: params.has('debug'), terrain: params.has('debug') },
@@ -92,11 +95,11 @@ function initial(): AppState {
 
 type Listener = () => void
 
-/** 按钮组的弹出层（意境、巡游设置、背景音） */
-const POPS = ['ambienceOpen', 'tourSettingsOpen', 'soundOpen'] as const
+/** 按钮组的弹出层（意境、漫游设置、设置） */
+const POPS = ['ambienceOpen', 'tourSettingsOpen', 'settingsOpen'] as const
 
 /** 关掉所有弹出层 */
-export const closedPops = (ui: AppState['ui']): AppState['ui'] => ({ ...ui, ambienceOpen: false, tourSettingsOpen: false, soundOpen: false })
+export const closedPops = (ui: AppState['ui']): AppState['ui'] => ({ ...ui, ambienceOpen: false, tourSettingsOpen: false, settingsOpen: false })
 
 /** 极简外部 store：React 用 useSyncExternalStore 订阅 */
 export class AppStore {
@@ -129,6 +132,7 @@ export class AppStore {
       if (p.weather) localStorage.setItem('shw', p.weather)
       if (p.time) localStorage.setItem('shm', p.time)
       if (p.quality) localStorage.setItem('shq', p.quality)
+      if (p.viewRange !== undefined) localStorage.setItem('shv', String(p.viewRange))
       if (p.autoCamera !== undefined) localStorage.setItem('shac', p.autoCamera ? '1' : '0')
       if (p.sound) localStorage.setItem('shsd', p.sound)
     } catch {

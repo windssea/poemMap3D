@@ -77,6 +77,7 @@ export class WorldManager {
     shared.uFogMap.value = this.fogTexture
     shared.uFogRect.value.set(this.fog.x0, this.fog.z0, this.fog.w * this.fog.cell, this.fog.h * this.fog.cell)
     this.chunks = new ChunkManager(this.world, generators, mesher, scene, materials, this.grid, this.fog)
+    this.sizeCaches(quality)
     this.chunks.uploadsPerFrame = quality.uploadsPerFrame
     shared.uChunkMask.value = this.chunks.mask
     shared.uChunkMaskRect.value.copy(this.chunks.maskRect)
@@ -125,14 +126,26 @@ export class WorldManager {
   setQuality(q: QualityPreset): void {
     this.quality = q
     this.chunks.uploadsPerFrame = q.uploadsPerFrame
+    this.sizeCaches(q)
+  }
+
+  /** 区块缓存按渲染半径放大：近景圈约 π·r² 块，远景（2×2 合并）与远景片（8×8 合并）按各自半径折算，留三成余量（镜头来回扫不必重新生成） */
+  private sizeCaches(q: QualityPreset): void {
+    const area = (r: number, span: number) => Math.ceil((Math.PI * (r / span + 2) ** 2) * 1.3)
+    const far = Math.round(q.chunkRadius * q.farFactor)
+    this.chunks.maxCached = Math.max(900, area(q.chunkRadius, 1))
+    this.chunks.maxFarCached = Math.max(900, area(far, 2))
+    this.chunks.maxRegionCached = Math.max(1200, area(q.coarseRadius, 8))
   }
 
   /** 按镜头距离取近景半径：全国视角不物化区块，越近越小越密 */
   radiusFor(distance: number): number {
     if (distance > 1500) return 0
     // 推近时随视距放大；拉远到五六百格以外，近处也看不清方块细节了，交给远景一级，近景圈反而收小
-    const grow = Math.round(distance / 16 / 1.6) + 4
-    const shrink = distance > 520 ? Math.round((distance - 520) / 90) : 0
+    // 渲染视距（viewK）把「随镜头放大」与「拉远后收小」两项一并按倍数放大，近景圈才整体变大，不只是抬高上限
+    const k = this.quality.viewK
+    const grow = Math.round((distance / 16 / 1.6 + 4) * k)
+    const shrink = distance > 520 ? Math.round(((distance - 520) / 90) * k) : 0
     return Math.max(4, Math.min(this.quality.chunkRadius - shrink, grow))
   }
 
