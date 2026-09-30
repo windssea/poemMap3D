@@ -77,7 +77,7 @@ export function designCamera(lm: ResolvedLandmark, terrain: TerrainManager, tree
   let bestScore = -Infinity
   for (let i = 0; i < 16; i++) {
     const yaw = angleDelta(0, (i / 16) * TAU)
-    for (const pitch of [0.56, 0.66, 0.78])
+    for (const pitch of [0.46, 0.56, 0.66, 0.78])
       for (const dm of [1, 1.3]) {
         const d = base * dm
         const cp = Math.cos(pitch)
@@ -128,6 +128,17 @@ export function designCamera(lm: ResolvedLandmark, terrain: TerrainManager, tree
         score -= Math.abs(pitch - 0.66) * 14 + (dm - 1) * 10
         /* 6. 不进雾 */
         if (fog && fogAt(fog, cx, cz) > 0.3) score -= 60
+        /* 7. 远山背景：沿视线水平延长 150–900 格，取最高山脊的仰角。山脊在地平线上 3°–14°（层层退远的山）加分，
+              压到 14° 以上（一堵山墙堵在地标背后）或一片平川（没有背景）不加；山水诗的地点背后有山才是画。 */
+        const hd = Math.hypot(tx - cx, tz - cz)
+        let ridge = -Infinity
+        for (let far = 150; far <= 900; far += 75) {
+          const px = cx + ((tx - cx) / hd) * (hd + far)
+          const pz = cz + ((tz - cz) / hd) * (hd + far)
+          ridge = Math.max(ridge, Math.atan2(terrain.surfaceHeightAt(px, pz) - cy, hd + far))
+        }
+        const ridgeDeg = (ridge * 180) / Math.PI
+        score += ridgeDeg >= 3 && ridgeDeg <= 14 ? 6 : ridgeDeg > 14 ? -4 : 0
         if (score > bestScore) {
           bestScore = score
           best = { yaw, pitch, distance: Math.round(d) }

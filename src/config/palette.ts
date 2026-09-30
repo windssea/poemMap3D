@@ -211,7 +211,7 @@ export const SkyTokens = {
   dawn: { top: '#A7C4D6', mid: '#D7DFDC', horizon: '#F4DEBF', glow: '#F6C98E', glow2: '#EFB9AA', glowK: 0.75, sun: '#F7D9AD', core: '#FFF2D0', rim: '#F7CF94', halo: '#F3D4AB', ambientSky: '#d9dde6', ambientGround: '#A69A86', fog: '#D4D8D1', cloud: '#E4D8C8' },
   // V3.2 Phase 1 实验：昼三段向任务书 §4 昼行靠拢（清透低饱和青蓝，不再灰白）；只动 top/mid/horizon
   // Phase 1 第 2 组：昼雾色 §5 `#CBD7D4`（偏青灰而非白）；fog 同步任务书
-  day: { top: '#89BBDD', mid: '#C3DDE9', horizon: '#EAE8DA', glow: '#F5E7C8', glow2: '#E9DCCB', glowK: 0, sun: '#FFF3DC', core: '#FFFDF1', rim: '#FFF4D6', halo: '#F7EFD6', ambientSky: '#e4eef2', ambientGround: '#90A094', fog: '#CBD7D4', cloud: '#D5E2DC' },
+  day: { top: '#89BBDD', mid: '#C3DDE9', horizon: '#EAE8DA', glow: '#F5E7C8', glow2: '#E9DCCB', glowK: 0, sun: '#FFF3DC', core: '#FFFDF1', rim: '#FFF4D6', halo: '#F7EFD6', ambientSky: '#e4eef2', ambientGround: '#90A094', fog: '#CBD7D4', cloud: '#E6ECEA' },
   // V3.2 Phase 2（暮 A｜夕照黄昏，用户已确认）：太阳低悬、暖色地平线、月亮隐藏（night=0，不画月亮）。
   // 三段/日轮/雾 → 任务书 §4 暮A 侧行 + §10.1 暮A 日轮；sun/ambient 保持原方向逻辑，只换颜色
   dusk: { top: '#7D95B0', mid: '#D6B1AD', horizon: '#F3C69B', glow: '#F19A5C', glow2: '#D88C93', glowK: 1, sun: '#F0AF78', core: '#FFDCAB', rim: '#F0A16A', halo: '#D77E69', ambientSky: '#BFB8CF', ambientGround: '#B08C74', fog: '#D4BDB0', cloud: '#E2C4AE' },

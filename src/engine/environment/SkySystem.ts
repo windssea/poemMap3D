@@ -83,12 +83,10 @@ export class SkySystem {
             col = mix(col, body, disc * risen * (1.0 - uWet * 0.85));
           }
           // 月亮是自己的像素圆盘，随夜色连续淡入（不在某个夜色值上突然出现）。
-          // 俯看时挂得高就永远在画面外，所以圆盘贴着地平（约 9°）；平视 / 仰视（uSkyLift→1）挂在真实的月光方位与高度上，
-          // 月光从哪来，月亮就在哪。
+          // 方位与高度由 EnvironmentManager.placeMoon 按镜头取好（月盘与照地的月光分开，总落在看得见的那片天里），这里照用。
           float moonA = smoothstep(0.2, 0.7, uNight);
           if (moonA > 0.001) {
             vec3 moonS = normalize(uMoonDir);
-            moonS = normalize(vec3(moonS.x, mix(0.16 * length(moonS.xz), moonS.y, uSkyLift), moonS.z));
             float facing = dot(d, moonS);
             if (facing > 0.8) {
               vec3 upv = abs(moonS.y) > 0.97 ? vec3(1.0, 0.0, 0.0) : vec3(0.0, 1.0, 0.0);

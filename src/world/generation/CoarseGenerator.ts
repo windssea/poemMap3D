@@ -27,8 +27,9 @@ export function generateCoarseRegion(terrain: TerrainManager, landmarks: Landmar
   const vol = new VoxelVolume(rx * N - 1, 0, rz * N - 1, W, SY, W)
   const x0 = rx * SPAN
   const z0 = rz * SPAN
-  const { samples } = terrain.lattice(x0 - C, z0 - C, W, C)
+  const { cols, samples } = terrain.lattice(x0 - C, z0 - C, W, C)
   const stride = W * W
+  const CW = W + 2 // lattice 的列带一圈外边
 
   /* 地形：顶格取地表，下一格土，再下为岩；水面按格取整，细江细河至少占一格 */
   for (let j = 0; j < W; j++)
@@ -37,7 +38,17 @@ export function generateCoarseRegion(terrain: TerrainManager, landmarks: Landmar
       const col = j * W + i
       vol.tint[col] = s.tintZone
       vol.biome[col] = s.biome
-      const top = Math.max(0, Math.round((s.surfaceY + 1) / C) - 1)
+      /* 顶高先轻度平滑再量化：每 4 格只取一个点，方块级的高频起伏（14 格的凸起、52 格的细节噪声）混叠成参差的脊线，
+         量化成 4 格一级后就是远处一道道乱阶梯。取 (4·自己 + 四邻) / 8（参考页远景环同法），与自己差至多半格远景单位，
+         名山峰顶与近远交界不会缩一档；有水的列不平滑（水面另按格取整）。 */
+      let surf = s.surfaceY
+      if (s.waterY <= s.surfaceY) {
+        const k = (j + 1) * CW + (i + 1)
+        const h = cols[k].height
+        const sm = (4 * h + cols[k - 1].height + cols[k + 1].height + cols[k - CW].height + cols[k + CW].height) / 8
+        surf = Math.floor(h + Math.max(-C / 2, Math.min(C / 2, sm - h)))
+      }
+      const top = Math.max(0, Math.round((surf + 1) / C) - 1)
       const ts = S(s.topBlock)
       const ss = S(s.soilBlock)
       const rs = S(s.rockBlock)
