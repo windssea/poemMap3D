@@ -39,9 +39,9 @@ const EDGE_FOG_FRAGMENT = (v: string) => `#ifdef USE_FOG
 #endif
 #include <fog_fragment>
 #ifdef USE_FOG
- vec2 fuv = (${v}.xz - uFogRect.xy) / uFogRect.zw;
- vec3 edgeFogCol = mix(fogColor, uHorizonColor, edgeBandK(fuv));
- gl_FragColor.rgb = mix(gl_FragColor.rgb, edgeFogCol, max(edgeFog(${v}), valleyMist(${v})));
+ float ef = edgeFog(${v});
+ vec3 edgeFogCol = mix(fogColor, skyBase(normalize(${v} - cameraPosition)), smoothstep(0.25, 1.0, ef));
+ gl_FragColor.rgb = mix(gl_FragColor.rgb, edgeFogCol, max(ef, valleyMist(${v})));
 #endif`
 
 /**

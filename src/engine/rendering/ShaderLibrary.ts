@@ -175,25 +175,16 @@ vec3 skyBase(vec3 d) {
 }
 `
 
-/** 边缘雾：地图四边与离岸远海渐隐入雾（取样雾图）；极远边带向地平线天色收敛，不出灰白墙 */
-export const GLSL_EDGE_FOG = /* glsl */ `
+/**
+ * 边缘雾：地图四边与离岸远海渐隐入雾（取样雾图）。雾量越接近 1，颜色越向「视线方向上的天色」收敛，
+ * 全隐处与天空一模一样。图外一律全雾，与图内的边缘值（1）连续。
+ */
+export const GLSL_EDGE_FOG = GLSL_SKY_BASE + /* glsl */ `
 uniform sampler2D uFogMap;
 uniform vec4 uFogRect;
-uniform vec3 uHorizonColor;
-/** 贴图边/越界的像素占比：0 内陆 → 1 极远边带（雾图 band 内 + 矩形外） */
-float edgeBandK(vec2 uv) {
-  vec2 c = clamp(uv, vec2(0.0), vec2(1.0));
-  vec2 b = min(c, 1.0 - c);
-  return 1.0 - smoothstep(0.015, 0.09, min(b.x, b.y));
-}
 float edgeFog(vec3 w) {
   vec2 uv = (w.xz - uFogRect.xy) / uFogRect.zw;
-  if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) {
-    // 出图（境外海面）：按越界的世界格距离渐变到 1，不再一刀切全雾
-    vec2 d = max(max(-uv, vec2(0.0)), uv - 1.0);
-    vec2 wl = d * uFogRect.zw;
-    return smoothstep(0.0, 480.0, max(wl.x, wl.y)) * uFogOn;
-  }
+  if (uv.x < 0.0 || uv.y < 0.0 || uv.x > 1.0 || uv.y > 1.0) return uFogOn;
   return texture2D(uFogMap, uv).r * uFogOn;
 }
 `
