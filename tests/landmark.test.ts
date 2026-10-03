@@ -65,3 +65,21 @@ describe('Landmark', () => {
     expect(w.landmarks.byPlaceId('lushan')!.waterfall).not.toBeNull()
   })
 })
+
+describe('主楼视廊', () => {
+  it('四座名楼正面的视廊里不长乔木（自然林与目录种植都不进）', async () => {
+    const { testWorld } = await import('./helpers')
+    const { Occupancy } = await import('../src/world/structure/OccupancyMap')
+    const w = testWorld()
+    for (const name of ['岳阳楼', '滕王阁', '鹳雀楼', '黄鹤楼']) {
+      const lm = w.landmarks.landmarks.find((l) => l.def.name === name)!
+      const R = lm.def.radius * 1.4
+      const trees = [...w.trees.collect(lm.x - R, lm.z - R, lm.x + R, lm.z + R), ...w.landmarks.treesNear(lm.x - R, lm.z - R, lm.x + R, lm.z + R)]
+      let corridor = 0
+      for (let z = lm.z - R; z <= lm.z + R; z++) for (let x = lm.x - R; x <= lm.x + R; x++) if (w.landmarks.occupancy.has(x, z, Occupancy.HeroView)) corridor++
+      expect(corridor, `${name} 视廊面积`).toBeGreaterThan(100)
+      const inside = trees.filter((t) => w.landmarks.occupancy.has(t.x, t.z, Occupancy.HeroView))
+      expect(inside.length, `${name} 视廊里的树`).toBe(0)
+    }
+  }, 60000)
+})

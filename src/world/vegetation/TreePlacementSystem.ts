@@ -102,7 +102,7 @@ export class TreePlacementSystem {
     if (s.waterY >= 0 || s.paved) return null
     if (!TREE_GROUND.has(s.topBlock)) return null
     const occ = this.occupancy.get(x, z)
-    if (occ & (Occupancy.Building | Occupancy.Buffer | Occupancy.Entrance | Occupancy.Paved)) return null
+    if (occ & (Occupancy.Building | Occupancy.Buffer | Occupancy.Entrance | Occupancy.Paved | Occupancy.HeroView)) return null
     const bd = biomeDef(s.biome)
     const profile = s.landmark >= 0 ? this.profileOf(s.landmark) : null
     const weights = { ...bd.trees, ...(profile?.weights ?? {}) }

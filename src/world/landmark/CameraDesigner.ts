@@ -2,12 +2,14 @@ import { BiomeId } from '../biome/BiomeId'
 import { type FogMap, fogAt } from '../overview/EdgeFog'
 import type { TerrainManager } from '../terrain/TerrainManager'
 import type { TreePlacementSystem } from '../vegetation/TreePlacementSystem'
-import type { BuildingId } from '../building/BuildingRegistry'
-import type { CameraPreset, LandmarkDefinition, StructureSpec } from './LandmarkDefinition'
+import type { CameraPreset } from './LandmarkDefinition'
+import { heroFrontYaw } from './LandmarkHero'
 import type { ResolvedLandmark } from './LandmarkRegistry'
 
 const TAU = Math.PI * 2
 const angleDelta = (a: number, b: number): number => Math.atan2(Math.sin(b - a), Math.cos(b - a))
+
+export { heroFrontYaw }
 
 export interface DesignedView {
   preset: CameraPreset
@@ -29,26 +31,6 @@ const FOV = 42
  *  - 不进雾里。
  * 纯函数，按地形与植被数据计算，结果缓存。
  */
-/** 选主楼：名楼 > 楼阁 > 塔 > 殿 > 亭，同级取先列出的 */
-const HERO_RANK: Partial<Record<BuildingId, number>> = { grandTower: 6, loft: 5, pagoda: 4, brickPagoda: 4, tower: 4, bellTower: 3, hall: 2, gardenHall: 2, pavilion: 1 }
-
-/** 主楼正面朝外的镜头方位（rot 为俯视顺时针 90° 的次数，0 朝南、1 朝西、2 朝北、3 朝东；方位 0 = 镜头在南） */
-export function heroFrontYaw(def: LandmarkDefinition): number {
-  // 有城墙的是一座城：城本身是主体，宫城、正门朝南——不让坊市里某座朝北的楼阁把镜头带到城北
-  if (def.walls?.length) return 0
-  let hero: StructureSpec | undefined
-  let rank = -1
-  for (const s of def.structures) {
-    const r = HERO_RANK[s.b] ?? 0
-    if (r > rank) {
-      rank = r
-      hero = s
-    }
-  }
-  const rot = (((hero?.rot ?? 0) % 4) + 4) % 4
-  return [0, -Math.PI / 2, Math.PI, Math.PI / 2][rot]
-}
-
 export function designCamera(lm: ResolvedLandmark, terrain: TerrainManager, trees: TreePlacementSystem, fog?: FogMap): DesignedView {
   /* 取景框：全部建筑（含城墙）的包围盒；镜头距离让它整个落在画面里 */
   let minX = lm.x - 6

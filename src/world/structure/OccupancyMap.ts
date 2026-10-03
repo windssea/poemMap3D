@@ -13,6 +13,8 @@ export const Occupancy = {
   Landmark: 16,
   /** 道路 / 广场 */
   Paved: 32,
+  /** 主楼视廊：名楼正面朝外的扇形，一棵乔木都不种（含目录里写明的种植），保护主楼轮廓与楼前的水 */
+  HeroView: 64,
 } as const
 
 /**

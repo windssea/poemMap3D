@@ -15,6 +15,7 @@ import type { TreeInstance, VegetationProfile } from '../vegetation/TreePlacemen
 import { TREE_SCALE_HEIGHT, TREES, TreeCache } from '../vegetation/TreeRegistry'
 import { rotateXZ } from '../block/Direction'
 import { LANDMARK_CATALOG } from './LandmarkCatalog'
+import { heroFrontYaw, heroIndex, heroIsLandmark } from './LandmarkHero'
 import type { CameraPreset, LandmarkDefinition, PlaceAnchor, TerrainOp } from './LandmarkDefinition'
 import { planSettlements } from './SettlementPlanner'
 
@@ -549,6 +550,14 @@ export class LandmarkRegistry {
         }
       }
 
+      /* 主楼视廊：名楼正面朝外张开的扇形，先于显式种植登记——楼前不论自然林还是目录里的柳，一棵乔木都不种 */
+      const hi = heroIndex(def)
+      if (def.major && !def.walls?.length && heroIsLandmark(def)) {
+        const hs = def.structures[hi]
+        const fy = heroFrontYaw(def)
+        this.occupancy.markFan(Math.round(cx + hs.x), Math.round(cz + hs.z), Math.atan2(Math.cos(fy), Math.sin(fy)), 0.4, def.radius * 1.3, Occupancy.HeroView)
+      }
+
       /* 显式种植（苏堤杨柳、朱雀大街行道树……） */
       for (const t of def.trees ?? []) {
         const n = t.n ?? t.pts.length
@@ -556,7 +565,7 @@ export class LandmarkRegistry {
         pts.forEach(([px, pz], k) => {
           const x = Math.round(cx + px)
           const z = Math.round(cz + pz)
-          if (isWet(x, z)) return
+          if (isWet(x, z) || this.occupancy.has(x, z, Occupancy.HeroView)) return
           const h = hash2i(x, z, hashString(def.id))
           const variant = t.variant ?? h % TREES[t.type].variants
           const scale = TREES[t.type].variantInfo[variant].scale
@@ -580,9 +589,9 @@ export class LandmarkRegistry {
         })
       }
 
-      /* 视线通道：从地标中心朝取景方向张开的扇形，不栽成熟乔木 */
-      const cam = lm.camera
-      this.occupancy.markFan(cx, cz, Math.atan2(Math.cos(cam.yaw), Math.sin(cam.yaw)), 0.32, def.radius * 0.95, Occupancy.Sightline)
+      /* 视线通道：从地标中心朝取景方向张开的扇形，不栽成熟乔木。没有定稿机位的按主楼正面（自动取景也偏好正面） */
+      const sightYaw = def.cameraPreset ? lm.camera.yaw : heroFrontYaw(def)
+      this.occupancy.markFan(cx, cz, Math.atan2(Math.cos(sightYaw), Math.sin(sightYaw)), 0.32, def.radius * 0.95, Occupancy.Sightline)
       this.occupancy.markCircle(cx, cz, def.radius, Occupancy.Landmark)
 
       for (const p of lm.placements) {
