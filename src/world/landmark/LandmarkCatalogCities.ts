@@ -971,4 +971,98 @@ const LANTING: LandmarkDefinition = {
   ],
 }
 
-export const CITY_CATALOG: readonly LandmarkDefinition[] = [HUANGHELOU, YUEYANGLOU, TENGWANGGE, GUANQUELOU, DUOJINGLOU, JINLING, LUOYANG, CHENGDU, SUZHOU, HUANGZHOU, YANGZHOU, BIANJING, SHANYIN, MIZHOU, CHUZHOU, XIANGYANG, JUNSHAN, PENGCHENG, HUIZHOU, BAIDICHENG, TAISHAN, JIANMEN, FENGQIAO, ZHONGNAN, WANGCHUAN, LANTING]
+/**
+ * 天姥山：「天姥连天向天横，势拔五岳掩赤城」——宏观地形这里只是一座缓丘，另起一道南北横亘的山岭，东面（向海）陡崖；
+ * 「脚著谢公屐，身登青云梯」：一条石阶之字形攀上岭头，岭头一座重檐亭（「半壁见海日」）；
+ * 西麓剡溪边谢公宿处（茅舍），溪上一座小桥。
+ */
+const TIANMU: LandmarkDefinition = {
+  id: 'tianmu',
+  name: '天姥山',
+  coordinate: { lng: 121.02, lat: 29.15 },
+  // 地图上天台山（海拔校准点）只在北边 9 格，整组南移，山岭不压到天台
+  offset: [0, 34],
+  radius: 50,
+  major: true,
+  poetryPlaceId: 'p026',
+  terrainModifier: [
+      { t: 'ridge', pts: [[2, -6], [6, 8], [4, 26], [8, 50]], h: 34, w: 28, cliff: 7, cliffSide: -1 },
+    { t: 'canal', pts: [[-40, -40], [-30, -10], [-34, 20], [-28, 46]], w: 1.2 },
+    { t: 'path', pts: [[-24, 24], [-14, 20], [-18, 14], [-6, 10], [-10, 6], [2, 6]], w: 1.1 },
+  ],
+  structures: [
+    { b: 'pavilion', x: 5, z: 6, p: { width: 5, double: true, tile: 'gray' } },
+    { b: 'hut', x: -24, z: 24, rot: 1, p: { width: 5, depth: 5 } },
+    { b: 'bridge', x: -30, z: 12, atLevel: true, span: true, p: { length: 7 } },
+  ],
+  vegetationProfile: { weights: { pine: 5, broadleaf: 2, bamboo: 1 }, density: 1.1 },
+  shots: [
+    { id: 'hero', name: '主景', yaw: 1.4, pitch: 0.3, distance: 150, offset: [4, 10, 16] },
+    { id: 'stair', name: '青云梯', yaw: -0.6, pitch: 0.9, distance: 80, offset: [-8, 10, 14] },
+    { id: 'detail', name: '谢公宿处', yaw: -0.4, pitch: 0.8, distance: 46, offset: [-26, 0, 22] },
+  ],
+}
+
+/**
+ * 峨眉山：「峨眉山月半轮秋，影入平羌江水流」。主峰按宏观地形实测海拔，山形不动；
+ * 金顶一座黄琉璃殿与观景亭，东麓江边报国寺（山门、殿），一条石阶自报国寺折上金顶；东边是平羌江（青衣江）。
+ */
+const EMEI: LandmarkDefinition = {
+  id: 'emei',
+  name: '峨眉山',
+  coordinate: { lng: 103.33, lat: 29.52 },
+  radius: 50,
+  major: true,
+  poetryPlaceId: 'p093',
+  levelMode: 'summit',
+  terrainModifier: [
+    { t: 'flatten', x: 0, z: 0, r: 8, blend: 4 },
+    { t: 'path', pts: [[30, 26], [22, 18], [26, 10], [16, 6], [12, 0], [4, 0]], w: 1.1 },
+  ],
+  structures: [
+    { b: 'hall', x: 0, z: 0, atLevel: true, p: { width: 9, depth: 7, tile: 'yellow', terrace: 1, lanterns: true } },
+    { b: 'pavilion', x: -8, z: 6, atLevel: true, dy: -2, p: { width: 5, tile: 'gray' } },
+    { b: 'hall', x: 32, z: 30, rot: 3, p: { width: 9, depth: 7, tile: 'gray', terrace: 1, lanterns: true } },
+    { b: 'archway', x: 26, z: 34, rot: 1, p: { tile: 'gray' } },
+  ],
+  vegetationProfile: { weights: { pine: 4, broadleaf: 3, bamboo: 2 }, density: 1.2 },
+  // 定稿机位：江月（入夜自江东岸望峨眉，月在西南天边）、金顶、报国寺
+  shots: [
+    { id: 'hero', name: '江月', yaw: 1.4, pitch: 0.18, distance: 160, offset: [10, -20, 10] },
+    { id: 'summit', name: '金顶', yaw: 0.8, pitch: 0.4, distance: 50, offset: [0, 2, 0] },
+    { id: 'temple', name: '报国寺', yaw: 1.0, pitch: 0.8, distance: 50, offset: [32, -62, 30] },
+  ],
+}
+
+/**
+ * 华山：「岧峣太华俯咸京，天外三峰削不成」。主峰按宏观地形实测海拔，峰腰已有冲沟岩脊；
+ * 峰顶一座重檐亭（西峰），东西两侧小峰各一亭，北麓河谷玉泉院（殿、牌坊），一条石阶自北麓攀上（苍龙岭）。
+ */
+const HUASHAN: LandmarkDefinition = {
+  id: 'huashan',
+  name: '华山',
+  coordinate: { lng: 110.17, lat: 34.515 },
+  radius: 46,
+  major: true,
+  poetryPlaceId: 'p071',
+  levelMode: 'summit',
+  // 不平整峰顶：平整的过渡坡会把偏南几格的真峰顶削掉（华山的峰高按实测校准）
+  terrainModifier: [
+    { t: 'path', pts: [[2, 30], [-4, 24], [4, 18], [-2, 12], [2, 6], [0, 3]], w: 1.1 },
+  ],
+  structures: [
+    { b: 'pavilion', x: 0, z: 0, p: { width: 5, double: true, tile: 'gray' } },
+    { b: 'pavilion', x: -12, z: 6, p: { width: 3, tile: 'gray' } },
+    { b: 'pavilion', x: 12, z: 8, p: { width: 3, tile: 'gray' } },
+    { b: 'hall', x: 0, z: 36, rot: 2, p: { width: 9, depth: 7, tile: 'gray', terrace: 1, lanterns: true } },
+    { b: 'archway', x: 0, z: 44, p: { tile: 'gray' } },
+  ],
+  vegetationProfile: { weights: { pine: 6, broadleaf: 1 }, density: 0.9 },
+  shots: [
+    { id: 'hero', name: '主景', yaw: 3.0, pitch: 0.22, distance: 140, offset: [0, -10, 10] },
+    { id: 'summit', name: '西峰', yaw: 2.6, pitch: 0.45, distance: 46, offset: [0, 2, 0] },
+    { id: 'temple', name: '玉泉院', yaw: 0.2, pitch: 0.7, distance: 50, offset: [0, 0, 38] },
+  ],
+}
+
+export const CITY_CATALOG: readonly LandmarkDefinition[] = [HUANGHELOU, YUEYANGLOU, TENGWANGGE, GUANQUELOU, DUOJINGLOU, JINLING, LUOYANG, CHENGDU, SUZHOU, HUANGZHOU, YANGZHOU, BIANJING, SHANYIN, MIZHOU, CHUZHOU, XIANGYANG, JUNSHAN, PENGCHENG, HUIZHOU, BAIDICHENG, TAISHAN, JIANMEN, FENGQIAO, ZHONGNAN, WANGCHUAN, LANTING, TIANMU, EMEI, HUASHAN]
