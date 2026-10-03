@@ -119,7 +119,8 @@ export class EnvironmentManager {
     const litWant = L.night > 0.35 ? 1 : 0
     u.uLitSeq.value = litWant ? Math.min(1, u.uLitSeq.value + dt / 6.5) : Math.max(0, u.uLitSeq.value - dt / 3)
     // 点灯中心在入夜前一直跟着注视点，入夜（开始点灯）那一刻定下，点灯、熄灯期间不再随镜头走
-    if (u.uLitSeq.value <= 0.001) u.uLitCenter.value.copy(focus)
+    // 灯全亮时中心放在哪里画面都一样，也跟着注视点——开局就是夜景时灯一下全亮，中心此前停在第一帧的原点
+    if (u.uLitSeq.value <= 0.001 || u.uLitSeq.value >= 0.999) u.uLitCenter.value.copy(focus)
     ;(u.uSeasonGrass.value as THREE.Color).copy(S.grass)
     ;(u.uSeasonFoliage.value as THREE.Color).copy(S.foliage)
     u.uAutumn.value = S.autumn
@@ -160,6 +161,7 @@ export class EnvironmentManager {
     this.hemi.intensity = L.ambientI * (0.75 + 0.25 * W.light) * skyK
     this.renderer.toneMappingExposure = L.exposure * (tw?.exposure ?? 1)
     u.uAoStrength.value = tw?.ao ?? 1
+    u.uShadowOn.value = this.shadows.enabled ? 1 : 0
     u.uFaceStrength.value = tw?.face ?? 1
     u.uFogOn.value = tw && !tw.fog ? 0 : 1
     u.uDebugView.value = VIEW_CODE[tw?.view ?? 'final']

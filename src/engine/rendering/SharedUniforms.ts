@@ -26,6 +26,8 @@ export function createSharedUniforms() {
     uSaturation: { value: 1 },
     /** 顶点 AO 强度 0–1（1 为 0.80/0.88/0.95/1 曲线） */
     uAoStrength: { value: 1 },
+    /** 1 = 有阴影贴图；0 =「轻」画质无阴影，直射光改由天空光遮挡 */
+    uShadowOn: { value: 1 },
     /** 面向明暗强度 0–1，只作用于间接光 */
     uFaceStrength: { value: 1 },
     /** 1 雾开，0 关掉边缘雾与谷地山岚 */

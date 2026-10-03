@@ -369,6 +369,8 @@ export class MaterialLibrary {
           reflectedLight.indirectDiffuse *= max(bakedSky(vBWorld) * aoCurve(vAo) * faceShade(vBNormal), 0.55);
           // 天空光（0–15）：檐下、殿内、廊下、门洞里天光渐弱；在上面那道保底之外另乘，深处才真正暗下去
           reflectedLight.indirectDiffuse *= skyCurve(vSky);
+          // 「轻」画质没有阴影贴图：直射光（日、月与补光）也按天空光收——屋内、廊下、城门洞里不再被太阳照亮
+          reflectedLight.directDiffuse *= mix(smoothstep(0.45, 0.85, vSky), 1.0, uShadowOn);
           // 琉璃斜看映天：反射方向上的天色乘菲涅尔（与水面、天空球同一个 skyBase），檐下随天空光收；夜里淡
           if (mcls > 0.5 && mcls < 1.5) {
             vec3 gv = normalize(cameraPosition - vBWorld);

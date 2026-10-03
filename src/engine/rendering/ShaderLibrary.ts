@@ -77,6 +77,7 @@ vec3 seasonTint(vec3 tintSrgb, float tclass, vec3 wpos) {
  */
 export const GLSL_AO = /* glsl */ `
 uniform float uAoStrength;
+uniform float uShadowOn;
 float aoCurve(float ao) {
   float shaped = ao < 0.5 ? 0.80 : ao < 1.5 ? 0.88 : ao < 2.5 ? 0.95 : 1.0;
   return mix(1.0, shaped, uAoStrength);

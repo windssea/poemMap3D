@@ -18,7 +18,8 @@ export class ShadowManager {
   private csm: CSM | null = null
   private camera: THREE.PerspectiveCamera | null = null
   private parent: THREE.Object3D | null = null
-  private enabled = true
+  /** 是否开着阴影贴图（「轻」画质关）：没有阴影时着色器改用天空光压暗屋内、廊下的直射光 */
+  enabled = true
   private cascades = 2
   private mapSize = 1536
   private maxFar = 400
