@@ -2,7 +2,8 @@ import { BiomeId } from '../biome/BiomeId'
 import { type FogMap, fogAt } from '../overview/EdgeFog'
 import type { TerrainManager } from '../terrain/TerrainManager'
 import type { TreePlacementSystem } from '../vegetation/TreePlacementSystem'
-import type { CameraPreset } from './LandmarkDefinition'
+import type { BuildingId } from '../building/BuildingRegistry'
+import type { CameraPreset, LandmarkDefinition, StructureSpec } from './LandmarkDefinition'
 import type { ResolvedLandmark } from './LandmarkRegistry'
 
 const TAU = Math.PI * 2
@@ -23,11 +24,31 @@ const FOV = 42
  * 为一处地点设计镜头：在 16 个方位 × 4 个俯角 × 2 个距离里挑最好的一个。
  *  - 视线不被山体、树冠挡住（沿视线取样，离镜头越近的遮挡越要紧）；
  *  - 镜头离地（含树冠）留足高度，不钻进林子；
- *  - 建筑都朝南，偏好从南面看；
+ *  - 偏好从主楼正面看（多数朝南；岳阳楼、滕王阁、鹳雀楼面西，就从西面看）；
  *  - 前景有水（江、湖、河）加分——山水诗的地点多半临水；
  *  - 不进雾里。
  * 纯函数，按地形与植被数据计算，结果缓存。
  */
+/** 选主楼：名楼 > 楼阁 > 塔 > 殿 > 亭，同级取先列出的 */
+const HERO_RANK: Partial<Record<BuildingId, number>> = { grandTower: 6, loft: 5, pagoda: 4, brickPagoda: 4, tower: 4, bellTower: 3, hall: 2, gardenHall: 2, pavilion: 1 }
+
+/** 主楼正面朝外的镜头方位（rot 为俯视顺时针 90° 的次数，0 朝南、1 朝西、2 朝北、3 朝东；方位 0 = 镜头在南） */
+export function heroFrontYaw(def: LandmarkDefinition): number {
+  // 有城墙的是一座城：城本身是主体，宫城、正门朝南——不让坊市里某座朝北的楼阁把镜头带到城北
+  if (def.walls?.length) return 0
+  let hero: StructureSpec | undefined
+  let rank = -1
+  for (const s of def.structures) {
+    const r = HERO_RANK[s.b] ?? 0
+    if (r > rank) {
+      rank = r
+      hero = s
+    }
+  }
+  const rot = (((hero?.rot ?? 0) % 4) + 4) % 4
+  return [0, -Math.PI / 2, Math.PI, Math.PI / 2][rot]
+}
+
 export function designCamera(lm: ResolvedLandmark, terrain: TerrainManager, trees: TreePlacementSystem, fog?: FogMap): DesignedView {
   /* 取景框：全部建筑（含城墙）的包围盒；镜头距离让它整个落在画面里 */
   let minX = lm.x - 6
@@ -73,7 +94,8 @@ export function designCamera(lm: ResolvedLandmark, terrain: TerrainManager, tree
     return c.waterY >= 0 && c.height < c.waterY
   }
 
-  let best: CameraPreset = { yaw: 0, pitch: 0.55, distance: base }
+  const front = heroFrontYaw(lm.def)
+  let best: CameraPreset = { yaw: front, pitch: 0.55, distance: base }
   let bestScore = -Infinity
   for (let i = 0; i < 16; i++) {
     const yaw = angleDelta(0, (i / 16) * TAU)
@@ -115,8 +137,8 @@ export function designCamera(lm: ResolvedLandmark, terrain: TerrainManager, tree
         /* 2. 镜头离地 */
         const clear = cy - ground(cx, cz)
         if (clear < 14) score -= (14 - clear) * 6
-        /* 3. 从南面看（建筑朝南） */
-        score -= Math.abs(angleDelta(yaw, 0)) * 5
+        /* 3. 从主楼正面看 */
+        score -= Math.abs(angleDelta(yaw, front)) * 5
         /* 4. 前景有水 */
         let water = 0
         for (let k = 2; k <= 8; k++) {

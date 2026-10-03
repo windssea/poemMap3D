@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { designCamera } from '../src/world/landmark/CameraDesigner'
+import { designCamera, heroFrontYaw } from '../src/world/landmark/CameraDesigner'
 import { testWorld } from './helpers'
 
 describe('地点机位', () => {
@@ -32,4 +32,13 @@ describe('地点机位', () => {
     const missing = places.filter((a) => !w.landmarks.byPlaceId(a.id)).map((a) => a.name)
     expect(missing, missing.join('、')).toEqual([])
   })
+  it('名楼从正面（临水一侧）取景，不再一律从南面看', () => {
+    for (const [name, want] of [['岳阳楼', -Math.PI / 2], ['滕王阁', Math.PI / 2], ['鹳雀楼', Math.PI / 2]] as const) {
+      const lm = w.landmarks.landmarks.find((l) => l.def.name === name)!
+      expect(heroFrontYaw(lm.def)).toBeCloseTo(want)
+      const yaw = designCamera(lm, w.terrain, w.trees).preset.yaw
+      const off = Math.abs(Math.atan2(Math.sin(yaw - want), Math.cos(yaw - want)))
+      expect(off, `${name} 机位方位 ${yaw.toFixed(2)}`).toBeLessThan(Math.PI / 3)
+    }
+  }, 60000)
 })

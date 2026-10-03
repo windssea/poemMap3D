@@ -57,7 +57,11 @@ const YUEYANGLOU: LandmarkDefinition = {
   trees: [{ type: 'willow', variant: 0, pts: [[-14, -20], [-14, 20]], n: 4 }],
 }
 
-/** 滕王阁：赣江东岸高台，三层歇山绿琉璃，面西；南北挟屋两殿，东有牌坊 */
+/**
+ * 滕王阁：临赣江高台，三层歇山绿琉璃，正面朝江；南北挟屋两殿，背江一侧立牌坊。
+ * 史上在赣江东岸、面西；本图的坐标落在江西岸（江在东侧），所以整组镜像成面东临江——
+ * 「楼与江」的关系优先于绝对朝向，否则楼背对着江，取景也只能绕到侧面去找水。
+ */
 const TENGWANGGE: LandmarkDefinition = {
   id: 'tengwangge',
   name: '滕王阁',
@@ -65,18 +69,22 @@ const TENGWANGGE: LandmarkDefinition = {
   radius: 34,
   major: true,
   poetryPlaceId: 'p077',
-  terrainModifier: [{ t: 'flatten', x: 6, z: 0, r: 26, blend: 6 }],
+  terrainModifier: [{ t: 'flatten', x: -6, z: 0, r: 26, blend: 6 }],
   structures: [
-    { b: 'grandTower', x: 0, z: 0, rot: 1, p: { levels: 3, width: 11, tile: 'green', top: 'xieshan', terrace: 5 } },
-    { b: 'hall', x: 7, z: -18, rot: 1, p: { width: 9, depth: 7, tile: 'green', terrace: 3, lanterns: true } },
-    { b: 'hall', x: 7, z: 18, rot: 1, p: { width: 9, depth: 7, tile: 'green', terrace: 3, lanterns: true } },
-    { b: 'archway', x: 18, z: 0, rot: 1, p: { tile: 'green' } },
-    { b: 'pavilion', x: -14, z: -22, p: { width: 5 } },
+    { b: 'grandTower', x: 0, z: 0, rot: 3, p: { levels: 3, width: 11, tile: 'green', top: 'xieshan', terrace: 5 } },
+    { b: 'hall', x: -7, z: -18, rot: 3, p: { width: 9, depth: 7, tile: 'green', terrace: 3, lanterns: true } },
+    { b: 'hall', x: -7, z: 18, rot: 3, p: { width: 9, depth: 7, tile: 'green', terrace: 3, lanterns: true } },
+    { b: 'archway', x: -18, z: 0, rot: 3, p: { tile: 'green' } },
+    { b: 'pavilion', x: -24, z: -22, p: { width: 5 } },
   ],
-  trees: [{ type: 'willow', variant: 0, pts: [[-18, -26], [-18, 26]], n: 5 }],
+  // 柳树种在背江的陆地一侧，不挡临江的视线
+  trees: [{ type: 'willow', variant: 0, pts: [[-28, -26], [-28, 26]], n: 5 }],
 }
 
-/** 鹳雀楼：蒲州城西、黄河东岸，三层歇山灰瓦，面西；楼东是蒲州人家 */
+/**
+ * 鹳雀楼：临黄河，三层歇山灰瓦，正面朝河；背河一侧是蒲州人家。
+ * 史上在黄河东岸、面西；本图的坐标落在河西岸（河在东侧），与滕王阁同理整组镜像成面东临河。
+ */
 const GUANQUELOU: LandmarkDefinition = {
   id: 'guanquelou',
   name: '鹳雀楼',
@@ -84,14 +92,15 @@ const GUANQUELOU: LandmarkDefinition = {
   radius: 32,
   major: true,
   poetryPlaceId: 'p027',
-  terrainModifier: [{ t: 'flatten', x: 6, z: 0, r: 22, blend: 6 }],
+  terrainModifier: [{ t: 'flatten', x: -6, z: 0, r: 22, blend: 6 }],
   structures: [
-    { b: 'grandTower', x: 0, z: 0, rot: 1, p: { levels: 3, width: 11, tile: 'gray', top: 'xieshan', terrace: 4 } },
-    { b: 'house', x: 17, z: -8, rot: 3, p: { seed: 21 } },
-    { b: 'house', x: 17, z: 8, rot: 3, p: { seed: 22, lanterns: true } },
-    { b: 'courtyard', x: 28, z: 0, rot: 3, p: { width: 11, seed: 23 } },
+    { b: 'grandTower', x: 0, z: 0, rot: 3, p: { levels: 3, width: 11, tile: 'gray', top: 'xieshan', terrace: 4 } },
+    { b: 'house', x: -17, z: -8, rot: 1, p: { seed: 21 } },
+    { b: 'house', x: -17, z: 8, rot: 1, p: { seed: 22, lanterns: true } },
+    { b: 'courtyard', x: -28, z: 0, rot: 1, p: { width: 11, seed: 23 } },
   ],
-  trees: [{ type: 'willow', variant: 0, pts: [[-16, -20], [-16, 20]], n: 4 }],
+  // 北方河岸开阔，柳只在人家一侧稀疏几株
+  trees: [{ type: 'willow', variant: 0, pts: [[-10, -22], [-10, 22]], n: 3 }],
 }
 
 /** 多景楼：镇江北固山巅，甘露寺中，二层歇山，面北俯瞰大江；寺后铁塔 */
