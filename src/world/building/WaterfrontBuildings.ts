@@ -61,11 +61,11 @@ export function skiff(p: BuildingParams = {}): VoxelStructure {
   for (let z = -1; z <= 1; z++) {
     b.set(-1, 0, z, S(awning))
     b.set(1, 0, z, S(awning))
-    b.set(0, 1, z, S(awning))
+    for (let x = -1; x <= 1; x++) b.set(x, 1, z, S(awning))
   }
-  // 竹篙斜靠船头
+  // 船头立一根竹篙，篙顶挑一盏船灯
   b.set(0, -1, 3, post(B.BAMBOO, Axis.Y))
   b.set(0, 0, 3, post(B.BAMBOO, Axis.Y))
-  b.set(0, 1, 2, packState({ id: B.LANTERN }))
+  b.set(0, 1, 3, packState({ id: B.LANTERN }))
   return b.build()
 }
