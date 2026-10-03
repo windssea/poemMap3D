@@ -205,9 +205,15 @@ export class WorldManager {
   /**
    * 地点取景：手工营造的名胜用定稿的机位；其余地点由 CameraDesigner 按地形、树冠、水面与朝向设计（算一次缓存）。
    */
-  landmarkView(placeId: string): LandmarkView | null {
+  landmarkView(placeId: string, shotId?: string): LandmarkView | null {
     const lm = this.ctx.landmarks.byPlaceId(placeId)
     if (!lm) return null
+    const shots = lm.def.shots
+    if (shots?.length) {
+      const s = shots.find((x) => x.id === shotId) ?? shots[0]
+      const [ox, oy, oz] = s.offset ?? [0, 0, 0]
+      return { target: new THREE.Vector3(lm.x + ox, lm.level + 1 + oy, lm.z + oz), preset: { yaw: s.yaw, pitch: s.pitch, distance: s.distance }, name: lm.def.name, radius: lm.def.radius }
+    }
     if (lm.def.cameraPreset && !lm.def.id.startsWith('place-')) return { target: new THREE.Vector3(lm.x, lm.level + 1, lm.z), preset: lm.camera, name: lm.def.name, radius: lm.def.radius }
     let d = this.designed.get(lm.index)
     if (!d) {

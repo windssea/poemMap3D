@@ -236,8 +236,8 @@ export class Engine {
 
   /* ================= 对外能力（由 EngineFacade 调用） ================= */
 
-  focusPlace(placeId: string, opts?: FlightOptions & { shot?: number }): Promise<void> {
-    const v = this.world.landmarkView(placeId)
+  focusPlace(placeId: string, opts?: FlightOptions & { shot?: number; shotId?: string }): Promise<void> {
+    const v = this.world.landmarkView(placeId, opts?.shotId)
     if (!v) return Promise.resolve()
     this.life.setPlace(placeId)
     this.bakeAt = { x: v.target.x, z: v.target.z, t: 2.5, n: 0 }

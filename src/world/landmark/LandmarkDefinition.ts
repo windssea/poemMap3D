@@ -83,6 +83,8 @@ export interface LandmarkDefinition {
   vegetationProfile?: VegetationProfile
   trees?: readonly TreeSpec[]
   cameraPreset?: CameraPreset
+  /** 定稿机位：第一个是主景（点地名飞到这里），其余可在界面里切换。注视点 = 地标中心 + offset（x 东、y 相对基准地面上一格、z 南） */
+  shots?: readonly LandmarkShot[]
   poetryPlaceId: string
   /** 水面上的小舟、瀑布等特写元素 */
   waterfall?: { x: number; z: number; top: number; width: number; dir: 'n' | 's' | 'e' | 'w' }
@@ -90,6 +92,13 @@ export interface LandmarkDefinition {
   allowRivers?: readonly string[]
   /** 是否为手工营造的名胜（全国视图显示体量代理） */
   major?: boolean
+}
+
+export interface LandmarkShot extends CameraPreset {
+  id: 'hero' | 'context' | 'detail' | 'vista'
+  /** 界面上的名字：主景、全景、近观…… */
+  name: string
+  offset?: readonly [number, number, number]
 }
 
 /** 由诗词数据派生的地点锚点（World 只通过 placeId 与诗词关联） */

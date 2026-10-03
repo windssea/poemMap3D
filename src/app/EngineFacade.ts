@@ -47,6 +47,10 @@ export interface EngineFacade {
   isOccluded(p: THREE.Vector3): boolean
   /** 地标营造范围（方块） */
   placeRadius(placeId: string): number
+  /** 定稿机位（主景、全景、近观……）；没有为空 */
+  placeShots(placeId: string): { id: string; name: string }[]
+  /** 飞到某个定稿机位 */
+  focusShot(placeId: string, shotId: string): void
   /** 名楼名胜的名字（岳阳楼、滕王阁……），自动聚落为 null */
   landmarkName(placeId: string): string | null
   geoAnchor(lng: number, lat: number): THREE.Vector3
@@ -92,6 +96,14 @@ export class EngineFacadeImpl implements EngineFacade, TourPort, TrailPort {
 
   focusLandmark(id: string, opts?: FlightOptions & { shot?: number }): void {
     void this.engine.focusPlace(id, opts)
+  }
+
+  placeShots(placeId: string): { id: string; name: string }[] {
+    return (this.engine.world.ctx.landmarks.byPlaceId(placeId)?.def.shots ?? []).map((s) => ({ id: s.id, name: s.name }))
+  }
+
+  focusShot(placeId: string, shotId: string): void {
+    void this.engine.focusPlace(placeId, { shotId })
   }
 
   setTime(time: TimeOfDay): void {

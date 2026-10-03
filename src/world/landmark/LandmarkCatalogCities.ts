@@ -17,6 +17,12 @@ const HUANGHELOU: LandmarkDefinition = {
   radius: 38,
   major: true,
   poetryPlaceId: 'huanghelou',
+  // 定稿机位：主景东南从江侧斜看抱厦层檐、全景蛇山与江、近观下层柱廊与匾
+  shots: [
+    { id: 'hero', name: '主景', yaw: 0.75, pitch: 0.28, distance: 100, offset: [-6, 24, 0] },
+    { id: 'context', name: '全景', yaw: 1.3, pitch: 0.55, distance: 185, offset: [-6, 12, 0] },
+    { id: 'detail', name: '近观', yaw: 0.15, pitch: 0.2, distance: 40, offset: [-6, 15, 9] },
+  ],
   terrainModifier: [
     { t: 'hill', x: 12, z: 2, r: 26, h: 13 },
     { t: 'hill', x: -6, z: 0, r: 17, h: 11 },
@@ -46,6 +52,12 @@ const YUEYANGLOU: LandmarkDefinition = {
   radius: 32,
   major: true,
   poetryPlaceId: 'p041',
+  // 定稿机位：主景西偏北斜看盔顶与城台、全景含洞庭湖面、近观城台踏道与底层柱廊
+  shots: [
+    { id: 'hero', name: '主景', yaw: -1.15, pitch: 0.26, distance: 82, offset: [0, 15, 0] },
+    { id: 'context', name: '全景', yaw: -1.57, pitch: 0.62, distance: 165, offset: [-10, 4, 0] },
+    { id: 'detail', name: '近观', yaw: -1.4, pitch: 0.1, distance: 34, offset: [-8, 7, 0] },
+  ],
   terrainModifier: [{ t: 'flatten', x: 4, z: 0, r: 20, blend: 6 }],
   structures: [
     { b: 'grandTower', x: 0, z: 0, rot: 1, p: { levels: 3, width: 9, tile: 'yellow', top: 'helmet', base: 'wall', terrace: 4 } },
@@ -70,6 +82,12 @@ const TENGWANGGE: LandmarkDefinition = {
   radius: 34,
   major: true,
   poetryPlaceId: 'p077',
+  // 定稿机位：主景东南斜看主阁与两翼、全景高台临江、近观登台踏道
+  shots: [
+    { id: 'hero', name: '主景', yaw: 1.0, pitch: 0.26, distance: 92, offset: [0, 13, 0] },
+    { id: 'context', name: '全景', yaw: 1.57, pitch: 0.6, distance: 170, offset: [4, 4, 0] },
+    { id: 'detail', name: '近观', yaw: 1.45, pitch: 0.1, distance: 36, offset: [9, 8, 0] },
+  ],
   terrainModifier: [{ t: 'flatten', x: -6, z: 0, r: 26, blend: 6 }],
   structures: [
     // 横向展开：面宽 17、进深 9，三层不收进深之外的面宽太多，连同南北两殿成一字阶梯轮廓
@@ -95,6 +113,12 @@ const GUANQUELOU: LandmarkDefinition = {
   radius: 32,
   major: true,
   poetryPlaceId: 'p027',
+  // 定稿机位：主景河侧看楼、远眺让楼退小而黄河与远山成主景（「欲穷千里目」）、近观厚台入口
+  shots: [
+    { id: 'hero', name: '主景', yaw: 1.2, pitch: 0.24, distance: 82, offset: [0, 15, 0] },
+    { id: 'vista', name: '远眺', yaw: 1.35, pitch: 0.22, distance: 170, offset: [6, 10, 0] },
+    { id: 'detail', name: '近观', yaw: 1.5, pitch: 0.1, distance: 34, offset: [9, 9, 0] },
+  ],
   terrainModifier: [{ t: 'flatten', x: -6, z: 0, r: 22, blend: 6 }],
   structures: [
     // 北方形制：长方平面、出檐克制（eave 6）、层高匀而高、台基厚，灰瓦；不是南方名楼换个瓦色

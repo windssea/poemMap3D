@@ -69,7 +69,7 @@ export class LandmarkRegistry {
         x,
         z,
         level,
-        camera: def.cameraPreset ?? { yaw: 0.5, pitch: 0.55, distance: 80 },
+        camera: def.shots?.[0] ?? def.cameraPreset ?? { yaw: 0.5, pitch: 0.55, distance: 80 },
         placements: [],
         trees: [],
         waterfall: null,
@@ -590,7 +590,7 @@ export class LandmarkRegistry {
       }
 
       /* 视线通道：从地标中心朝取景方向张开的扇形，不栽成熟乔木。没有定稿机位的按主楼正面（自动取景也偏好正面） */
-      const sightYaw = def.cameraPreset ? lm.camera.yaw : heroFrontYaw(def)
+      const sightYaw = def.cameraPreset || def.shots?.length ? lm.camera.yaw : heroFrontYaw(def)
       this.occupancy.markFan(cx, cz, Math.atan2(Math.cos(sightYaw), Math.sin(sightYaw)), 0.32, def.radius * 0.95, Occupancy.Sightline)
       this.occupancy.markCircle(cx, cz, def.radius, Occupancy.Landmark)
 
