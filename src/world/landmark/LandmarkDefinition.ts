@@ -95,7 +95,8 @@ export interface LandmarkDefinition {
 }
 
 export interface LandmarkShot extends CameraPreset {
-  id: 'hero' | 'context' | 'detail' | 'vista'
+  /** 'hero' 主景、'context' 全景、'detail' 近观、'vista' 远眺；园林等可另起子场景 id */
+  id: string
   /** 界面上的名字：主景、全景、近观…… */
   name: string
   offset?: readonly [number, number, number]

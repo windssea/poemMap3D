@@ -319,6 +319,13 @@ const SUZHOU: LandmarkDefinition = {
   radius: 54,
   major: true,
   poetryPlaceId: 'suzhou',
+  // 定稿机位：先总览三园，再分别进入。园小而密、斜看只见屋顶，所以三园都近乎俯看（约 60°），读得出池、岛、桥、厅的平面关系
+  shots: [
+    { id: 'hero', name: '三园', yaw: 0.6, pitch: 0.75, distance: 150, offset: [8, 0, 0] },
+    { id: 'north', name: '北园', yaw: 2.9, pitch: 1.05, distance: 44, offset: [8, 0, -28] },
+    { id: 'middle', name: '中园', yaw: 0.3, pitch: 1.05, distance: 34, offset: [8, 0, 2] },
+    { id: 'south', name: '南园', yaw: -0.2, pitch: 1.05, distance: 42, offset: [8, 0, 31] },
+  ],
   terrainModifier: [
     { t: 'flatten', x: 0, z: 0, r: 40, blend: 6 },
     { t: 'canal', pts: [[-48, -8], [48, -8]], w: 2 },
