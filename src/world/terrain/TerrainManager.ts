@@ -193,7 +193,13 @@ export class TerrainManager {
         }
         if (gorgeWall > 0 && edge < 70) {
           const n = 0.75 + 0.5 * (0.5 + 0.5 * this.nWidth(x / 24 + 90, z / 24))
-          const wall = L + 2 + gorgeWall * n * smoothstep(0, 5, edge) * (1 - smoothstep(40, 70, edge))
+          // 峡壁分级退让：此前 5 格之内拔起几十格，两岸各是一整面平墙；改为 26 格里层层收台（每级约 6 格高，台面宽窄不一），
+          // 崖脚线随噪声进退，不是一条直边
+          const e2 = Math.max(0, edge + 4 * this.nMisc(x / 19 + 31, z / 19 - 7))
+          const rise = gorgeWall * n * smoothstep(0, 26, e2) * (1 - smoothstep(40, 70, edge))
+          const q = rise / 6
+          const stepped = (Math.floor(q) + smoothstep(0.55, 1, q - Math.floor(q))) * 6
+          const wall = L + 2 + lerp(rise, stepped, 0.75)
           col.height = Math.max(col.height, wall)
         }
       }

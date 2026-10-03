@@ -97,6 +97,8 @@ export interface LandmarkDefinition {
   waterfall?: { x: number; z: number; top: number; width: number; dir: 'n' | 's' | 'e' | 'w' }
   /** 允许穿城而过的江河（如洛水贯都）：避让时不算它，城墙在水上留水门 */
   allowRivers?: readonly string[]
+  /** 临水是设计好的（城台、码头接水）：不因主楼底座近水而整组挪位 */
+  waterfront?: boolean
   /** 是否为手工营造的名胜（全国视图显示体量代理） */
   major?: boolean
 }

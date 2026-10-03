@@ -22,6 +22,7 @@ const HANGZHOU: LandmarkDefinition = {
   radius: 66,
   major: true,
   poetryPlaceId: 'hangzhou',
+  waterfront: true,
   terrainModifier: [
     { t: 'flatten', x: 0, z: 0, r: 58, blend: 12 },
     { t: 'hill', x: -54, z: -8, r: 22, h: 17 },
@@ -75,6 +76,7 @@ const LUSHAN: LandmarkDefinition = {
   radius: 62,
   major: true,
   poetryPlaceId: 'lushan',
+  waterfront: true,
   terrainModifier: [
     { t: 'flatten', x: 30, z: 34, r: 16, blend: 10 },
     // 主峰：一条东西走向的不对称山脊——南面（瀑布、寺、草堂一侧）是陡崖，北坡缓而有冲沟；

@@ -16,7 +16,7 @@ import { TREE_SCALE_HEIGHT, TREES, TreeCache } from '../vegetation/TreeRegistry'
 import { rotateXZ } from '../block/Direction'
 import { LANDMARK_CATALOG } from './LandmarkCatalog'
 import { heroFrontYaw, heroIndex, heroIsLandmark } from './LandmarkHero'
-import type { CameraPreset, LandmarkDefinition, PlaceAnchor, TerrainOp } from './LandmarkDefinition'
+import type { CameraPreset, LandmarkDefinition, PlaceAnchor, StructureSpec, TerrainOp } from './LandmarkDefinition'
 import { planSettlements } from './SettlementPlanner'
 
 export interface ResolvedLandmark {
@@ -33,6 +33,23 @@ export interface ResolvedLandmark {
 }
 
 const BUCKET = 64
+
+/** 一座建筑的底座（落地那一层的 xz，相对锚点，每 2 格取一格），按构件与参数缓存 */
+const footprintCache = new Map<string, readonly (readonly [number, number])[]>()
+function footprintOf(b: StructureSpec['b'], p: StructureSpec['p'], rot: number): readonly (readonly [number, number])[] {
+  const key = `${b}|${rot}|${JSON.stringify(p ?? {})}`
+  let f = footprintCache.get(key)
+  if (!f) {
+    const T0 = performance.now(); (globalThis as any).__fpN = ((globalThis as any).__fpN ?? 0) + 1
+    const st = buildBuilding(b, p ?? {}).rotate(rot)
+    const minY = st.bounds().minY
+    const set = new Map<number, readonly [number, number]>()
+    for (const bl of st.blocks) if (bl.y <= minY + 1 && ((bl.x & 1) === 0 && (bl.z & 1) === 0)) set.set(((bl.x + 512) << 10) | (bl.z + 512), [bl.x, bl.z])
+    f = [...set.values()]
+    footprintCache.set(key, f); (globalThis as any).__fpT = ((globalThis as any).__fpT ?? 0) + performance.now() - T0
+  }
+  return f
+}
 const bkey = (i: number, j: number) => ((i + 1024) << 11) | (j + 1024)
 
 /**
@@ -102,37 +119,90 @@ export class LandmarkRegistry {
   private clearOfWater(def: LandmarkDefinition, x: number, z: number, t: TerrainManager): [number, number] {
     // 手工名胜按下面的规则挪；自动聚落见下（破山寺：坐标在常熟城北的江面上，整组建筑都被跳过）
     if (def.walls?.length || !def.structures.length) return [x, z]
-    const pts = def.structures.filter((s) => s.b !== 'bridge' && !s.overWater).map((s) => [s.x, s.z] as const)
-    if (!pts.length) return [x, z]
-    const wetAt = (cx: number, cz: number) => {
-      let n = 0
-      for (const [sx, sz] of pts)
-        for (const [ox, oz] of [[0, 0], [3, 0], [-3, 0], [0, 3], [0, -3]] as const) {
-          const c = t.column(Math.round(cx + sx + ox), Math.round(cz + sz + oz))
-          if (c.waterY >= 0 && c.height < c.waterY) n++
+    const specs = def.structures.filter((s) => s.b !== 'bridge' && !s.overWater && s.b !== 'lamp')
+    if (!specs.length) return [x, z]
+    // 预检：营造范围内（每 6 格取一点）一格水都没有，就不必求底座（求底座要真把建筑造一遍，代价大）
+    {
+      let any = false
+      const R = def.radius
+      for (let dz = -R; dz <= R && !any; dz += 6)
+        for (let dx = -R; dx <= R && !any; dx += 6) {
+          const c = t.column(x + dx, z + dz)
+          if (c.waterY >= 0 && c.height < c.waterY) any = true
         }
+      if (!any) return [x, z]
+    }
+    // 判落水按每座建筑的实际底座数湿格（此前只看中心与十字五点，大楼底座一半在河里也照放：滕王阁、鹳雀楼、快阁……）
+    // 临水设计的名胜（岳阳楼、杭州、庐山）沿用中心与十字五点：底座近水是设计，不让它把整组挪到别处
+    const cells = def.waterfront
+      ? specs.flatMap((s) => ([[0, 0], [3, 0], [-3, 0], [0, 3], [0, -3]] as const).map(([ox, oz]) => [s.x + ox, s.z + oz] as const))
+      : specs.flatMap((s) => footprintOf(s.b, s.p, s.rot ?? 0).map(([fx, fz]) => [s.x + fx, s.z + fz] as const))
+    const pts = specs.map((s) => [s.x, s.z] as const)
+    // 地形列查询很贵：按格缓存是否落水；挪位搜索时底座再隔一取一
+    const memo = new Map<number, boolean>()
+    const wetCell = (px: number, pz: number) => {
+      const k = ((px + 32768) << 16) | (pz + 32768)
+      let v = memo.get(k)
+      if (v === undefined) {
+        const c = t.column(px, pz)
+        v = c.waterY >= 0 && c.height < c.waterY
+        memo.set(k, v)
+      }
+      return v
+    }
+    const wetAt = (cx: number, cz: number, step = 1) => {
+      let n = 0
+      for (let i = 0; i < cells.length; i += step) if (wetCell(Math.round(cx + cells[i][0]), Math.round(cz + cells[i][1]))) n += step
       return n
     }
-    // 只挪真正落在水里的（中心在水里，或一半建筑在水里）；零星一两座临水的，照旧只省去那几座
     const c0 = t.column(x, z)
     const centerWet = c0.waterY >= 0 && c0.height < c0.waterY
-    // 自动聚落：只挪几乎整组都落在水里的（否则整组建筑都被跳过，地图上只剩一个空地名）；半临水的照旧，免得牵动周边地形
+    const wet0 = wetAt(x, z)
+    // 自动聚落：整组几乎都在水里，或底座湿了一成半以上才挪；手工名胜：湿了 4% 以上就挪
     if (def.id.startsWith('place-')) {
       const allSunk = pts.every(([sx, sz]) => {
         const c = t.column(Math.round(x + sx), Math.round(z + sz))
         return c.waterY >= 0 && c.height < c.waterY
       })
-      if (!centerWet || (wetAt(x, z) < pts.length * 4 && !allSunk)) return [x, z]
+      if (!allSunk && wet0 < cells.length * 0.15) return [x, z]
+    } else {
+      // 手工名胜：临水的园林、湖景是设计好的，只看主楼——主楼底座湿了 3% 以上（滕王阁、鹳雀楼）或中心落水才整组挪
+      if (def.waterfront && !centerWet) return [x, z]
+      const hi = def.waterfront ? -1 : heroIndex(def)
+      if (hi < 0 && !centerWet) return [x, z]
+      if (hi >= 0) {
+        const h = def.structures[hi]
+        const hc = footprintOf(h.b, h.p, h.rot ?? 0)
+        const hw = hc.reduce((n, [fx, fz]) => {
+          const c = t.column(Math.round(x + h.x + fx), Math.round(z + h.z + fz))
+          return n + (c.waterY >= 0 && c.height < c.waterY ? 1 : 0)
+        }, 0)
+        if (!centerWet && hw < hc.length * 0.03) return [x, z]
+      }
     }
-    if (!centerWet && wetAt(x, z) < pts.length * 2.5) return [x, z]
     const h0 = c0.height
-    const cost = (cx: number, cz: number) => wetAt(cx, cz) * 1000 + Math.hypot(cx - x, cz - z) * 4 + Math.abs(t.column(cx, cz).height - h0) * 20
+    const fine = !def.id.startsWith('place-')
+    // 底座下地面的起伏也计入：只求不压水会挪到崖边，地基垫成一根高石柱（秭归）
+    const spread = (cx: number, cz: number) => {
+      let lo = Infinity
+      let hi = -Infinity
+      for (let i = 0; i < cells.length; i += 3) {
+        const h = t.column(Math.round(cx + cells[i][0]), Math.round(cz + cells[i][1])).height
+        lo = Math.min(lo, h)
+        hi = Math.max(hi, h)
+      }
+      return Math.max(0, hi - lo - 4)
+    }
+    const cost = (cx: number, cz: number) => wetAt(cx, cz, cells.length > 60 ? 2 : 1) * 1000 + Math.hypot(cx - x, cz - z) * 4 + Math.abs(t.column(cx, cz).height - h0) * 20 + (fine ? 0 : spread(cx, cz) * 40)
     let best: [number, number] = [x, z]
     let bestCost = cost(x, z)
-    for (let r = 3; r <= Math.min(72, def.radius + 18) && r * 4 < bestCost; r += 3)
-      for (let a = 0; a < 24; a++) {
-        const cx = Math.round(x + Math.cos((a / 24) * Math.PI * 2) * r)
-        const cz = Math.round(z + Math.sin((a / 24) * Math.PI * 2) * r)
+    // 手工名胜细搜（3 格一圈、24 方向，落点与码头、机位的设计一致）；自动聚落粗搜（4 格、16 方向），省启动时间
+    const step = fine ? 3 : 4
+    const dirs = fine ? 24 : 16
+    for (let r = step; r <= Math.min(fine ? 72 : 60, def.radius + 18) && r * 4 < bestCost; r += step)
+      for (let a = 0; a < dirs; a++) {
+        const cx = Math.round(x + Math.cos((a / dirs) * Math.PI * 2) * r)
+        const cz = Math.round(z + Math.sin((a / dirs) * Math.PI * 2) * r)
         const c = cost(cx, cz)
         if (c < bestCost) {
           bestCost = c
@@ -173,39 +243,59 @@ export class LandmarkRegistry {
     const hw = w.hw + Math.abs(w.x) + 4
     const hd = w.hd + Math.abs(w.z) + 4
     const allow = new Set(def.allowRivers ?? [])
-    const wet = (cx: number, cz: number) => {
-      let n = 0
-      for (let dz = -hd; dz <= hd; dz += 6)
-        for (let dx = -hw; dx <= hw; dx += 6) {
-          const c = t.column(cx + dx, cz + dz)
-          if (c.waterY > c.height) {
-            if (allow.size) {
-              const rv = t.rivers.query(cx + dx, cz + dz)
-              if (rv && allow.has(t.rivers.rivers[rv.river].def.id)) continue
-            }
-            n++
-          }
+    // 采样点对齐世界网格（不随候选点偏移），相邻候选共用同一批格子，按格缓存是否压水
+    const memo = new Map<number, boolean>()
+    const wetCell = (px: number, pz: number) => {
+      const k = ((px + 32768) << 16) | (pz + 32768)
+      let v = memo.get(k)
+      if (v === undefined) {
+        const c = t.column(px, pz)
+        v = c.waterY > c.height
+        if (v && allow.size) {
+          const rv = t.rivers.query(px, pz)
+          if (rv && allow.has(t.rivers.rivers[rv.river].def.id)) v = false
         }
+        memo.set(k, v)
+      }
+      return v
+    }
+    const wet = (cx: number, cz: number, step: number) => {
+      let n = 0
+      const x0 = Math.ceil((cx - hw) / step) * step
+      const z0 = Math.ceil((cz - hd) / step) * step
+      for (let pz = z0; pz <= cz + hd; pz += step) for (let px = x0; px <= cx + hw; px += step) if (wetCell(px, pz)) n++
       return n
     }
     const h0 = t.column(x, z).height
     /* 代价：压水最要紧，其次地势要与原址相近（不往山上搬），再次挪得越近越好 */
-    const cost = (cx: number, cz: number) => wet(cx, cz) * 1000 + Math.abs(t.column(cx, cz).height - h0) * 25 + Math.hypot(cx - x, cz - z) * 4
-    let best: [number, number] = [x, z]
-    let bestCost = cost(x, z)
-    if (bestCost < 1) return best
-    // 细步螺旋（3 格一圈、24 个方向）：只挪到刚好不压水；挪动代价已超过当前最优就不必再往外找
-    for (let r = 3; r <= 96 && r * 4 < bestCost; r += 3)
+    const rest = (cx: number, cz: number) => Math.abs(t.column(cx, cz).height - h0) * 25 + Math.hypot(cx - x, cz - z) * 4
+    // 城墙以内（不含外扩）细查一格水都没有，就不挪
+    {
+      let inner = 0
+      for (let dz = -w.hd; dz <= w.hd && !inner; dz += 3)
+        for (let dx = -w.hw; dx <= w.hw && !inner; dx += 3) {
+          const c = t.column(x + w.x + dx, z + w.z + dz)
+          if (c.waterY > c.height) {
+            const rv = allow.size ? t.rivers.query(x + w.x + dx, z + w.z + dz) : null
+            if (!(rv && allow.has(t.rivers.rivers[rv.river].def.id))) inner++
+          }
+        }
+      if (!inner && wet(x, z, 6) === 0) return [x, z]
+    }
+    // 细步螺旋（3 格一圈、24 个方向）粗采样（每 6 格）排序，再从代价最低的几个里用细采样（每 3 格，城墙间一条窄河也不漏）挑第一个不压水的
+    const cands: { c: number; p: [number, number] }[] = []
+    let bestCoarse = wet(x, z, 6) * 1000 + rest(x, z)
+    for (let r = 3; r <= 96 && r * 4 < bestCoarse + 60; r += 3)
       for (let a = 0; a < 24; a++) {
         const cx = Math.round(x + Math.cos((a / 24) * Math.PI * 2) * r)
         const cz = Math.round(z + Math.sin((a / 24) * Math.PI * 2) * r)
-        const c = cost(cx, cz)
-        if (c < bestCost) {
-          bestCost = c
-          best = [cx, cz]
-        }
+        const c = wet(cx, cz, 6) * 1000 + rest(cx, cz)
+        cands.push({ c, p: [cx, cz] })
+        bestCoarse = Math.min(bestCoarse, c)
       }
-    return best
+    cands.sort((u, v) => u.c - v.c)
+    for (const k of cands.slice(0, 40)) if (wet(k.p[0], k.p[1], 3) === 0) return k.p
+    return cands[0]?.p ?? [x, z]
   }
 
   /**
@@ -289,6 +379,8 @@ export class LandmarkRegistry {
               if (dist >= op.r + blend) break
               if (wet() && !op.overWater) break
               if (dist < op.r) {
+                // 平台不凭空垫起一根高柱：比原地高出 20 格以上的（夹在峡壁间的窄缝、崖下）不垫，留给自然地形
+                if (diff > 20 && !op.overWater && lm.def.id.startsWith('place-')) break
                 col.height = target
                 if (op.overWater && col.waterKind !== WaterKind.Sea) {
                   col.waterY = -1
@@ -364,14 +456,21 @@ export class LandmarkRegistry {
                 acc += len
               }
               const cliffSide = side === op.cliffSide
-              const reach = cliffSide ? op.cliff + 3 : op.w
+              // 崖脚线随噪声进退几格，崖面不是一条直边
+              if (cliffSide) best = Math.max(0, best + 2.5 * fbm(n, col.x / 15 + 13, col.z / 15, 2))
+              const reach = cliffSide ? op.cliff * 2.2 + 3 : op.w
               if (best >= reach || (wet() && !op.toWater)) break
               // 脊线：两头收、中间高，起伏不匀
               const crest = op.h * (op.squareEnds ? 1 : Math.pow(Math.sin(Math.PI * Math.min(1, Math.max(0, along))), 0.55)) * (0.85 + 0.3 * (0.5 + 0.5 * fbm(n, col.x / 19 + 7, col.z / 19, 2)))
               let f: number
               if (cliffSide) {
-                // 陡崖：崖顶一段几乎不降，到崖边陡落；崖脚三格收到地面
-                f = best < op.cliff ? 1 - 0.85 * Math.pow(best / op.cliff, 4) : 0.15 * (1 - (best - op.cliff) / 3)
+                // 陡崖分级退让：崖顶一段几乎不降，往外层层收台（每级约 5 格高），崖脚收到地面；不再一刀切下的一整面平墙
+                const W = op.cliff * 2.2
+                const g = Math.min(1, best / W)
+                f = 1 - Math.pow(g, 1.6)
+                const q = (f * crest) / 5
+                const st = (Math.floor(q) + smoothstep(0.5, 1, q - Math.floor(q))) * 5
+                f = crest > 0 ? lerp(f, st / crest, 0.7) : f
               } else {
                 f = Math.pow(1 - best / op.w, 1.5)
                 // 冲沟：缓坡上顺坡几道凹槽，越往坡脚越深
@@ -472,9 +571,16 @@ export class LandmarkRegistry {
         lm.placements.push(p)
         this.markStructure(p, opts.entrance ?? 'none', opts.rot ?? 0)
       }
+      const wetMemo = new Map<number, boolean>()
       const isWet = (x: number, z: number) => {
-        const c = terrain.column(x, z)
-        return c.waterY >= 0 && c.height < c.waterY
+        const k = ((x + 32768) << 16) | (z + 32768)
+        let v = wetMemo.get(k)
+        if (v === undefined) {
+          const c = terrain.column(x, z)
+          v = c.waterY >= 0 && c.height < c.waterY
+          wetMemo.set(k, v)
+        }
+        return v
       }
 
       /* 城墙与城门 */
@@ -554,6 +660,46 @@ export class LandmarkRegistry {
           x = found.cx
           z = found.cz
           params = { ...params, length: L }
+        }
+        /* 单座建筑落水兜底（城池里的楼、自动聚落的房）：底座湿了一成以上，就在附近 2–14 格找一处干地，
+           不与已放的建筑重叠、不出营造范围；找不到，湿得不多照放（临水），湿得多就不建 */
+        const nearWater = () => {
+          for (let dz = -8; dz <= 8; dz += 4) for (let dx = -8; dx <= 8; dx += 4) if (isWet(x + dx, z + dz)) return true
+          return false
+        }
+        if (!isBridge && !spec.overWater && spec.b !== 'lamp' && !(def.waterfront && spec.b === 'grandTower') && nearWater()) {
+          const fp = footprintOf(spec.b, params, spec.rot ?? 0)
+          const wetFrac = (px: number, pz: number) => fp.reduce((n, [fx, fz]) => n + (isWet(px + fx, pz + fz) ? 1 : 0), 0) / Math.max(1, fp.length)
+          const f0 = wetFrac(x, z)
+          if (f0 > 0.1) {
+            const ext = fp.reduce((m, [fx, fz]) => Math.max(m, Math.abs(fx), Math.abs(fz)), 0) + 1
+            const overlaps = (px: number, pz: number) =>
+              lm.placements.some((q) => !/^(wall|gate|corner)/.test(q.id) && !q.id.includes('bridge') && px + ext > q.world.minX && px - ext < q.world.maxX && pz + ext > q.world.minZ && pz - ext < q.world.maxZ)
+            // 新位置要平：底座高差 3 格以内、与原址地面相差不过 4 格——不挪到河岸陡坎、坡上，免得地基垫成一根高石柱
+            const g0 = terrain.surfaceHeightAt(x, z)
+            const flatAt = (px: number, pz: number) => {
+              let lo = Infinity
+              let hi = -Infinity
+              for (const [fx, fz] of fp) {
+                const h = terrain.surfaceHeightAt(px + fx, pz + fz)
+                lo = Math.min(lo, h)
+                hi = Math.max(hi, h)
+              }
+              return hi - lo <= 3 && Math.abs(terrain.surfaceHeightAt(px, pz) - g0) <= 4
+            }
+            let moved = false
+            for (let r = 2; r <= 14 && !moved; r += 2)
+              for (let a = 0; a < 16; a++) {
+                const px = Math.round(x + Math.cos((a / 16) * Math.PI * 2) * r)
+                const pz = Math.round(z + Math.sin((a / 16) * Math.PI * 2) * r)
+                if (Math.hypot(px - cx, pz - cz) > def.radius * 1.2 || wetFrac(px, pz) > 0.03 || overlaps(px, pz) || !flatAt(px, pz)) continue
+                x = px
+                z = pz
+                moved = true
+                break
+              }
+            if (!moved && f0 > 0.3) return
+          }
         }
         if (!isBridge && !spec.overWater && isWet(x, z)) return
         const s = buildBuilding(spec.b, params).rotate(spec.rot ?? 0)

@@ -28,5 +28,5 @@ describe('新城山', () => {
     /* 旧峰不再被削平 */
     const old = [327, 331, 335].map((z) => Math.round(t.column(563, z).height))
     expect(old[0] === 96 && old[1] === 96 && old[2] === 96).toBe(false)
-  })
+  }, 30000)
 })

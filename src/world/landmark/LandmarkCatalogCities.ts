@@ -52,6 +52,7 @@ const YUEYANGLOU: LandmarkDefinition = {
   radius: 32,
   major: true,
   poetryPlaceId: 'p041',
+  waterfront: true,
   // 定稿机位：主景西偏北斜看盔顶与城台、全景含洞庭湖面、近观城台踏道与底层柱廊
   shots: [
     { id: 'hero', name: '主景', yaw: -1.15, pitch: 0.26, distance: 82, offset: [0, 15, 0] },
@@ -117,6 +118,8 @@ const GUANQUELOU: LandmarkDefinition = {
   coordinate: { lng: 110.29, lat: 34.87 },
   radius: 32,
   major: true,
+  // 坐标正落在两河相汇的转角，城台挡在黄河上：整组向西北退开
+  offset: [-14, -12],
   poetryPlaceId: 'p027',
   // 定稿机位：主景河侧看楼、远眺让楼退小而黄河与远山成主景（「欲穷千里目」）、近观厚台入口
   shots: [
@@ -615,7 +618,7 @@ const XIANGYANG: LandmarkDefinition = {
   coordinate: { lng: 112.14, lat: 32.0 },
   // 城在汉水南岸的河谷里，汉水为北城壕：允许江水擦着北墙（水门），不把城挪上山
   offset: [0, 6],
-  allowRivers: ['han'],
+  // 汉水是城北的城壕，不穿城：城池自动让开河道（此前允许穿城，一条河从城中间过、楼压在水上）
   radius: 46,
   major: true,
   poetryPlaceId: 'xiangyang',
@@ -670,8 +673,7 @@ const PENGCHENG: LandmarkDefinition = {
     { t: 'pave', x0: -2, z0: -13, x1: 2, z1: 17 },
   ],
   walls: [{ x: 0, z: 0, hw: 18, hd: 13, height: 7, gates: ['n', 's', 'e', 'w'] }],
-  // 大运河从城边流过：允许穿城，城墙留水门
-  allowRivers: ['grand-canal'],
+  // 大运河从城边流过、不穿城：城池自动让开河道
   structures: [
     { b: 'grandTower', x: -8, z: -4, p: { levels: 2, width: 7, tile: 'gray', terrace: 2 } },
     { b: 'grandTower', x: 10, z: -4, p: { levels: 2, width: 7, tile: 'yellow', top: 'wudian', terrace: 2 } },
