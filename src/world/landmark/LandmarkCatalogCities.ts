@@ -67,9 +67,9 @@ const YUEYANGLOU: LandmarkDefinition = {
     { b: 'house', x: 17, z: 7, rot: 3, p: { seed: 12, lanterns: true } },
     { b: 'shop', x: 24, z: 0, rot: 3, p: { seed: 13 } },
     // 楼前临湖：青石码头与入水踏道、系船柱、湿石；两条小舟泊在踏道两侧，楼前其余湖面留白
-    { b: 'quay', x: -10, z: 0, rot: 1, atLevel: true, overWater: true, p: { width: 15, depth: 4 } },
-    { b: 'skiff', x: -22, z: -4, atLevel: true, overWater: true, p: { seed: 1 } },
-    { b: 'skiff', x: -19, z: 9, rot: 2, atLevel: true, overWater: true, p: { seed: 2 } },
+    { b: 'quay', x: -9, z: 0, rot: 1, atLevel: true, overWater: true, p: { width: 15, depth: 11 } },
+    { b: 'skiff', x: -27, z: -8, atLevel: true, overWater: true, p: { seed: 1 } },
+    { b: 'skiff', x: -24, z: 10, rot: 2, atLevel: true, overWater: true, p: { seed: 2 } },
   ],
   // 柳退到楼后街市一侧，作明亮屋顶的背景，不挡临湖的正面
   trees: [{ type: 'willow', variant: 0, pts: [[30, -22], [30, 22]], n: 4 }],

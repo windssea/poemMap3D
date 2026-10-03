@@ -11,37 +11,29 @@ import { type BuildingParams, post, stairs } from './BuildingFactory'
  */
 
 /**
- * 临湖石码头（水埠头）：沿楼前铺一条青石平台，与地面齐平（地面只比水面高出一线）；
- * 外沿一道连续的低石栏，只在正中留踏道口，一级踏步正落在水线上（平台与水面高差不到一格，多做几级只会沉在水下看不见）；
- * 踏道口两侧系船柱，左柱挑一盏灯；踏步两侧各贴一块苔石。
- * width 为平台长（沿岸方向），depth 为平台进深。
+ * 临湖石码头（水埠头）：楼前一整块青石平台，与地面齐平（地面只比水面高出一线），城台踏道整段落在平台上；
+ * 平台外沿通长一级踏步正落在水线上——只有一层台面、一级下水，不做栏杆、不撒零碎石块。
+ * 外沿两端立系船柱，北柱挑一盏灯。width 为平台长（沿岸方向），depth 为平台进深（含踏道落脚处）。
  */
 export function quay(p: BuildingParams = {}): VoxelStructure {
   const w = p.width ?? 15
-  const d = p.depth ?? 4
+  const d = p.depth ?? 6
   const b = new StructureBuilder('quay')
   const hw = Math.floor(w / 2)
   const z1 = d - 1
   // 平台：与地面齐平（y = −1），下面由放置器补石基到水底
-  b.box(-hw, -1, 0, hw, -1, z1, (x, _y, z) => S((x + z) % 5 === 0 ? B.COBBLE : B.STONE_BRICK))
-  // 外沿低石栏：连续，只在踏道口（|x| ≤ 2）断开
-  for (let x = -hw; x <= hw; x++) if (Math.abs(x) > 2) b.set(x, 0, z1, S(B.STONE_BRICK_SLAB))
-  // 踏道口：一级踏步落在水线上，下面石基
-  for (let x = -2; x <= 2; x++) {
+  b.box(-hw, -1, 0, hw, -1, z1, S(B.STONE_BRICK))
+  // 外沿通长一级踏步，落在水线上
+  for (let x = -hw; x <= hw; x++) {
     b.set(x, -2, z1 + 1, stairs(B.STONE_BRICK_STAIRS, Direction.North))
     b.set(x, -3, z1 + 1, S(B.STONE_BRICK))
   }
-  // 系船柱：踏道口两侧，左柱挑灯
-  for (const x of [-3, 3]) {
+  // 系船柱：外沿两端，北柱挑灯
+  for (const x of [-hw, hw]) {
     b.set(x, 0, z1, post(B.DARK_POST))
     b.set(x, 1, z1, post(B.DARK_POST))
   }
-  b.set(-3, 2, z1, S(B.LANTERN))
-  // 湿石：踏步两侧各一块，贴着平台外沿
-  for (const x of [-3, 3]) {
-    b.set(x, -2, z1 + 1, S(B.MOSS_STONE))
-    b.set(x, -3, z1 + 1, S(B.MOSS_STONE))
-  }
+  b.set(-hw, 2, z1, S(B.LANTERN))
   return b.build()
 }
 
