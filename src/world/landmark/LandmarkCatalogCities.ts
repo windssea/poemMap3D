@@ -851,4 +851,81 @@ const FENGQIAO: LandmarkDefinition = {
   ],
 }
 
-export const CITY_CATALOG: readonly LandmarkDefinition[] = [HUANGHELOU, YUEYANGLOU, TENGWANGGE, GUANQUELOU, DUOJINGLOU, JINLING, LUOYANG, CHENGDU, SUZHOU, HUANGZHOU, YANGZHOU, BIANJING, SHANYIN, MIZHOU, CHUZHOU, XIANGYANG, JUNSHAN, PENGCHENG, HUIZHOU, BAIDICHENG, TAISHAN, JIANMEN, FENGQIAO]
+/**
+ * 终南山：长安城南的高峰（宏观地形按实测海拔校准过，山形不动）。太乙峰顶一座重檐亭；
+ * 北麓（向着长安）楼观台——道观的殿、钟楼、牌坊坐在削出的台地上，一条石阶自观后上峰；
+ * 南坡一条山溪出谷，溪头是王维的终南别业（「行到水穷处，坐看云起时」）。
+ */
+const ZHONGNAN: LandmarkDefinition = {
+  id: 'zhongnan',
+  name: '终南山',
+  coordinate: { lng: 108.9, lat: 33.95 },
+  radius: 50,
+  major: true,
+  poetryPlaceId: 'zhongnanshan',
+  levelMode: 'summit',
+  terrainModifier: [
+    { t: 'flatten', x: 0, z: 0, r: 4, blend: 3 },
+    // 楼观台：北麓台地（比峰顶低约 50 格）
+    { t: 'flatten', x: 6, z: -34, r: 9, dy: -50, blend: 6 },
+    { t: 'path', pts: [[6, -26], [2, -18], [-2, -10], [0, -4]], w: 1.1 },
+    // 山溪：南坡出谷
+    { t: 'canal', pts: [[-18, 10], [-16, 26], [-12, 46]], w: 1 },
+  ],
+  structures: [
+    { b: 'pavilion', x: 0, z: 0, atLevel: true, p: { width: 5, double: true, tile: 'gray' } },
+    { b: 'hall', x: 6, z: -34, rot: 2, atLevel: true, dy: -50, p: { width: 9, depth: 7, tile: 'gray', terrace: 1, lanterns: true } },
+    { b: 'bellTower', x: 17, z: -32, atLevel: true, dy: -50, p: { width: 7 } },
+    { b: 'archway', x: 6, z: -44, rot: 2, p: { tile: 'gray' } },
+    { b: 'hut', x: -8, z: 32, p: { width: 5, depth: 5 } },
+  ],
+  trees: [{ type: 'bamboo', pts: [[-4, 28], [-4, 36]], n: 2 }],
+  vegetationProfile: { weights: { pine: 6, broadleaf: 2 }, density: 1.2 },
+  // 定稿机位：主景自长安方向（北）仰看峰与北麓楼观台；太乙峰（峰顶亭）；别业（南坡溪头茅舍）
+  shots: [
+    { id: 'hero', name: '主景', yaw: 3.0, pitch: 0.22, distance: 150, offset: [0, -30, -10] },
+    { id: 'peak', name: '太乙峰', yaw: 0.4, pitch: 0.7, distance: 70, offset: [0, 2, 0] },
+    { id: 'villa', name: '别业', yaw: 0.5, pitch: 0.4, distance: 46, offset: [-10, -40, 30] },
+  ],
+}
+
+/**
+ * 辋川别业：蓝田辋谷，王维的别业。辋水自西北而来，中间汇成欹湖，出湖南流出谷（东南不远是商山，水不往那边去）；
+ * 湖北岸别业（厅堂、居室），西岸竹林深处竹里馆（「独坐幽篁里，弹琴复长啸」），东北一座华子冈上亭，
+ * 西南一片密林即鹿柴（「空山不见人，但闻人语响」）。山居秋暝：「明月松间照，清泉石上流」。
+ */
+const WANGCHUAN: LandmarkDefinition = {
+  id: 'wangchuan',
+  name: '辋川别业',
+  coordinate: { lng: 109.3, lat: 34.05 },
+  radius: 50,
+  major: true,
+  poetryPlaceId: 'p043',
+  terrainModifier: [
+    { t: 'flatten', x: -4, z: -14, r: 12, blend: 6 },
+    { t: 'canal', pts: [[-48, -34], [-24, -18], [-6, 2], [10, 10], [8, 24], [2, 46]], w: 1.5 },
+    { t: 'lake', x: 4, z: 6, rx: 11, rz: 6, depth: 2, rot: 0.4 },
+    { t: 'hill', x: 30, z: -18, r: 16, h: 16 },
+  ],
+  structures: [
+    { b: 'gardenHall', x: -4, z: -14, p: { width: 9, depth: 5, lanterns: true } },
+    { b: 'house', x: -16, z: -16, rot: 1, p: { seed: 41 } },
+    { b: 'hut', x: -26, z: 8, rot: 1, p: { width: 5, depth: 5 } },
+    { b: 'pavilion', x: 30, z: -18, p: { width: 5, tile: 'gray' } },
+    { b: 'bridge', x: 8, z: 20, atLevel: true, span: true, p: { length: 7 } },
+  ],
+  trees: [
+    { type: 'bamboo', pts: [[-32, 2], [-32, 14], [-22, 16], [-20, 2]], n: 8 },
+    { type: 'pine', variant: 0, pts: [[-30, 26], [-18, 22], [-26, 38], [-12, 36]], n: 6 },
+    { type: 'willow', variant: 0, pts: [[-6, 0], [12, 0]], n: 2 },
+  ],
+  vegetationProfile: { weights: { pine: 4, broadleaf: 3, bamboo: 2 }, density: 1.1 },
+  // 定稿机位：主景（自南俯看欹湖与北岸别业）、竹里馆、华子冈
+  shots: [
+    { id: 'hero', name: '主景', yaw: 0.3, pitch: 0.8, distance: 120, offset: [0, 0, 0] },
+    { id: 'bamboo', name: '竹里馆', yaw: 0.4, pitch: 0.8, distance: 46, offset: [-24, 0, 8] },
+    { id: 'hill', name: '华子冈', yaw: 0.9, pitch: 0.6, distance: 75, offset: [26, 6, -16] },
+  ],
+}
+
+export const CITY_CATALOG: readonly LandmarkDefinition[] = [HUANGHELOU, YUEYANGLOU, TENGWANGGE, GUANQUELOU, DUOJINGLOU, JINLING, LUOYANG, CHENGDU, SUZHOU, HUANGZHOU, YANGZHOU, BIANJING, SHANYIN, MIZHOU, CHUZHOU, XIANGYANG, JUNSHAN, PENGCHENG, HUIZHOU, BAIDICHENG, TAISHAN, JIANMEN, FENGQIAO, ZHONGNAN, WANGCHUAN]
