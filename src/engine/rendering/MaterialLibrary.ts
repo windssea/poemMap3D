@@ -16,10 +16,12 @@ const BLOCK_VERTEX_DECL = /* glsl */ `
 attribute vec2 aUv;
 attribute float aTile;
 attribute float aAo;
+attribute float aSky;
 attribute vec3 aTint;
 attribute float aFlags;
 varying vec3 vBlockUv;
 varying float vAo;
+varying float vSky;
 varying vec3 vTint;
 varying float vFlags;
 varying vec3 vBWorld;
@@ -59,7 +61,7 @@ const DEBUG_VIEW_BLOCK = import.meta.env.DEV
   ? /* glsl */ `
           if (uDebugView > 0.5) {
             if (uDebugView < 1.5) outgoingLight = col;
-            else if (uDebugView < 2.5) outgoingLight = col * aoCurve(vAo);
+            else if (uDebugView < 2.5) outgoingLight = col * aoCurve(vAo) * skyCurve(vSky);
             else if (uDebugView < 3.5) outgoingLight = col * faceShade(vBNormal);
             else if (uDebugView < 4.5) outgoingLight = reflectedLight.directDiffuse;
             else outgoingLight = fogHeat(max(edgeFog(vBWorld), valleyMist(vBWorld)));
@@ -94,6 +96,7 @@ float bakedSky(vec3 w) {
 uniform float uLotus;
 varying vec3 vBlockUv;
 varying float vAo;
+varying float vSky;
 varying vec3 vTint;
 varying float vFlags;
 varying vec3 vBWorld;
@@ -185,6 +188,7 @@ export class MaterialLibrary {
           `#include <begin_vertex>
           vBlockUv = vec3(aUv / 16.0, aTile);
           vAo = aAo;
+          vSky = aSky / 15.0;
           vTint = aTint;
           vFlags = aFlags;
           vBWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;
@@ -295,7 +299,9 @@ export class MaterialLibrary {
           '#include <lights_fragment_end>',
           `#include <lights_fragment_end>
           // 三者相乘最坏约 0.55 × 0.80 × 0.88 ≈ 0.39（院落里的南北墙），背光面只剩四成天光就死黑了；设下限保住可读性
-          reflectedLight.indirectDiffuse *= max(bakedSky(vBWorld) * aoCurve(vAo) * faceShade(vBNormal), 0.55);`,
+          reflectedLight.indirectDiffuse *= max(bakedSky(vBWorld) * aoCurve(vAo) * faceShade(vBNormal), 0.55);
+          // 天空光（0–15）：檐下、殿内、廊下、门洞里天光渐弱；在上面那道保底之外另乘，深处才真正暗下去
+          reflectedLight.indirectDiffuse *= skyCurve(vSky);`,
         )
       if (kind === 'cutout') frag = frag.replace('#include <normal_fragment_begin>', 'float faceDirection = 1.0;\nvec3 normal = normalize( vNormal );\nvec3 nonPerturbedNormal = normal;')
       shader.fragmentShader = frag

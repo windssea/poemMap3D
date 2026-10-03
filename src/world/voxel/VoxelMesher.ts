@@ -7,6 +7,7 @@ import { Axis, DIRECTION_VECTORS, rotateXZ } from '../block/Direction'
 import { ZONE_COUNT } from '../biome/TintZone'
 import { buildTintTable } from '../biome/BiomeTints'
 import { hash3i } from '../../utils/math'
+import { skyBlocking, volumeSkyLight } from '../light/VolumeSkyLight'
 import { MeshBuffer, type MeshLayerData, VertexFlag } from './MeshBuffer'
 import type { VoxelVolume } from './VoxelVolume'
 
@@ -28,11 +29,15 @@ export interface MesherOptions {
    * 相邻同级都在时，这些面夹在两块实心之间，看不见。
    */
   skirt?: number
+  /** 天空光每格衰减（每格代表的方块数：近景 1、远景 2、远景片 4），远近同一处檐下、殿内的明暗大致一样；0 为不算（全亮） */
+  lightStep?: number
 }
 
 /** 水面比整格低 2/16，像 Minecraft 那样与岸边留一道小台阶 */
 const WATER_TOP = 14 / 16
 const AO_NONE = [3, 3, 3, 3] as const
+/** 六邻 */
+const N6 = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]] as const
 
 interface Tables {
   reg: BlockRegistry
@@ -123,6 +128,26 @@ export function meshVolume(vol: VoxelVolume, opts: MesherOptions = {}): MeshResu
   if (yHi < 0) return { layers: buffers.map((b) => b.toData()), quads: 0, ms: performance.now() - t0 }
   yHi = Math.min(sy - 1, yHi + 1)
 
+  /* 天空光：只算有内容的高度段 */
+  const step = opts.lightStep ?? 1
+  const skyL = step > 0 ? volumeSkyLight(vol, reg, yLo, yHi, step) : null
+  const skyBlocks = skyBlocking(reg)
+  /** 一格的天空光；挡光方块返回 -1（取平均时不计）。体外视为露天 */
+  const lightAt = (x: number, y: number, z: number): number => {
+    if (x < 0 || z < 0 || x >= sx || z >= sz || y > yHi) return 15
+    if (y < yLo) return 0
+    const i = (y * sz + z) * sx + x
+    return skyBlocks[data[i] & 255] ? -1 : skyL ? skyL[i] : 15
+  }
+  /** 方块本格的天空光：本格挡光（半砖、楼梯）时取六邻里最亮的 */
+  const cellLight = (x: number, y: number, z: number): number => {
+    const v = lightAt(x, y, z)
+    if (v >= 0) return v
+    let m = -1
+    for (const [dx, dy, dz] of N6) m = Math.max(m, lightAt(x + dx, y + dy, z + dz))
+    return m >= 0 ? m : 15
+  }
+
   const lo = [pad, yLo, pad]
   const hi = [sx - pad, yHi + 1, sz - pad]
   const outOff = [-pad, oy, -pad]
@@ -155,6 +180,24 @@ export function meshVolume(vol: VoxelVolume, opts: MesherOptions = {}): MeshResu
       const s2 = aoAt(px + dv[0] * sv, py + dv[1] * sv, pz + dv[2] * sv)
       const c = aoAt(px + du[0] * su + dv[0] * sv, py + du[1] * su + dv[1] * sv, pz + du[2] * su + dv[2] * sv)
       out[k] = s1 && s2 ? 0 : 3 - (s1 + s2 + c)
+    }
+  }
+  /** 平滑天空光：每个角取面前一格与该角旁的三格的平均（挡光格不计；两侧都挡时对角也不计），顺序同 aoCorners */
+  const lightCorners = (px: number, py: number, pz: number, du: number[], dv: number[], out: number[]): void => {
+    const c0 = lightAt(px, py, pz)
+    const center = c0 >= 0 ? c0 : cellLight(px, py, pz)
+    for (let k = 0; k < 4; k++) {
+      const su = s[k][0]
+      const sv = s[k][1]
+      const l1 = lightAt(px + du[0] * su, py + du[1] * su, pz + du[2] * su)
+      const l2 = lightAt(px + dv[0] * sv, py + dv[1] * sv, pz + dv[2] * sv)
+      const lc = l1 < 0 && l2 < 0 ? -1 : lightAt(px + du[0] * su + dv[0] * sv, py + du[1] * su + dv[1] * sv, pz + du[2] * su + dv[2] * sv)
+      let sum = center
+      let n = 1
+      if (l1 >= 0) (sum += l1), n++
+      if (l2 >= 0) (sum += l2), n++
+      if (lc >= 0) (sum += lc), n++
+      out[k] = Math.round(sum / n)
     }
   }
 
@@ -190,6 +233,8 @@ export function meshVolume(vol: VoxelVolume, opts: MesherOptions = {}): MeshResu
   const uvs = new Array<number>(8)
   const aoTmp = [3, 3, 3, 3]
   const aoOut = [3, 3, 3, 3]
+  const skyTmp = [15, 15, 15, 15]
+  const skyOut = [15, 15, 15, 15]
   let quads = 0
 
   /* ============ 1. 整块：逐轴逐向切片，贪心合并 ============ */
@@ -203,6 +248,8 @@ export function meshVolume(vol: VoxelVolume, opts: MesherOptions = {}): MeshResu
     const W = hi[u] - lo[u]
     const H = hi[v] - lo[v]
     const mask = new Uint32Array(W * H)
+    /** 四个角的天空光（各 4 位）：与 mask 都相同才合并 */
+    const mask2 = new Uint16Array(W * H)
     const pos = [0, 0, 0]
     for (const sign of [1, -1]) {
       const nrm = [0, 0, 0]
@@ -217,6 +264,7 @@ export function meshVolume(vol: VoxelVolume, opts: MesherOptions = {}): MeshResu
             const st = at(pos[0], pos[1], pos[2])
             const id = st & 255
             mask[n] = 0
+            mask2[n] = 0xffff
             if (!id) continue
             const shape = reg.shape[id]
             const nb = at(pos[0] + nrm[0], pos[1] + nrm[1], pos[2] + nrm[2])
@@ -244,6 +292,8 @@ export function meshVolume(vol: VoxelVolume, opts: MesherOptions = {}): MeshResu
               aoCorners(pos[0] + nrm[0], pos[1] + nrm[1], pos[2] + nrm[2], du, dv, aoTmp)
               aoKey = aoTmp[0] | (aoTmp[1] << 2) | (aoTmp[2] << 4) | (aoTmp[3] << 6)
             }
+            lightCorners(pos[0] + nrm[0], pos[1] + nrm[1], pos[2] + nrm[2], du, dv, skyTmp)
+            mask2[n] = skyTmp[0] | (skyTmp[1] << 4) | (skyTmp[2] << 8) | (skyTmp[3] << 12)
             const tinted = T.tint[tile * ZONE_COUNT] !== 0xffffff
             const biome = tinted ? vol.tint[pos[2] * sx + pos[0]] : 0
             const key = (reg.layer[id] << 29) | (flagsFor(id) << 21) | (biome << 16) | (aoKey << 8) | tile
@@ -258,11 +308,12 @@ export function meshVolume(vol: VoxelVolume, opts: MesherOptions = {}): MeshResu
               i++
               continue
             }
+            const k2 = mask2[j * W + i]
             let w = 1
-            while (i + w < W && mask[j * W + i + w] === k) w++
+            while (i + w < W && mask[j * W + i + w] === k && mask2[j * W + i + w] === k2) w++
             let h = 1
             grow: while (j + h < H) {
-              for (let q = 0; q < w; q++) if (mask[(j + h) * W + i + q] !== k) break grow
+              for (let q = 0; q < w; q++) if (mask[(j + h) * W + i + q] !== k || mask2[(j + h) * W + i + q] !== k2) break grow
               h++
             }
             for (let hh = 0; hh < h; hh++) mask.fill(0, (j + hh) * W + i, (j + hh) * W + i + w)
@@ -294,9 +345,10 @@ export function meshVolume(vol: VoxelVolume, opts: MesherOptions = {}): MeshResu
               corners[c * 3 + 2] = z
               uvOf(axis, x, y, z, uvs, c * 2)
               aoOut[c] = (aoKey >> (src * 2)) & 3
+              skyOut[c] = (k2 >> (src * 4)) & 15
             }
             const rgb = water ? biome * 36 * 65536 : tintFor(tile, biome)
-            buffers[layer].quad(corners, nrm[0], nrm[1], nrm[2], uvs, tile, aoOut, rgb, flags)
+            buffers[layer].quad(corners, nrm[0], nrm[1], nrm[2], uvs, tile, aoOut, rgb, flags, skyOut)
             quads++
             i += w
           }
@@ -344,6 +396,9 @@ export function meshVolume(vol: VoxelVolume, opts: MesherOptions = {}): MeshResu
       if (onBoundary && reg.receivesAO[id]) aoCorners(x + nrm[0], y + nrm[1], z + nrm[2], du, dv, aoTmp)
       else if (!onBoundary && axis === 1 && sign > 0 && reg.receivesAO[id]) aoCorners(x, y, z, du, dv, aoTmp) // 半砖顶、楼梯踏面：靠墙的角也暗下去
       else for (let k = 0; k < 4; k++) aoTmp[k] = AO_NONE[k]
+      if (onBoundary) lightCorners(x + nrm[0], y + nrm[1], z + nrm[2], du, dv, skyTmp)
+      else if (axis === 1 && sign > 0) lightCorners(x, y, z, du, dv, skyTmp)
+      else skyTmp.fill(cellLight(x, y, z))
       const cell = [x, y, z]
       const plane = cell[axis] + (sign > 0 ? b[axis + 3] : b[axis]) / 16
       const cu = [b[u] / 16, b[u + 3] / 16, b[u + 3] / 16, b[u] / 16]
@@ -364,8 +419,9 @@ export function meshVolume(vol: VoxelVolume, opts: MesherOptions = {}): MeshResu
         corners[c * 3 + 2] = pz
         uvOf(axis, px, py, pz, uvs, c * 2)
         aoOut[c] = aoTmp[src]
+        skyOut[c] = skyTmp[src]
       }
-      buf.quad(corners, nrm[0], nrm[1], nrm[2], uvs, tile, aoOut, rgbOverride >= 0 ? rgbOverride : tintFor(tile, biome), flagsFor(id) | flagsExtra)
+      buf.quad(corners, nrm[0], nrm[1], nrm[2], uvs, tile, aoOut, rgbOverride >= 0 ? rgbOverride : tintFor(tile, biome), flagsFor(id) | flagsExtra, skyOut)
       quads++
     }
   }
@@ -481,6 +537,7 @@ export function meshVolume(vol: VoxelVolume, opts: MesherOptions = {}): MeshResu
             const tile = T.side[id]
             const rgb = tintFor(tile, vol.tint[z * sx + x])
             const ao = [2, 2, 3, 3]
+            skyTmp.fill(cellLight(x, y, z))
             for (const [ax, az, bx, bz] of [
               [-r, -r, r, r],
               [-r, r, r, -r],
@@ -505,7 +562,7 @@ export function meshVolume(vol: VoxelVolume, opts: MesherOptions = {}): MeshResu
               uvs[5] = tall
               uvs[6] = 0
               uvs[7] = tall
-              buf.quad(corners, 0, 1, 0, uvs, tile, ao, rgb, flagsFor(id))
+              buf.quad(corners, 0, 1, 0, uvs, tile, ao, rgb, flagsFor(id), skyTmp)
               quads++
             }
             break

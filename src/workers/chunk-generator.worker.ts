@@ -44,7 +44,7 @@ function build(lod: 1 | 2 | 4, cx: number, cz: number): Built {
     const t0 = performance.now()
     const g = generateCoarseRegion(c.terrain, c.landmarks, c.trees, cx, cz)
     const genMs = performance.now() - t0
-    const mesh = meshVolume(g.volume, { skirt: 3 })
+    const mesh = meshVolume(g.volume, { skirt: 3, lightStep: 4 })
     return { type: 'chunk', cx, cz, lod: 4, data: null, layers: mesh.layers, stats: { genMs, meshMs: mesh.ms, quads: mesh.quads, trees: g.trees, structures: g.structures } }
   }
   if (lod === 2) {
@@ -52,7 +52,7 @@ function build(lod: 1 | 2 | 4, cx: number, cz: number): Built {
     // 远景：cx、cz 为 2×2 区块一片的片坐标；外扩 2 格，合并后正好 1 格外边
     const g = c.chunks.generateArea(new VoxelVolume(cx * 32 - 2, 0, cz * 32 - 2, 36, WORLD_HEIGHT, 36), false)
     const genMs = performance.now() - t0
-    const mesh = meshVolume(downsample2(g.volume), { skirt: 4 })
+    const mesh = meshVolume(downsample2(g.volume), { skirt: 4, lightStep: 2 })
     return { type: 'chunk', cx, cz, lod: 2, data: null, layers: mesh.layers, stats: { genMs, meshMs: mesh.ms, quads: mesh.quads, trees: g.trees, structures: g.structures } }
   }
   const g = c.chunks.generate(cx, cz)

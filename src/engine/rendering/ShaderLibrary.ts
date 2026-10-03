@@ -81,6 +81,13 @@ float aoCurve(float ao) {
   float shaped = ao < 0.5 ? 0.80 : ao < 1.5 ? 0.88 : ao < 2.5 ? 0.95 : 1.0;
   return mix(1.0, shaped, uAoStrength);
 }
+/**
+ * 天空光 0–1（= 级数 / 15）→ 间接光倍数：露天 1，檐下一格约 0.85，进深三格约 0.6，殿堂深处约 0.3，封闭处 0.2。
+ * 随 AO 滑条一起收放（调试时 AO 归零即两者都关）。
+ */
+float skyCurve(float s) {
+  return mix(1.0, mix(0.2, 1.0, s * s * s), uAoStrength);
+}
 `
 
 /** 积雪：climate 为该处的积雪气候系数（北方满、江南薄、岭南无，高山皆有） */

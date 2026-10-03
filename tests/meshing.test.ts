@@ -37,7 +37,8 @@ describe('VoxelMesher', () => {
   it('贪心平面：8×8 的一层石板顶面只有 1 个四边形', () => {
     const v = vol()
     for (let x = 0; x < 8; x++) for (let z = 0; z < 8; z++) v.set(x, 10, z, S(B.STONE))
-    const r = meshVolume(v)
+    // 只看贪心合并：关掉天空光（悬空石板的底面有从边缘向里变暗的天空光渐变，按角分级后本就不该合成一片）
+    const r = meshVolume(v, { lightStep: 0 })
     // 顶 1 + 底 1 + 四周各 1
     expect(quads(r, BlockRenderLayer.Solid)).toBe(6)
   })

@@ -10,6 +10,8 @@ export interface MeshLayerData {
   uvs: Int16Array
   tiles: Uint8Array
   ao: Uint8Array
+  /** 天空光 0–15（只乘间接光），见 world/light/VolumeSkyLight */
+  sky: Uint8Array
   colors: Uint8Array
   flags: Uint8Array
   indices: Uint32Array
@@ -26,6 +28,8 @@ export const VertexFlag = {
   Warm: 32,
 } as const
 
+const SKY_FULL = [15, 15, 15, 15] as const
+
 /** 可增长的顶点缓冲；四边形为基本单位 */
 export class MeshBuffer {
   private pos = new Int16Array(4096 * 3)
@@ -33,6 +37,7 @@ export class MeshBuffer {
   private uv = new Int16Array(4096 * 2)
   private tile = new Uint8Array(4096)
   private ao = new Uint8Array(4096)
+  private sky = new Uint8Array(4096)
   private col = new Uint8Array(4096 * 3)
   private flg = new Uint8Array(4096)
   private idx = new Uint32Array(4096 * 1.5)
@@ -52,6 +57,7 @@ export class MeshBuffer {
     this.uv = g(this.uv, 2)
     this.tile = g(this.tile, 1)
     this.ao = g(this.ao, 1)
+    this.sky = g(this.sky, 1)
     this.col = g(this.col, 3)
     this.flg = g(this.flg, 1)
     this.idx = g(this.idx, 1.5)
@@ -59,7 +65,7 @@ export class MeshBuffer {
 
   /**
    * 追加一个四边形。c 为 4 个角（逆时针，从法线方向看），uvs 为 4 组贴图坐标（方块单位），
-   * ao 为 4 个角的遮蔽等级 0–3。flip 为真时换一条对角线切分，避免 AO 各向异性。
+   * ao 为 4 个角的遮蔽等级 0–3，sky 为 4 个角的天空光 0–15（缺省全亮）。按 AO 选对角线切分，避免 AO 各向异性。
    */
   quad(
     c: ArrayLike<number>,
@@ -71,6 +77,7 @@ export class MeshBuffer {
     ao: ArrayLike<number>,
     rgb: number,
     flags: number,
+    sky: ArrayLike<number> = SKY_FULL,
   ): void {
     this.grow(4)
     const v = this.vcount
@@ -89,6 +96,7 @@ export class MeshBuffer {
       this.uv[(v + i) * 2 + 1] = Math.round(uvs[i * 2 + 1] * POSITION_SCALE)
       this.tile[v + i] = tile
       this.ao[v + i] = ao[i]
+      this.sky[v + i] = sky[i]
       this.flg[v + i] = flags
     }
     const k = this.icount
@@ -119,6 +127,7 @@ export class MeshBuffer {
       uvs: this.uv.slice(0, n * 2),
       tiles: this.tile.slice(0, n),
       ao: this.ao.slice(0, n),
+      sky: this.sky.slice(0, n),
       colors: this.col.slice(0, n * 3),
       flags: this.flg.slice(0, n),
       indices: this.idx.slice(0, this.icount),
@@ -129,5 +138,5 @@ export class MeshBuffer {
 }
 
 export function meshTransferables(d: MeshLayerData): ArrayBuffer[] {
-  return [d.positions, d.normals, d.uvs, d.tiles, d.ao, d.colors, d.flags, d.indices].map((a) => a.buffer as ArrayBuffer)
+  return [d.positions, d.normals, d.uvs, d.tiles, d.ao, d.sky, d.colors, d.flags, d.indices].map((a) => a.buffer as ArrayBuffer)
 }

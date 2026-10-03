@@ -13,6 +13,7 @@ export function createLayerGeometry(d: MeshLayerData): THREE.BufferGeometry | nu
   g.setAttribute('aUv', new THREE.BufferAttribute(d.uvs, 2))
   g.setAttribute('aTile', new THREE.BufferAttribute(d.tiles, 1))
   g.setAttribute('aAo', new THREE.BufferAttribute(d.ao, 1))
+  g.setAttribute('aSky', new THREE.BufferAttribute(d.sky, 1))
   g.setAttribute('aTint', new THREE.BufferAttribute(d.colors, 3, true))
   g.setAttribute('aFlags', new THREE.BufferAttribute(d.flags, 1))
   g.setIndex(new THREE.BufferAttribute(d.vertexCount < 65536 ? Uint16Array.from(d.indices) : d.indices, 1))
