@@ -928,4 +928,47 @@ const WANGCHUAN: LandmarkDefinition = {
   ],
 }
 
-export const CITY_CATALOG: readonly LandmarkDefinition[] = [HUANGHELOU, YUEYANGLOU, TENGWANGGE, GUANQUELOU, DUOJINGLOU, JINLING, LUOYANG, CHENGDU, SUZHOU, HUANGZHOU, YANGZHOU, BIANJING, SHANYIN, MIZHOU, CHUZHOU, XIANGYANG, JUNSHAN, PENGCHENG, HUIZHOU, BAIDICHENG, TAISHAN, JIANMEN, FENGQIAO, ZHONGNAN, WANGCHUAN]
+/**
+ * 兰亭：会稽山阴之兰渚，「崇山峻岭，茂林修竹，又有清流激湍，映带左右」。
+ * 一条清溪弯成几道曲水（流觞），溪边一座小亭（流觞亭）与几方坐石；北有鹅池、池边碑亭；兰亭碑亭居中；四周竹林，背后一道小山。
+ * 不设高塔大殿——以曲线与竹影为主体，与山阴城、沈园分开。
+ */
+const LANTING: LandmarkDefinition = {
+  id: 'lanting',
+  name: '兰亭',
+  coordinate: { lng: 120.5, lat: 29.93 },
+  offset: [-34, 32],
+  radius: 32,
+  major: true,
+  poetryPlaceId: 'lanting',
+  terrainModifier: [
+    { t: 'flatten', x: 0, z: 0, r: 20, blend: 8 },
+    { t: 'hill', x: -6, z: -30, r: 20, h: 16 },
+    // 曲水：自北向南三折，宽一格
+    { t: 'canal', pts: [[-10, -14], [-2, -10], [-8, -4], [0, 2], [-6, 8], [2, 14], [-2, 22]], w: 0.8 },
+    // 鹅池
+    { t: 'lake', x: 12, z: -10, rx: 5, rz: 4, depth: 2 },
+    { t: 'pave', x0: 4, z0: 14, x1: 6, z1: 26 },
+  ],
+  structures: [
+    { b: 'pavilion', x: 6, z: 2, p: { width: 5, tile: 'gray' } },
+    { b: 'pavilion', x: 12, z: -18, p: { width: 3, tile: 'gray' } },
+    { b: 'pavilion', x: -14, z: 4, p: { width: 5, double: true, tile: 'gray' } },
+    { b: 'gardenHall', x: 10, z: 14, rot: 3, p: { width: 7, depth: 5 } },
+    { b: 'rockery', x: -14, z: -10, p: { seed: 21 } },
+    { b: 'rockery', x: 4, z: 10, p: { seed: 22 } },
+  ],
+  trees: [
+    { type: 'bamboo', pts: [[-22, -16], [-20, 0], [-22, 16], [-16, 24]], n: 9 },
+    { type: 'bamboo', pts: [[18, -2], [20, 8], [18, 20]], n: 5 },
+    { type: 'willow', variant: 2, pts: [[8, -6], [16, -6]], n: 2 },
+  ],
+  vegetationProfile: { weights: { bamboo: 4, broadleaf: 2, pine: 1 }, density: 1.1 },
+  shots: [
+    { id: 'hero', name: '曲水', yaw: 0.6, pitch: 0.75, distance: 70, offset: [-2, 0, 4] },
+    { id: 'pond', name: '鹅池', yaw: 0.8, pitch: 1.0, distance: 46, offset: [12, 0, -12] },
+    { id: 'detail', name: '流觞亭', yaw: -0.3, pitch: 0.35, distance: 30, offset: [-10, 2, 4] },
+  ],
+}
+
+export const CITY_CATALOG: readonly LandmarkDefinition[] = [HUANGHELOU, YUEYANGLOU, TENGWANGGE, GUANQUELOU, DUOJINGLOU, JINLING, LUOYANG, CHENGDU, SUZHOU, HUANGZHOU, YANGZHOU, BIANJING, SHANYIN, MIZHOU, CHUZHOU, XIANGYANG, JUNSHAN, PENGCHENG, HUIZHOU, BAIDICHENG, TAISHAN, JIANMEN, FENGQIAO, ZHONGNAN, WANGCHUAN, LANTING]
