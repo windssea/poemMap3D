@@ -26,6 +26,10 @@ export interface BuildingParams {
   plan?: 'square' | 'cross'
   top?: 'xieshan' | 'cross' | 'cuanjian' | 'wudian' | 'helmet'
   base?: 'stone' | 'wall'
+  /** 名楼剖面：每上一层面宽、进深各收几格（两侧合计，默认 0、0、2、2、4…）；各层层高；腰檐出挑（两侧合计，默认 8） */
+  shrink?: number
+  floorH?: readonly number[]
+  eave?: number
   /** 园墙：是否开月洞门（默认开） */
   gate?: boolean
   /** 游廊：立在水上（木桩入水、木板铺地），水廊 */
@@ -634,11 +638,14 @@ export function archway(p: BuildingParams = {}): VoxelStructure {
 export function grandTower(p: BuildingParams = {}): VoxelStructure {
   const floors = p.levels ?? 3
   const W = (p.width ?? 11) | 1
+  const D = (p.depth ?? W) | 1
   const tile = p.tile ?? 'yellow'
   const T = p.terrace ?? 3
   const cross = p.plan === 'cross'
+  const E = p.eave ?? 8
+  const shrinkAt = (f: number) => (p.shrink !== undefined ? p.shrink * f : 2 * Math.floor(f * 0.7))
   const b = new StructureBuilder('grand-tower')
-  const tb = bounds(W + (cross ? 14 : 10), W + (cross ? 14 : 10))
+  const tb = bounds(W + (cross ? 14 : 10), D + (cross ? 14 : 10))
   platform(b, tb.x0, tb.x1, tb.z0, tb.z1, T, p.base === 'wall' ? B.CITY_BRICK : B.STONE_BRICK, B.STONE_BRICK_STAIRS, true)
   for (const x of range(tb.x0, tb.x1))
     for (const z of range(tb.z0, tb.z1)) {
@@ -648,10 +655,11 @@ export function grandTower(p: BuildingParams = {}): VoxelStructure {
     }
   let y = T
   for (let f = 0; f < floors; f++) {
-    const w = W - 2 * Math.floor(f * 0.7)
-    const bb = bounds(w, w)
-    const gb = bounds(w + 2, w + 2)
-    const fh = f === 0 ? 5 : 4
+    const w = W - shrinkAt(f)
+    const d = D - shrinkAt(f)
+    const bb = bounds(w, d)
+    const gb = bounds(w + 2, d + 2)
+    const fh = p.floorH?.[f] ?? (f === 0 ? 5 : 4)
     const last = f === floors - 1
     /* 楼面 */
     b.box(gb.x0, y - 1, gb.z0, gb.x1, y - 1, gb.z1, S(f === 0 ? B.PAVING : B.DARK_PLANKS))
@@ -701,16 +709,16 @@ export function grandTower(p: BuildingParams = {}): VoxelStructure {
     }
     /* 腰檐 / 顶 */
     const ry = y + fh + 1
-    if (!last) b.s.merge(buildRoof({ width: w + 8, depth: w + 8, type: 'taiyan', tile }), 0, ry, 0)
+    if (!last) b.s.merge(buildRoof({ width: w + E, depth: d + E, type: 'taiyan', tile }), 0, ry, 0)
     else {
       const top = p.top ?? 'xieshan'
       if (top === 'cross') {
-        b.s.merge(buildRoof({ width: w + 6, depth: w + 2, type: 'xieshan', tile, eaveDepth: 2 }), 0, ry, 0)
-        b.s.merge(buildRoof({ width: w + 6, depth: w + 2, type: 'xieshan', tile, eaveDepth: 2 }).rotate(1), 0, ry, 0)
+        b.s.merge(buildRoof({ width: w + E - 2, depth: w + 2, type: 'xieshan', tile, eaveDepth: 2 }), 0, ry, 0)
+        b.s.merge(buildRoof({ width: w + E - 2, depth: w + 2, type: 'xieshan', tile, eaveDepth: 2 }).rotate(1), 0, ry, 0)
       } else if (top === 'helmet') {
         // 盔顶面宽大于进深（正脊沿面宽），低而宽，不靠加高显气势
-        b.s.merge(buildRoof({ width: w + 6, depth: w + 4, type: 'helmet', tile }), 0, ry, 0)
-      } else b.s.merge(buildRoof({ width: w + 6, depth: w + 6, type: top, tile, eaveDepth: 2 }), 0, ry, 0)
+        b.s.merge(buildRoof({ width: w + E - 2, depth: d + E - 4, type: 'helmet', tile }), 0, ry, 0)
+      } else b.s.merge(buildRoof({ width: w + E - 2, depth: d + E - 2, type: top, tile, eaveDepth: 2 }), 0, ry, 0)
       let t = ry
       while (b.s.has(0, t, 0)) t++
       b.set(0, t, 0, S(B.GOLD)).set(0, t + 1, 0, S(B.FINIAL))

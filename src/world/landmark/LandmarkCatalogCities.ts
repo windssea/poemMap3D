@@ -24,7 +24,8 @@ const HUANGHELOU: LandmarkDefinition = {
     { t: 'flatten', x: 18, z: 2, r: 5, dy: 13, blend: 4 },
   ],
   structures: [
-    { b: 'grandTower', x: -6, z: 0, atLevel: true, dy: 11, p: { levels: 3, width: 11, tile: 'yellow', plan: 'cross', top: 'cross', terrace: 2 } },
+    // 四层十字抱厦、出檐深（eave 10）、层层收分：整组最高最突出，檐角层层叠叠如展翅
+    { b: 'grandTower', x: -6, z: 0, atLevel: true, dy: 11, p: { levels: 4, width: 11, tile: 'yellow', plan: 'cross', top: 'cross', terrace: 2, eave: 10, shrink: 2, floorH: [6, 5, 5, 4] } },
     { b: 'pavilion', x: 18, z: 2, atLevel: true, dy: 13, p: { width: 5, double: true, tile: 'green' } },
     { b: 'archway', x: -6, z: 24, p: { tile: 'yellow' } },
     { b: 'stupa', x: -26, z: 10 },
@@ -71,7 +72,8 @@ const TENGWANGGE: LandmarkDefinition = {
   poetryPlaceId: 'p077',
   terrainModifier: [{ t: 'flatten', x: -6, z: 0, r: 26, blend: 6 }],
   structures: [
-    { b: 'grandTower', x: 0, z: 0, rot: 3, p: { levels: 3, width: 11, tile: 'green', top: 'xieshan', terrace: 5 } },
+    // 横向展开：面宽 17、进深 9，三层不收进深之外的面宽太多，连同南北两殿成一字阶梯轮廓
+    { b: 'grandTower', x: 0, z: 0, rot: 3, p: { levels: 3, width: 17, depth: 9, tile: 'green', top: 'xieshan', terrace: 5, shrink: 2, floorH: [5, 4, 4] } },
     { b: 'hall', x: -7, z: -18, rot: 3, p: { width: 9, depth: 7, tile: 'green', terrace: 3, lanterns: true } },
     // 南殿：楼南有一道支流斜穿（x −10…0），放在原位会压在溪上被跳过；挪到溪西岸的陆地，隔溪与楼相望
     { b: 'hall', x: -22, z: 19, rot: 3, p: { width: 9, depth: 7, tile: 'green', terrace: 3, lanterns: true } },
@@ -95,7 +97,8 @@ const GUANQUELOU: LandmarkDefinition = {
   poetryPlaceId: 'p027',
   terrainModifier: [{ t: 'flatten', x: -6, z: 0, r: 22, blend: 6 }],
   structures: [
-    { b: 'grandTower', x: 0, z: 0, rot: 3, p: { levels: 3, width: 11, tile: 'gray', top: 'xieshan', terrace: 4 } },
+    // 北方形制：长方平面、出檐克制（eave 6）、层高匀而高、台基厚，灰瓦；不是南方名楼换个瓦色
+    { b: 'grandTower', x: 0, z: 0, rot: 3, p: { levels: 3, width: 13, depth: 9, tile: 'gray', top: 'xieshan', terrace: 6, eave: 6, shrink: 2, floorH: [5, 5, 5] } },
     { b: 'house', x: -17, z: -8, rot: 1, p: { seed: 21 } },
     { b: 'house', x: -17, z: 8, rot: 1, p: { seed: 22, lanterns: true } },
     { b: 'courtyard', x: -28, z: 0, rot: 1, p: { width: 11, seed: 23 } },
