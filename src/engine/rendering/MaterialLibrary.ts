@@ -406,19 +406,20 @@ export class MaterialLibrary {
           }
           float depth = clamp(vTint.r * 255.0 / 36.0 / 7.0, 0.0, 1.0);
           bool falling = vTint.g > 0.5;
+          // 水体本色：按水深浅 → 中 → 深。浅水靠颜色而不是透明度（透明度高了会透出水底，近景水面发白）
           vec3 col = mix(uWaterShallow, uWaterMid, smoothstep(0.0, 0.35, depth));
           col = mix(col, uWaterDeep, smoothstep(0.35, 1.0, depth));
-          col *= mix(1.09, 1.0, smoothstep(0.05, 0.45, depth));
+          col *= mix(1.05, 1.0, smoothstep(0.05, 0.45, depth));
+          // 两层像素水纹：方向、尺度、速度各异，按 1/8 格取整（远景 2 格），世界坐标取样，相邻区块与远近各级同一相位
           vec2 q = floor(vWorld.xz * ${overview ? '0.5' : '8.0'}) / ${overview ? '0.5' : '8.0'};
           float w = sin(q.x * 1.7 + uTime * 1.3) * sin(q.y * 1.3 - uTime * 1.1) + 0.6 * sin((q.x + q.y) * 0.9 + uTime * 0.7);
-          col *= 1.0 + 0.06 * w;
-          vec3 n = normalize(vWNormal + vec3(0.06 * w, 0.0, 0.05 * sin(q.y + uTime)));
+          float w2 = sin(dot(q, vec2(0.8, -0.6)) * 2.6 - uTime * 1.7) * sin(dot(q, vec2(0.6, 0.8)) * 1.9 + uTime * 1.2);
+          col *= 1.0 + 0.05 * w + 0.03 * w2;
+          vec3 n = normalize(vWNormal + vec3(0.06 * w + 0.045 * w2, 0.0, 0.05 * sin(q.y + uTime) - 0.04 * w2));
           vec3 v = normalize(cameraPosition - vWorld);
-          float fres = pow(1.0 - max(dot(n, v), 0.0), 3.0);
-          vec3 sky = mix(uHorizonColor, uSkyColor, 0.4);
-          col = mix(col, sky, fres * 0.55);
-          float spec = pow(max(dot(reflect(-uSunDir, n), v), 0.0), 80.0);
-          col += uSunColor * spec * 0.58 * (1.0 - uNight);
+          float camDist = distance(vWorld, cameraPosition);
+          // 雨：水面压暗、褪色（天色由环境管理器罩上雨色，倒影随之变灰）
+          col = mix(col, vec3(dot(col, vec3(0.3, 0.59, 0.11))), 0.35 * uWet) * (1.0 - 0.22 * uWet);
           if (depth < 0.02) col = mix(col, uWaterFoam, 0.18 + 0.1 * w);
           if (falling) {
             float stripe = hash12(vec2(floor(vWorld.x * 4.0 + vWorld.z * 4.0), floor(vWorld.y * 3.0 + uTime * 9.0)));
@@ -427,19 +428,41 @@ export class MaterialLibrary {
           float clim = snowClimate(vWorld);
           col = mix(col, uSnowColor * 0.9, uSnow * 0.15 * clim);
           col = mix(col, uIceColor, falling ? 0.0 : uIce * clim);
-          col *= mix(1.0, 0.45, uNight);
+          // 夜里水体本色压得比岸上更暗，亮处留给倒映的夜空、月光与星点
+          col *= mix(1.0, 0.3, uNight);
+          // 天光倒影：取反射方向上的天色（与天空球、地形边缘雾同一个 skyBase），晨暮映霞、雨天映灰、夜里映夜空。
+          // 俯看时以本色为主（约一成），掠射角时倒影渐强；瀑布不映，冰面少映
+          vec3 rd = reflect(-v, n);
+          rd.y = abs(rd.y);
+          float fres = pow(1.0 - max(dot(n, v), 0.0), 3.0);
+          float reflK = falling ? 0.0 : clamp(0.1 + 0.6 * fres, 0.0, 0.7) * (1.0 - 0.7 * uIce * clim);
+          col = mix(col, skyBase(rd), reflK);
+          float spec = pow(max(dot(reflect(-uSunDir, n), v), 0.0), 80.0);
+          col += uSunColor * spec * 0.58 * (1.0 - uNight) * (1.0 - 0.85 * uWet);
+          // 雨点涟漪：每 2×2 格一个雨点格，各自的节拍与圆心，一圈一像素宽的环向外扩散、渐淡；同样按像素取整。远处淡去，不闪
+          if (uWet > 0.01 && !falling) {
+            vec2 p = q * 0.5;
+            vec2 cell = floor(p);
+            float ph = hash12(cell + 0.5);
+            float beat = uTime * 0.75 + ph;
+            float t = fract(beat);
+            vec2 c = cell + 0.3 + 0.4 * vec2(hash12(cell + floor(beat) * 1.3 + 3.1), hash12(cell + floor(beat) * 1.7 + 7.7));
+            float ring = 1.0 - smoothstep(0.0, 0.07, abs(length(p - c) - t * 0.42));
+            float rip = ring * (1.0 - t) * uWet * (1.0 - smoothstep(60.0, 160.0, camDist)) * (1.0 - uIce * clim);
+            col = mix(col, mix(skyBase(vec3(0.0, 1.0, 0.0)), uWaterFoam, 0.55), rip * 0.65);
+          }
           if (uNight > 0.05 && !falling) {
             // 月光落在水上：随波碎成一片银鳞；水里倒映几点星
             float moon = pow(max(dot(reflect(-uSunDir, n), v), 0.0), 60.0);
             col += uSunColor * moon * 0.42 * uNight * (1.0 - uWet * 0.8) * (1.0 - uIce * clim);
-            vec3 rd = reflect(-v, normalize(vec3(0.0, 1.0, 0.0) + (n - vWNormal) * 2.5));
-            if (rd.y > 0.05) {
-              vec3 g = floor(rd * 150.0);
+            vec3 rs = reflect(-v, normalize(vec3(0.0, 1.0, 0.0) + (n - vWNormal) * 2.5));
+            if (rs.y > 0.05) {
+              vec3 g = floor(rs * 150.0);
               float st = step(0.9965, hash13(g)) * (0.55 + 0.45 * sin(uTime * 2.0 + hash13(g + 7.0) * 40.0));
               col += vec3(0.8, 0.85, 1.0) * st * 0.55 * uNight * (1.0 - uWet) * (1.0 - uIce * clim);
             }
           }
-          float alpha = falling ? 0.88 : mix(mix(0.64, 0.9, depth), 0.95, uIce * clim);
+          float alpha = falling ? 0.88 : mix(mix(0.78, 0.92, depth), 0.95, uIce * clim);
           gl_FragColor = vec4(col, ${overview ? '1.0' : 'alpha'});
           #include <tonemapping_fragment>
           #include <colorspace_fragment>

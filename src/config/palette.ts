@@ -219,11 +219,11 @@ export const SkyTokens = {
   night: { top: '#1D2F4A', mid: '#364B68', horizon: '#6A788C', glow: '#6A788C', glow2: '#364B68', glowK: 0, sun: '#A5BBD8', core: '#8C5A48', rim: '#6E4038', halo: '#5C3834', ambientSky: '#8093bd', ambientGround: '#526170', fog: '#516175', cloud: '#3C5068' },
 } as const
 
-/** 水色：浅 → 中 → 深 */
+/** 水色：浅 → 中 → 深。浅水不再是近白的青（加上天光倒影、ACES 压饱和后近景水面发白），整体压深、略提饱和 */
 export const WaterTokens = {
-  shallow: '#9FCFC8',
-  mid: '#74B5B7',
-  deep: '#4E8F98',
+  shallow: '#7DBAB1',
+  mid: '#559BA3',
+  deep: '#367585',
   foam: '#f2ead8',
   sky: '#c9dde4',
 } as const
