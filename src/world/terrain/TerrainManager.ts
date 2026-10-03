@@ -94,12 +94,15 @@ export class TerrainManager {
        此前压到整个山体半径，山腰全成光滑锥面，一侧是一整片平直的崖。 */
     let damp = 1
     let flank = 0
+    /** 名山山体范围（峰高按实测校准，河岸坡不去削它） */
+    let peakK = 0
     for (const p of this.peaks) {
       const dx = x - p.x
       const dz = z - p.z
       if (Math.abs(dx) > p.r * 2.5 || Math.abs(dz) > p.r * 2.5) continue
       const d2 = (dx * dx + dz * dz) / (p.r * p.r)
       damp = Math.min(damp, 1 - 0.75 * Math.exp(-d2 / 0.12))
+      peakK = Math.max(peakK, Math.exp(-d2 / 2.5))
       flank = Math.max(flank, Math.exp(-d2 * 0.8) * (1 - Math.exp(-d2 / 0.12)))
     }
     const amp = Math.min(24, 0.7 + relief * 0.95) * damp
@@ -167,14 +170,21 @@ export class TerrainManager {
         }
         col.waterDist = 0
       } else if (col.waterKind !== WaterKind.Sea || col.waterY < 0) {
-        const bank = 5 + Math.min(BANK_MAX - 5, relief * 0.6)
-        if (edge < bank) {
+        // 岸坡宽度随岸高放宽（每高一格约宽 1.4 格）：此前上限 14 格，河在高原、山地里下切四五十格时成了一道直墙夹着的水渠；
+        // 再按噪声让坡宽沿河有宽有窄，岸线不是一条直边
+        const rise = Math.max(0, col.height - L - 1)
+        const wobble = 0.8 + 0.4 * (0.5 + 0.5 * this.nWidth(x / 31 + 17, z / 31 - 5))
+        const bank = Math.min(BANK_MAX, Math.max(5 + Math.min(9, relief * 0.6), rise * 1.4 * wobble * (1 - peakK)))
+        if (edge < bank || col.height < L + 1) {
           if (col.height >= L + 1) {
             const target = L + 1 + (col.height - L - 1) * smoothstep(0, bank, edge)
             col.height = Math.max(L + 0.5, Math.min(col.height, target))
           } else {
             // 地面低于水位（悬河、宽谷）：筑一道缓坡堤岸，堤外渐落回原地
-            col.height = lerp(L + 0.5, col.height, smoothstep(bank * 0.35, bank, edge))
+            // 堤坡宽也随落差放宽（兜底：不立一道直上直下的堤墙）
+            const drop = L + 1 - col.height
+            const levee = Math.min(BANK_MAX, Math.max(bank, drop * 2.5))
+            if (edge < levee) col.height = lerp(L + 0.5, col.height, smoothstep(levee * 0.35, levee, edge))
           }
         }
         if (edge < col.waterDist) {

@@ -1,4 +1,4 @@
-import { clamp, lerp } from '../../utils/math'
+import { clamp, lerp, smoothstep } from '../../utils/math'
 import { resamplePolyline, segmentDistance, type Vec2 } from '../../utils/geometry2d'
 import { SEA_LEVEL } from '../coordinate/constants'
 import { getProjection } from '../coordinate/GeoProjection'
@@ -27,7 +27,8 @@ export interface RiverHit {
 const STEP = 4
 const BUCKET = 64
 /** 岸坡最宽（方块），决定空间索引的外扩 */
-export const BANK_MAX = 14
+/** 岸坡最宽（格）：岸高时坡随之放宽，见 TerrainManager */
+export const BANK_MAX = 44
 
 /**
  * 江河网络：中心线、河宽、沿程单调不升的水位，以及按 64 方块分桶的线段索引。
@@ -76,6 +77,8 @@ export class RiverManager {
         halfWidth[s] = Math.max(2.2, hw)
         lvl[s] = macro.land(x, z) ? macro.height(x, z) - 2.5 : SEA_LEVEL
       }
+      const x0 = (s: number) => pts[s][0]
+      const z0 = (s: number) => pts[s][1]
       if (def.levels) {
         /* 有实测水位：锚点落到最近的采样点，其间按沿程线性插值（方块 Y） */
         const ks = def.levels
@@ -101,6 +104,17 @@ export class RiverManager {
           lvl[s] = s <= s0 || s1 === s0 ? y0 : lerp(y0, y1, (s - s0) / (s1 - s0))
         }
         for (let s = 1; s < n; s++) lvl[s] = Math.min(lvl[s], lvl[s - 1])
+        /* 实测锚点之间按直线插值，遇到中间的谷地会比两岸地面还高，成了架在半空的「悬河」（秦州、临洮一带一道二十多格的堤墙）：
+           水面压到当地地面以下——离锚点越远压得越足，锚点处（兰州、宜昌……）保留实测水位；
+           压过之后不再做「沿流不升」，否则一处谷地会把下游所有锚点一并拉低 */
+        const anchors = ks.map((k) => k[0])
+        for (let s = 0; s < n; s++) {
+          if (!macro.land(x0(s), z0(s))) continue
+          const d = Math.min(...anchors.map((a) => Math.abs(s - a)))
+          const w = smoothstep(6, 24, d)
+          const cap = macro.height(x0(s), z0(s)) - 1.5
+          if (lvl[s] > cap) lvl[s] = lerp(lvl[s], cap, w)
+        }
       } else {
         /* 沿流单调不升 + 平滑 + 从河口向上游限制坡度（山里改为下切成谷） */
         for (let s = 1; s < n; s++) lvl[s] = Math.min(lvl[s], lvl[s - 1])

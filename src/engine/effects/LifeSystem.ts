@@ -566,7 +566,9 @@ export class LifeSystem {
         for (let i = 1; i < path.length; i++) len += Math.hypot(path[i][0] - path[i - 1][0], path[i][1] - path[i - 1][1])
         const n = Math.max(1, Math.round(len / 40))
         for (let i = 0; i < n; i++) {
-          this.addBoat(i % 3 === 2 ? 'cargo' : i % 2 ? 'fishing' : 'passenger', { river: -1, s: rnd.range(0, len), dir: rnd.chance(0.5) ? 1 : -1, lane: 0, x: path[0][0], z: path[0][1], y: lm.level + 1, a: 0, speed: rnd.range(0.8, 1.4) })
+          // 窄河渠（宽不到 3 格，苏州水巷）只走小渔舟：漕船、客船船身宽，会擦进岸墙、钻进石拱桥
+          const kind: Boat['kind'] = op.w < 3 ? 'fishing' : i % 3 === 2 ? 'cargo' : i % 2 ? 'fishing' : 'passenger'
+          this.addBoat(kind, { river: -1, s: rnd.range(0, len), dir: rnd.chance(0.5) ? 1 : -1, lane: 0, x: path[0][0], z: path[0][1], y: lm.level + 1, a: 0, speed: rnd.range(0.8, 1.4) })
           this.boats[this.boats.length - 1].path = path
           river++
         }
@@ -601,6 +603,8 @@ export class LifeSystem {
     /* 名胜里营造的湖（西湖……）：同样按面积；瀑下潭、园中池这类小水景不放 */
     for (const lm of this.ctx.landmarks.landmarks) {
       if (Math.hypot(lm.x - focus.x, lm.z - focus.z) > RANGE) continue
+      // 围墙里的园林池（苏州园林）是看的水，不行船
+      if (lm.def.structures.some((st) => st.b === 'gardenWall')) continue
       for (const op of lm.def.terrainModifier ?? []) {
         if (op.t !== 'lake') continue
         const area = Math.PI * op.rx * op.rz
@@ -723,7 +727,15 @@ export class LifeSystem {
         const nx = b.x + Math.cos(b.a) * b.speed * dt
         const nz = b.z + Math.sin(b.a) * b.speed * dt
         const ahead = b.kind === 'ship' ? 14 : b.kind === 'seaFisher' ? 8 : 4
-        const okAhead = b.kind === 'ship' || b.kind === 'seaFisher' ? this.deepSea(nx + Math.cos(b.a) * ahead, nz + Math.sin(b.a) * ahead) : this.lakeAt(nx + Math.cos(b.a) * ahead, nz + Math.sin(b.a) * ahead)
+        const ax = nx + Math.cos(b.a) * ahead
+        const az = nz + Math.sin(b.a) * ahead
+        // 湖上的船不贴着建筑走（园墙、水榭、码头）：船头前方与左右两舷都不能落进建筑占地
+        const clear = (x: number, z: number) => !this.ctx.landmarks.occupancy.has(Math.floor(x), Math.floor(z), Occupancy.Building | Occupancy.Buffer)
+        const side = b.kind === 'passenger' || b.kind === 'cargo' ? 2.5 : 1.5
+        const okAhead =
+          b.kind === 'ship' || b.kind === 'seaFisher'
+            ? this.deepSea(ax, az)
+            : this.lakeAt(ax, az) && clear(ax, az) && clear(ax - Math.sin(b.a) * side, az + Math.cos(b.a) * side) && clear(ax + Math.sin(b.a) * side, az - Math.cos(b.a) * side)
         if (okAhead) {
           b.x = nx
           b.z = nz
