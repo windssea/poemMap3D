@@ -56,6 +56,8 @@ const MASK_REGION = 128
 const FG = 2
 const RC = REGION_CHUNKS
 const SPAN: Record<ChunkTier, number> = { 1: 1, 2: FG, 4: RC }
+/** 兜底范围扫描的间隔（秒） */
+const SCAN_INTERVAL = 0.5
 
 /**
  * 区块管理：流式加载、生成队列、网格队列、Worker 调度、缓存与卸载、脏区传播与重建、GPU 上传节流、覆盖图掩膜。
@@ -89,7 +91,8 @@ export class ChunkManager {
   /** 预读：飞行目的地（区块坐标）与半径 */
   private pre: { cx: number; cz: number; r: number } | null = null
   private frame = 0
-  private lastScan = -999
+  /** 距上次范围扫描的秒数。兜底扫描按时间而不按帧数，低帧率时不至于更久才补齐 */
+  private sinceScan = Infinity
   private scanDirty = true
   private visDirty = true
   private readonly frustum = new THREE.Frustum()
@@ -199,10 +202,11 @@ export class ChunkManager {
     return [nx * nx + nz * nz, fx * fx + fz * fz]
   }
 
-  update(_dt: number): void {
+  update(dt: number): void {
     this.frame++
-    /* 1–2. 范围扫描与退场：只在焦点 / 半径变了时（外加每 30 帧兜底） */
-    if (this.scanDirty || this.frame - this.lastScan > 30) {
+    this.sinceScan += dt
+    /* 1–2. 范围扫描与退场：只在焦点 / 半径变了时（外加每 0.5 秒兜底；dt 已由渲染循环限幅到 0.1 秒） */
+    if (this.scanDirty || this.sinceScan >= SCAN_INTERVAL) {
       this.scan()
       this.retire(this.records, this.radius > 0 ? (this.radius + 2) ** 2 : -1)
       this.retire(this.far, this.farRadius > 0 ? (this.farRadius + 3) ** 2 : -1)
@@ -210,7 +214,7 @@ export class ChunkManager {
       this.trim(this.records, this.maxCached)
       this.trim(this.far, this.maxFarCached)
       this.trim(this.regions, this.maxRegionCached)
-      this.lastScan = this.frame
+      this.sinceScan = 0
       this.scanDirty = false
       for (const r of this.records.values()) this.castPolicy(r)
       this.visDirty = true

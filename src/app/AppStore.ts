@@ -2,7 +2,7 @@ import { useSyncExternalStore } from 'react'
 import { SOUND_MODES, type SoundMode } from './AmbientSound'
 import type { CameraLevel } from '../engine/camera/CameraPose'
 import type { Season, TimeOfDay, Weather } from '../engine/environment/types'
-import type { Quality, ViewRange } from '../engine/rendering/QualityManager'
+import { pickQuality, type Quality, type ViewRange } from '../engine/rendering/QualityManager'
 import type { TrailPhase } from '../features/poetTrail/TrailDirector'
 
 export type PanelState = 'none' | 'place' | 'poem'
@@ -69,6 +69,14 @@ const read = <T,>(k: string, ok: (v: string) => boolean, d: T): T => {
 
 const params = typeof location !== 'undefined' ? new URLSearchParams(location.search) : new URLSearchParams()
 
+const stored = (k: string): string | null => {
+  try {
+    return localStorage.getItem(k)
+  } catch {
+    return null
+  }
+}
+
 export const DEFAULT_TOUR_SETTINGS: TourSettings = { speed: 1, count: 'normal', dwell: 'mid', shot: 'mid', rain: 'less', ambience: 'change', caption: true }
 
 function initial(): AppState {
@@ -82,7 +90,8 @@ function initial(): AppState {
     season: read<Season>('shs', (v) => ['spring', 'summer', 'autumn', 'winter'].includes(v), 'spring'),
     weather: read<Weather>('shw', (v) => ['clear', 'rain', 'snow', 'mist'].includes(v), 'clear'),
     time: read<TimeOfDay>('shm', (v) => ['dawn', 'day', 'dusk', 'night'].includes(v), 'day'),
-    quality: (params.get('q') as Quality) || read<Quality>('shq', (v) => ['low', 'mid', 'high'].includes(v), undefined as unknown as Quality),
+    // 都不合法时为 undefined，由 QualityManager 按设备定，启动后再写回实际画质
+    quality: pickQuality(params.get('q'), stored('shq')) as Quality,
     viewRange: Number(read<string>('shv', (v) => ['0', '1', '2', '3'].includes(v), '0')) as ViewRange,
     tourState: { active: false, paused: false, region: '', stopName: '', poemId: null, round: 0, index: 0, total: 0, settings: DEFAULT_TOUR_SETTINGS },
     trailState: { poet: null, picking: false, phase: 'done', prog: 0, verseIdx: -1 },

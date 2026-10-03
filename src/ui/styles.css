@@ -771,6 +771,28 @@ button {
   max-width: 420px;
   text-align: center;
 }
+.loading .err-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+.loading .err-actions button {
+  font: inherit;
+  letter-spacing: 2px;
+  padding: 6px 14px;
+  color: var(--ink);
+  background: rgb(var(--rgb-xuanzhi) / 0.9);
+  border: 1px solid var(--c-zhusha);
+  cursor: pointer;
+}
+.loading .err-actions button:hover,
+.loading .err-actions button:focus-visible {
+  color: var(--c-xuanzhi, #fff);
+  background: var(--c-zhusha);
+  outline: none;
+}
 
 .hint {
   right: 16px;

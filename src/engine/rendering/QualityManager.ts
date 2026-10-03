@@ -1,5 +1,12 @@
 export type Quality = 'low' | 'mid' | 'high'
 
+export const QUALITIES: readonly Quality[] = ['low', 'mid', 'high']
+export const isQuality = (v: unknown): v is Quality => typeof v === 'string' && (QUALITIES as readonly string[]).includes(v)
+
+/** 初始画质：地址栏 ?q= 优先，其次上一次的选择；都不合法（如 ?q=abc）则 undefined，交给 QualityManager 按设备定 */
+export const pickQuality = (param: string | null, stored: string | null): Quality | undefined =>
+  isQuality(param) ? param : isQuality(stored) ? stored : undefined
+
 /**
  * 渲染视距：把近景、远景、远景片的半径与区块缓存一起放大。
  * 越远看得越清楚（地面看出去更远才是体素），但区块生成、内存与帧耗时近似按面积（倍数的平方）增加：
@@ -55,7 +62,7 @@ export class QualityManager {
   constructor(initial?: Quality, view: ViewRange = 0) {
     this.view = view
     const mobile = typeof matchMedia !== 'undefined' && (matchMedia('(pointer: coarse)').matches || Math.min(innerWidth, innerHeight) < 600)
-    this.level = initial ?? (mobile ? 'low' : 'mid')
+    this.level = isQuality(initial) ? initial : mobile ? 'low' : 'mid'
   }
 
   get quality(): Quality {

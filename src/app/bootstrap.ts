@@ -136,6 +136,7 @@ export async function bootstrap(container: HTMLElement): Promise<AppServices> {
       }
     }
   }
-  ;(window as unknown as { __shanhe?: unknown }).__shanhe = { engine, facade, store, sound }
+  /* 调试入口（验收截图 tools/shoot.mjs 依赖它）：只在开发服务器或地址栏带 ?debug 时挂到 window */
+  if (import.meta.env.DEV || store.get().debug.chunks) (window as unknown as { __shanhe?: unknown }).__shanhe = { engine, facade, store, sound }
   return { store, facade, poetry, places, aggregator, search, navigation, tour, trails, director, resources: res, majorPlaces: major, sound }
 }
