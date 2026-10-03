@@ -357,7 +357,7 @@ export class LandmarkRegistry {
               }
               const cliffSide = side === op.cliffSide
               const reach = cliffSide ? op.cliff + 3 : op.w
-              if (best >= reach || wet()) break
+              if (best >= reach || (wet() && !op.toWater)) break
               // 脊线：两头收、中间高，起伏不匀
               const crest = op.h * Math.pow(Math.sin(Math.PI * Math.min(1, Math.max(0, along))), 0.55) * (0.85 + 0.3 * (0.5 + 0.5 * fbm(n, col.x / 19 + 7, col.z / 19, 2)))
               let f: number
@@ -370,8 +370,10 @@ export class LandmarkRegistry {
                 const g = Math.pow(Math.max(0, Math.sin(along * total / 6 + 2.2 * fbm(n, col.x / 13, col.z / 13 + 9, 2))), 6)
                 f *= 1 - 0.35 * g * Math.min(1, best / (op.w * 0.35))
               }
-              const shore = col.waterDist < 1e8 ? smoothstep(0, 10, col.waterDist) : 1
+              const shore = op.toWater || col.waterDist >= 1e8 ? 1 : smoothstep(0, 10, col.waterDist)
               const hh = crest * f * shore
+              // 峡谷的崖不压进江面：水面那几格保持原样，崖壁从岸边直起
+              if (op.toWater && wet()) break
               col.height = Math.max(col.height, level + hh, col.height + hh * 0.25)
               break
             }

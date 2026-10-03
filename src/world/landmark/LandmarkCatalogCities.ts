@@ -741,4 +741,42 @@ const HUIZHOU: LandmarkDefinition = {
   vegetationProfile: { weights: { palm: 3, broadleaf: 3, bamboo: 1 }, density: 0.8 },
 }
 
-export const CITY_CATALOG: readonly LandmarkDefinition[] = [HUANGHELOU, YUEYANGLOU, TENGWANGGE, GUANQUELOU, DUOJINGLOU, JINLING, LUOYANG, CHENGDU, SUZHOU, HUANGZHOU, YANGZHOU, BIANJING, SHANYIN, MIZHOU, CHUZHOU, XIANGYANG, JUNSHAN, PENGCHENG, HUIZHOU]
+/**
+ * 白帝城—夔门：长江北岸临江的白帝山顶，白帝庙面南俯江（正殿明良殿、东西配殿、山门牌坊、观星亭）；
+ * 庙东两岸峭壁对峙、江面收束成夔门（瞿塘峡口）。「朝辞白帝彩云间」「风急天高猿啸哀」——城寺是视觉节点，峡谷是主形体。
+ * 地图上的长江在这里自西向东，北岸缓起、南岸一道山梁；庙在北岸山顶（中心向北挪离江心）。
+ */
+const BAIDICHENG: LandmarkDefinition = {
+  id: 'baidicheng-kuimen',
+  name: '白帝城',
+  coordinate: { lng: 109.5833, lat: 31.0467 },
+  offset: [8, -16],
+  radius: 40,
+  major: true,
+  poetryPlaceId: 'baidicheng',
+  terrainModifier: [
+    // 白帝山：庙所在的山顶平台，南坡临江
+    { t: 'hill', x: 0, z: 2, r: 24, h: 6 },
+    { t: 'flatten', x: 0, z: 0, r: 15, blend: 14 },
+    // 夔门：庙东两岸峭壁对峙，沿江的走向（江在庙东向东南拐）起两道崖，崖壁直落江边（北岸崖面朝南、南岸崖面朝北）
+    { t: 'ridge', pts: [[20, 10], [40, 11], [56, 17], [82, 24]], h: 30, w: 26, cliff: 5, cliffSide: 1, toWater: true },
+    { t: 'ridge', pts: [[20, 30], [40, 29], [56, 35], [82, 42]], h: 34, w: 26, cliff: 5, cliffSide: -1, toWater: true },
+  ],
+  structures: [
+    { b: 'hall', x: 0, z: -4, p: { width: 11, depth: 7, tile: 'gray', terrace: 2, lanterns: true } },
+    { b: 'hall', x: -11, z: 4, rot: 3, p: { width: 7, depth: 5, tile: 'gray', terrace: 1 } },
+    { b: 'hall', x: 11, z: 4, rot: 1, p: { width: 7, depth: 5, tile: 'gray', terrace: 1 } },
+    { b: 'archway', x: 0, z: 11, p: { tile: 'gray' } },
+    { b: 'pavilion', x: 13, z: -10, p: { width: 5, double: true, tile: 'gray', lanterns: true } },
+  ],
+  trees: [{ type: 'pine', variant: 1, pts: [[-16, -12], [-6, -16]], n: 3 }],
+  vegetationProfile: { weights: { pine: 5, broadleaf: 2, bamboo: 1 }, density: 1.1 },
+  // 定稿机位：主景从上游江面斜看临江崖顶的庙；夔门从上游顺江东望两岸峭壁；近观庙前山门
+  shots: [
+    { id: 'hero', name: '主景', yaw: -0.95, pitch: 0.28, distance: 120, offset: [8, -10, 8] },
+    { id: 'vista', name: '夔门', yaw: -1.45, pitch: 0.17, distance: 175, offset: [48, -34, 24] },
+    { id: 'detail', name: '近观', yaw: 0.15, pitch: 0.42, distance: 42, offset: [0, 4, 2] },
+  ],
+}
+
+export const CITY_CATALOG: readonly LandmarkDefinition[] = [HUANGHELOU, YUEYANGLOU, TENGWANGGE, GUANQUELOU, DUOJINGLOU, JINLING, LUOYANG, CHENGDU, SUZHOU, HUANGZHOU, YANGZHOU, BIANJING, SHANYIN, MIZHOU, CHUZHOU, XIANGYANG, JUNSHAN, PENGCHENG, HUIZHOU, BAIDICHENG]
