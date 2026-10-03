@@ -1,6 +1,6 @@
 # 山河诗卷 · Greenfield 重写
 
-一个小型 Minecraft 式中国诗词体素世界引擎 + React 文化内容应用。先秦至宋 325 首诗词、155 处地点，落在同一套方块网格上的中国山河里。
+一个小型 Minecraft 式中国诗词体素世界引擎 + React 文化内容应用。先秦至宋（含五代）340 首诗词、155 处地点，落在同一套方块网格上的中国山河里。
 
 技术栈：React 19 + TypeScript + Vite + 原生 Three.js（WebGL 2，模块化 Worker）。
 
