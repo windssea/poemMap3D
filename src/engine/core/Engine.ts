@@ -474,6 +474,8 @@ export class Engine {
     this.env?.dispose()
     this.trail.clear()
     this.materials.dispose()
+    this.pipeline.dispose()
+    this.baker.dispose()
     this.renderer.dispose()
     this.events.clear()
     void this.container

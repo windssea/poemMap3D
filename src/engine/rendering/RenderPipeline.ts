@@ -15,6 +15,9 @@ import type { Quality } from './QualityManager'
  *  - 极细的纸纹颗粒（静止的，不闪）。
  * 在 OutputPass 之后（显示空间）做。
  */
+/** 「衡」「高」离屏缓冲的多重采样数 */
+const MSAA_SAMPLES = 4
+
 const GradeShader = {
   uniforms: {
     tDiffuse: { value: null },
@@ -89,7 +92,10 @@ export class RenderPipeline {
     this.dispose()
     if (q === 'low') return
     const size = this.renderer.getSize(new THREE.Vector2())
-    const composer = new EffectComposer(this.renderer)
+    // 离屏缓冲显式开 4× 多重采样：渲染器的 antialias 只管直接画到屏幕（「轻」），
+    // EffectComposer 默认的离屏目标不带采样，「衡」「高」此前完全没有抗锯齿——瓦脊、栏杆、窗棂边缘一动就闪
+    const target = new THREE.WebGLRenderTarget(Math.max(1, size.x * this.renderer.getPixelRatio()), Math.max(1, size.y * this.renderer.getPixelRatio()), { type: THREE.HalfFloatType, samples: MSAA_SAMPLES })
+    const composer = new EffectComposer(this.renderer, target)
     composer.setPixelRatio(this.renderer.getPixelRatio())
     composer.setSize(size.x, size.y)
     composer.addPass(new RenderPass(this.scene, this.camera))
@@ -188,9 +194,9 @@ export class RenderPipeline {
   }
 
   dispose(): void {
+    // composer.dispose 只释放它的两张读写缓冲，各个 pass 自己的资源要逐个释放
+    for (const p of this.composer?.passes ?? []) p.dispose()
     this.composer?.dispose()
-    this.bloom?.dispose()
-    this.ao?.dispose()
     this.composer = null
     this.bloom = null
     this.ao = null
