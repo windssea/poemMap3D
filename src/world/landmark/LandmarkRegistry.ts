@@ -366,6 +366,11 @@ export class LandmarkRegistry {
           if (bo && d < bo.radius) col.biomeOverride = bo.biome
         }
         const wet = () => col.waterY >= 0 && col.height < col.waterY
+        const h0 = col.height
+        const wd0 = col.waterDist
+        const wet0 = wet()
+        /** 落在某个平整台面核心（建筑落脚处）里：临水退让不削它 */
+        let core = false
         for (const op of ops) {
           switch (op.t) {
             case 'flatten': {
@@ -379,6 +384,7 @@ export class LandmarkRegistry {
               if (dist >= op.r + blend) break
               if (wet() && !op.overWater) break
               if (dist < op.r) {
+                core = true
                 // 平台不凭空垫起一根高柱：比原地高出 20 格以上的（夹在峡壁间的窄缝、崖下）不垫，留给自然地形
                 if (diff > 20 && !op.overWater && lm.def.id.startsWith('place-')) break
                 col.height = target
@@ -546,6 +552,12 @@ export class LandmarkRegistry {
               break
             }
           }
+        }
+        /* 临水退让：江河下切之后，地标的平整、山丘、山脊又把地面垫高到水边，岸成一道直上直下的墙（白帝、秭归、蔡山……）。
+           垫高的部分按离水距离封顶——离水每远一格最多高 1.4 格，岸成坡；原地本来就高的不削 */
+        if (!core && !wet0 && !wet() && wd0 < 60 && col.height > h0) {
+          const cap = h0 + Math.max(0, wd0 - 1) * 1.4
+          if (col.height > cap) col.height = cap
         }
       },
     }

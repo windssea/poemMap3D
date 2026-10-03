@@ -722,7 +722,7 @@ const BAIDICHENG: LandmarkDefinition = {
   id: 'baidicheng-kuimen',
   name: '白帝城',
   coordinate: { lng: 109.5833, lat: 31.0467 },
-  offset: [8, -16],
+  offset: [8, -26],
   radius: 40,
   major: true,
   poetryPlaceId: 'baidicheng',
