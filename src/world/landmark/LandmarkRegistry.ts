@@ -429,6 +429,15 @@ export class LandmarkRegistry {
             case 'pave':
               if (dx >= op.x0 && dx <= op.x1 && dz >= op.z0 && dz <= op.z1 && !wet()) col.paved = true
               break
+            case 'path': {
+              if (wet()) break
+              for (let i = 1; i < op.pts.length; i++)
+                if (segmentDistance(dx, dz, op.pts[i - 1][0], op.pts[i - 1][1], op.pts[i][0], op.pts[i][1]).dist <= op.w) {
+                  col.paved = true
+                  break
+                }
+              break
+            }
           }
         }
       },

@@ -779,4 +779,39 @@ const BAIDICHENG: LandmarkDefinition = {
   ],
 }
 
-export const CITY_CATALOG: readonly LandmarkDefinition[] = [HUANGHELOU, YUEYANGLOU, TENGWANGGE, GUANQUELOU, DUOJINGLOU, JINLING, LUOYANG, CHENGDU, SUZHOU, HUANGZHOU, YANGZHOU, BIANJING, SHANYIN, MIZHOU, CHUZHOU, XIANGYANG, JUNSHAN, PENGCHENG, HUIZHOU, BAIDICHENG]
+/**
+ * 泰山：岱顶（玉皇顶）一座小殿与观日亭，南坡十八盘石阶之字形攀上南天门，山脚岱宗坊。
+ * 「会当凌绝顶，一览众山小」——道路导向山门，建筑体量克制，峰顶留天际线。
+ * 地图上的泰山主峰已在这里（宏观地形校准过海拔），只加山道与建筑，不改山形。
+ */
+const TAISHAN: LandmarkDefinition = {
+  id: 'taishan',
+  name: '泰山',
+  coordinate: { lng: 117.1, lat: 36.25 },
+  radius: 56,
+  major: true,
+  poetryPlaceId: 'p037',
+  levelMode: 'summit',
+  terrainModifier: [
+    { t: 'flatten', x: 0, z: -1, r: 7, blend: 4 },
+    // 南天门坐在山脊的垭口：削出一块台地，门不立在高高的石基上
+    { t: 'flatten', x: 0, z: 15, r: 6, rz: 4, square: true, dy: -8, blend: 4 },
+    // 十八盘：自岱宗坊北上，之字形折上南天门，再一段缓坡到岱顶
+    { t: 'path', pts: [[1, 50], [-3, 42], [5, 36], [-3, 30], [4, 24], [-2, 20], [0, 16], [0, 7]], w: 1.2 },
+  ],
+  structures: [
+    { b: 'hall', x: 0, z: -3, p: { width: 7, depth: 5, tile: 'yellow', terrace: 1, lanterns: true } },
+    { b: 'pavilion', x: -10, z: -4, p: { width: 5, tile: 'gray' } },
+    { b: 'gate', x: 0, z: 15, atLevel: true, dy: -8, p: { width: 9, depth: 5, height: 6 } },
+    { b: 'archway', x: 1, z: 52, p: { tile: 'gray' } },
+  ],
+  vegetationProfile: { weights: { pine: 6, broadleaf: 1 }, density: 1.0 },
+  // 定稿机位：主景从南面仰看十八盘直上南天门、岱顶；登顶远眺（「一览众山小」）；近观南天门
+  shots: [
+    { id: 'hero', name: '主景', yaw: 0.2, pitch: 0.3, distance: 120, offset: [0, -14, 26] },
+    { id: 'vista', name: '岱顶', yaw: 0.1, pitch: 0.12, distance: 60, offset: [0, 2, 20] },
+    { id: 'detail', name: '南天门', yaw: 0.25, pitch: 0.2, distance: 34, offset: [0, -12, 15] },
+  ],
+}
+
+export const CITY_CATALOG: readonly LandmarkDefinition[] = [HUANGHELOU, YUEYANGLOU, TENGWANGGE, GUANQUELOU, DUOJINGLOU, JINLING, LUOYANG, CHENGDU, SUZHOU, HUANGZHOU, YANGZHOU, BIANJING, SHANYIN, MIZHOU, CHUZHOU, XIANGYANG, JUNSHAN, PENGCHENG, HUIZHOU, BAIDICHENG, TAISHAN]

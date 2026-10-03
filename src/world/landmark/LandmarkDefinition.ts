@@ -21,6 +21,8 @@ export type TerrainOp =
   | { t: 'canal'; pts: readonly XZ[]; w: number }
   | { t: 'island'; x: number; z: number; r: number; dy?: number }
   | { t: 'pave'; x0: number; z0: number; x1: number; z1: number }
+  /** 山道：沿折线铺一条宽 w 的石阶（顺地形，逐格高差即踏步），不长树草 */
+  | { t: 'path'; pts: readonly XZ[]; w: number }
   /** 山顶小台：把半径内垫高到基准面（只垫不削），外圈缓坡——山巅亭子不再立在石柱上 */
   | { t: 'raise'; r: number; blend?: number }
 
