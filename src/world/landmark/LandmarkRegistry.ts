@@ -100,8 +100,8 @@ export class LandmarkRegistry {
    * 就在附近找一处建筑都在岸上的地方——挪得越少越好，地势别差太多。
    */
   private clearOfWater(def: LandmarkDefinition, x: number, z: number, t: TerrainManager): [number, number] {
-    // 只挪手工营造的名胜（坐标落在江心的名楼）；自动聚落照旧
-    if (def.walls?.length || !def.structures.length || def.id.startsWith('place-')) return [x, z]
+    // 手工名胜按下面的规则挪；自动聚落见下（破山寺：坐标在常熟城北的江面上，整组建筑都被跳过）
+    if (def.walls?.length || !def.structures.length) return [x, z]
     const pts = def.structures.filter((s) => s.b !== 'bridge' && !s.overWater).map((s) => [s.x, s.z] as const)
     if (!pts.length) return [x, z]
     const wetAt = (cx: number, cz: number) => {
@@ -116,6 +116,14 @@ export class LandmarkRegistry {
     // 只挪真正落在水里的（中心在水里，或一半建筑在水里）；零星一两座临水的，照旧只省去那几座
     const c0 = t.column(x, z)
     const centerWet = c0.waterY >= 0 && c0.height < c0.waterY
+    // 自动聚落：只挪几乎整组都落在水里的（否则整组建筑都被跳过，地图上只剩一个空地名）；半临水的照旧，免得牵动周边地形
+    if (def.id.startsWith('place-')) {
+      const allSunk = pts.every(([sx, sz]) => {
+        const c = t.column(Math.round(x + sx), Math.round(z + sz))
+        return c.waterY >= 0 && c.height < c.waterY
+      })
+      if (!centerWet || (wetAt(x, z) < pts.length * 4 && !allSunk)) return [x, z]
+    }
     if (!centerWet && wetAt(x, z) < pts.length * 2.5) return [x, z]
     const h0 = c0.height
     const cost = (cx: number, cz: number) => wetAt(cx, cz) * 1000 + Math.hypot(cx - x, cz - z) * 4 + Math.abs(t.column(cx, cz).height - h0) * 20

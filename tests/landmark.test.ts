@@ -100,3 +100,16 @@ describe('泊舟', () => {
       }
   }, 60000)
 })
+
+describe('地点不落水', () => {
+  it('每个自动聚落至少落下一座建筑（不整组沉在水里）', async () => {
+    const { testWorld } = await import('./helpers')
+    const w = testWorld()
+    const bad: string[] = []
+    for (const lm of w.landmarks.landmarks) {
+      if (!lm.def.structures.length || !lm.def.id.startsWith('place-')) continue
+      if (!lm.placements.length) bad.push(lm.def.name)
+    }
+    expect(bad, bad.join('、')).toEqual([])
+  }, 60000)
+})
