@@ -504,12 +504,14 @@ export class MaterialLibrary {
           col *= mix(1.05, 1.0, smoothstep(0.05, 0.45, depth));
           // 两层像素水纹：方向、尺度、速度各异，按 1/8 格取整（远景 2 格），世界坐标取样，相邻区块与远近各级同一相位
           vec2 q = floor(vWorld.xz * ${overview ? '0.5' : '8.0'}) / ${overview ? '0.5' : '8.0'};
-          float w = sin(q.x * 1.7 + uTime * 1.3) * sin(q.y * 1.3 - uTime * 1.1) + 0.6 * sin((q.x + q.y) * 0.9 + uTime * 0.7);
-          float w2 = sin(dot(q, vec2(0.8, -0.6)) * 2.6 - uTime * 1.7) * sin(dot(q, vec2(0.6, 0.8)) * 1.9 + uTime * 1.2);
+          float camDist = distance(vWorld, cameraPosition);
+          // 远处高频抑制：1/8 格的像素水纹在两三百格外只剩一两个像素，镜头一动就闪——随距离淡成平静水面，只留颜色的低频变化
+          float hiK = 1.0 - smoothstep(140.0, 420.0, camDist);
+          float w = (sin(q.x * 1.7 + uTime * 1.3) * sin(q.y * 1.3 - uTime * 1.1) + 0.6 * sin((q.x + q.y) * 0.9 + uTime * 0.7)) * hiK;
+          float w2 = sin(dot(q, vec2(0.8, -0.6)) * 2.6 - uTime * 1.7) * sin(dot(q, vec2(0.6, 0.8)) * 1.9 + uTime * 1.2) * hiK;
           col *= 1.0 + 0.05 * w + 0.03 * w2;
           vec3 n = normalize(vWNormal + vec3(0.06 * w + 0.045 * w2, 0.0, 0.05 * sin(q.y + uTime) - 0.04 * w2));
           vec3 v = normalize(cameraPosition - vWorld);
-          float camDist = distance(vWorld, cameraPosition);
           // 雨：水面压暗、褪色（天色由环境管理器罩上雨色，倒影随之变灰）
           col = mix(col, vec3(dot(col, vec3(0.3, 0.59, 0.11))), 0.35 * uWet) * (1.0 - 0.22 * uWet);
           if (depth < 0.02) col = mix(col, uWaterFoam, 0.18 + 0.1 * w);
@@ -530,7 +532,7 @@ export class MaterialLibrary {
           float reflK = falling ? 0.0 : clamp(0.1 + 0.6 * fres, 0.0, 0.7) * (1.0 - 0.7 * uIce * clim);
           col = mix(col, skyBase(rd), reflK);
           float spec = pow(max(dot(reflect(-uSunDir, n), v), 0.0), 80.0);
-          col += uSunColor * spec * 0.58 * (1.0 - uNight) * (1.0 - 0.85 * uWet);
+          col += uSunColor * spec * 0.58 * (1.0 - uNight) * (1.0 - 0.85 * uWet) * (0.3 + 0.7 * hiK);
           // 雨点涟漪：每 2×2 格一个雨点格，各自的节拍与圆心，一圈一像素宽的环向外扩散、渐淡；同样按像素取整。远处淡去，不闪
           if (uWet > 0.01 && !falling) {
             vec2 p = q * 0.5;
@@ -546,12 +548,12 @@ export class MaterialLibrary {
           if (uNight > 0.05 && !falling) {
             // 月光落在水上：随波碎成一片银鳞；水里倒映几点星
             float moon = pow(max(dot(reflect(-uSunDir, n), v), 0.0), 60.0);
-            col += uSunColor * moon * 0.42 * uNight * (1.0 - uWet * 0.8) * (1.0 - uIce * clim);
+            col += uSunColor * moon * 0.42 * (0.3 + 0.7 * hiK) * uNight * (1.0 - uWet * 0.8) * (1.0 - uIce * clim);
             vec3 rs = reflect(-v, normalize(vec3(0.0, 1.0, 0.0) + (n - vWNormal) * 2.5));
             if (rs.y > 0.05) {
               vec3 g = floor(rs * 150.0);
               float st = step(0.9965, hash13(g)) * (0.55 + 0.45 * sin(uTime * 2.0 + hash13(g + 7.0) * 40.0));
-              col += vec3(0.8, 0.85, 1.0) * st * 0.55 * uNight * (1.0 - uWet) * (1.0 - uIce * clim);
+              col += vec3(0.8, 0.85, 1.0) * st * 0.55 * hiK * uNight * (1.0 - uWet) * (1.0 - uIce * clim);
             }
           }
           float alpha = falling ? 0.88 : mix(mix(0.78, 0.92, depth), 0.95, uIce * clim);
