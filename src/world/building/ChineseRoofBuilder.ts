@@ -156,7 +156,7 @@ export function buildRoof(spec: RoofSpec): VoxelStructure {
       }
       // 收到只剩一两排：盖一层瓦、起正脊（沿面宽方向）
       const zc = Math.floor((az + bz) / 2)
-      for (let x = ax; x <= bx; x++) for (let z = az; z <= bz; z++) b.set(x, y, z, S(t.slab))
+      for (let x = ax; x <= bx; x++) for (let z = az; z <= bz; z++) b.set(x, y, z, S(t.full)) // 整块：上面压正脊，半砖会让正脊悬空半格
       if (bx - ax >= 0) ridgeLine(ax, bx, zc, y + 1)
       upturn(x0, z0, x1, z1, 0)
       break

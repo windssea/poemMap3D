@@ -83,3 +83,20 @@ describe('主楼视廊', () => {
     }
   }, 60000)
 })
+
+describe('泊舟', () => {
+  it('每条泊舟整条落在水面上，不压到岸上', async () => {
+    const { testWorld } = await import('./helpers')
+    const w = testWorld()
+    for (const lm of w.landmarks.landmarks)
+      for (const p of lm.placements.filter((q) => q.id.includes('skiff'))) {
+        let dry = 0
+        for (let x = p.world.minX; x <= p.world.maxX; x++)
+          for (let z = p.world.minZ; z <= p.world.maxZ; z++) {
+            const c = w.terrain.column(x, z)
+            if (!(c.waterY >= 0 && c.height < c.waterY)) dry++
+          }
+        expect(dry, `${lm.def.name} ${p.id}`).toBe(0)
+      }
+  }, 60000)
+})
