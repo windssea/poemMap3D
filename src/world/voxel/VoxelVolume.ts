@@ -19,6 +19,8 @@ export class VoxelVolume {
   readonly tint: Uint8Array
   /** 每列的生物群系（sx × sz） */
   readonly biome: Uint8Array
+  /** 体外附近的发光方块（世界坐标 x, y, z, 光级 四个一组），算方块光时从体块边上注入；没有为 null */
+  emitters: Int32Array | null = null
 
   constructor(ox: number, oy: number, oz: number, sx: number, sy: number, sz: number, data?: Uint16Array, tint?: Uint8Array) {
     this.ox = ox

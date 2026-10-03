@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { BlockRenderLayer } from '../src/world/block/BlockDefinition'
 import { B, Blocks } from '../src/world/block/Blocks'
 import { S } from '../src/world/block/BlockState'
-import { volumeSkyLight } from '../src/world/light/VolumeSkyLight'
+import { volumeBlockLight, volumeSkyLight } from '../src/world/light/VolumeSkyLight'
 import { meshVolume } from '../src/world/voxel/VoxelMesher'
 import { VoxelVolume } from '../src/world/voxel/VoxelVolume'
 
@@ -52,10 +52,55 @@ describe('天空光（网格化用）', () => {
       const z = d.positions[i * 3 + 2] / 16
       const up = d.normals[i * 3 + 1] > 0
       if (!up || y !== 5) continue
-      if (x > 6 && x < 11 && z > 6 && z < 11) under = Math.min(under, d.sky[i])
-      if (x < 2 && z < 2) open = Math.max(open, d.sky[i])
+      if (x > 6 && x < 11 && z > 6 && z < 11) under = Math.min(under, (d.light[i] & 15))
+      if (x < 2 && z < 2) open = Math.max(open, (d.light[i] & 15))
     }
     expect(open).toBe(15)
     expect(under).toBeLessThan(13)
+  })
+})
+
+/** 一块区块大小的体（带 1 格外边），地面 y ≤ 4 */
+function flat(cx: number): VoxelVolume {
+  const v = VoxelVolume.forChunk(cx, 0)
+  v.data.fill(0)
+  for (let z = v.oz; z < v.oz + v.sz; z++) for (let x = v.ox; x < v.ox + v.sx; x++) for (let y = 0; y <= 4; y++) v.set(x, y, z, S(B.STONE))
+  return v
+}
+const at = (v: VoxelVolume, L: Uint8Array, x: number, y: number, z: number) => L[idx(v, x, y, z)]
+
+describe('方块光（灯笼、格窗）', () => {
+  it('没有光源时不算', () => {
+    const v = flat(0)
+    expect(volumeBlockLight(v, Blocks, 0, 31)).toBeNull()
+  })
+
+  it('灯笼 13 级，逐格减 1，墙挡住', () => {
+    const v = flat(0)
+    v.set(8, 6, 8, S(B.LANTERN))
+    for (let y = 5; y <= 9; y++) for (let z = 4; z <= 12; z++) v.set(10, y, z, S(B.STONE))
+    const L = volumeBlockLight(v, Blocks, 0, 31)!
+    expect(at(v, L, 8, 6, 8)).toBe(13)
+    expect(at(v, L, 9, 6, 8)).toBe(12)
+    expect(at(v, L, 8, 5, 8)).toBe(12)
+    // 墙后要绕过墙头或墙端，比直线距离暗得多
+    expect(at(v, L, 11, 6, 8)).toBeLessThan(13 - 3)
+  })
+
+  it('跨区块：邻区块边上的灯笼照进来，与灯笼所在区块算出的同一处光级一致', () => {
+    const a = flat(0)
+    a.set(14, 6, 8, S(B.LANTERN)) // 离东边界 2 格
+    const La = volumeBlockLight(a, Blocks, 0, 31)!
+    const b = flat(1)
+    b.emitters = Int32Array.from([14, 6, 8, 13])
+    const Lb = volumeBlockLight(b, Blocks, 0, 31, b.emitters)!
+    for (const [x, y, z] of [
+      [16, 6, 8],
+      [16, 5, 9],
+      [16, 7, 6],
+    ])
+      expect(at(b, Lb, x, y, z)).toBe(at(a, La, x, y, z))
+    // 再往里一格，按体内传播继续递减
+    expect(at(b, Lb, 17, 6, 8)).toBe(at(a, La, 16, 6, 8) - 1)
   })
 })

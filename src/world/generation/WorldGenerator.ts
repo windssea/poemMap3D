@@ -3,7 +3,8 @@ import { S } from '../block/BlockState'
 import type { Chunk } from '../chunk/Chunk'
 import type { GreatWallSystem } from '../landmark/GreatWallSystem'
 import type { LandmarkRegistry } from '../landmark/LandmarkRegistry'
-import { placeStructure, PlaceMode, preparePlacement } from '../structure/StructurePlacer'
+import { BLOCK_LIGHT_REACH, emissionLevel } from '../light/VolumeSkyLight'
+import { type PreparedPlacement, placeStructure, PlaceMode, preparePlacement } from '../structure/StructurePlacer'
 import type { TerrainManager } from '../terrain/TerrainManager'
 import { decorateGround } from '../vegetation/GroundDecoration'
 import type { TreeInstance, TreePlacementSystem } from '../vegetation/TreePlacementSystem'
@@ -26,6 +27,21 @@ export interface ChunkGenerationResult {
  *   → Vegetation Decoration → Ground Decoration
  * 直接生成「区块 + 外边一圈」，外边与相邻区块内部完全一致，mesher 不必等待邻居。
  */
+/** 每处建筑里的发光方块（相对坐标与光级），按摆放缓存 */
+const emitterCache = new WeakMap<PreparedPlacement, number[]>()
+function emittersOf(p: PreparedPlacement): number[] {
+  let e = emitterCache.get(p)
+  if (!e) {
+    e = []
+    for (const b of p.blocks) {
+      const lv = emissionLevel(b.state & 255)
+      if (lv > 0) e.push(b.x, b.y, b.z, lv)
+    }
+    emitterCache.set(p, e)
+  }
+  return e
+}
+
 export class ChunkGenerator {
   constructor(
     private readonly terrain: TerrainManager,
@@ -82,6 +98,22 @@ export class ChunkGenerator {
     const z1 = vol.oz + vol.sz - 1
     const placements = this.landmarks.placementsNear(x0, z0, x1, z1)
     for (const p of placements) placeStructure(vol, p)
+    /* 体外附近的灯笼、格窗：算方块光时从体块边上照进来（近景才用；与邻区块看到的是同一份摆放表，边界两侧接得上） */
+    if (decorate) {
+      const R = BLOCK_LIGHT_REACH
+      const ext: number[] = []
+      for (const p of this.landmarks.placementsNear(x0 - R, z0 - R, x1 + R, z1 + R)) {
+        const e = emittersOf(p)
+        for (let k = 0; k < e.length; k += 4) {
+          const x = p.x + e[k]
+          const z = p.z + e[k + 2]
+          if (x >= x0 && x <= x1 && z >= z0 && z <= z1) continue
+          if (x < x0 - R || x > x1 + R || z < z0 - R || z > z1 + R) continue
+          ext.push(x, p.y + e[k + 1], z, e[k + 3])
+        }
+      }
+      vol.emitters = ext.length ? Int32Array.from(ext) : null
+    }
     this.greatWall.apply(vol)
 
     /* 树：树根在外扩范围内的都要考虑（树冠可能伸进来） */

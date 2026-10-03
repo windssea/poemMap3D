@@ -7,7 +7,7 @@ import { Axis, DIRECTION_VECTORS, rotateXZ } from '../block/Direction'
 import { ZONE_COUNT } from '../biome/TintZone'
 import { buildTintTable } from '../biome/BiomeTints'
 import { hash3i } from '../../utils/math'
-import { skyBlocking, volumeSkyLight } from '../light/VolumeSkyLight'
+import { skyBlocking, volumeBlockLight, volumeSkyLight } from '../light/VolumeSkyLight'
 import { MeshBuffer, type MeshLayerData, VertexFlag } from './MeshBuffer'
 import type { VoxelVolume } from './VoxelVolume'
 
@@ -31,6 +31,8 @@ export interface MesherOptions {
   skirt?: number
   /** 天空光每格衰减（每格代表的方块数：近景 1、远景 2、远景片 4），远近同一处檐下、殿内的明暗大致一样；0 为不算（全亮） */
   lightStep?: number
+  /** 方块光（灯笼、格窗的暖光）：只给近景算；远处的灯在远近交界前已淡出 */
+  blockLight?: boolean
 }
 
 /** 水面比整格低 2/16，像 Minecraft 那样与岸边留一道小台阶 */
@@ -131,21 +133,29 @@ export function meshVolume(vol: VoxelVolume, opts: MesherOptions = {}): MeshResu
   /* 天空光：只算有内容的高度段 */
   const step = opts.lightStep ?? 1
   const skyL = step > 0 ? volumeSkyLight(vol, reg, yLo, yHi, step) : null
+  const blkL = opts.blockLight === false ? null : volumeBlockLight(vol, reg, yLo, yHi, vol.emitters)
   const skyBlocks = skyBlocking(reg)
-  /** 一格的天空光；挡光方块返回 -1（取平均时不计）。体外视为露天 */
+  /** 一格的体素光（低 4 位天空光、高 4 位方块光）；挡光方块返回 -1（取平均时不计）。体外视为露天、无灯 */
   const lightAt = (x: number, y: number, z: number): number => {
     if (x < 0 || z < 0 || x >= sx || z >= sz || y > yHi) return 15
     if (y < yLo) return 0
     const i = (y * sz + z) * sx + x
-    return skyBlocks[data[i] & 255] ? -1 : skyL ? skyL[i] : 15
+    if (skyBlocks[data[i] & 255]) return -1
+    return (skyL ? skyL[i] : 15) | (blkL ? blkL[i] << 4 : 0)
   }
-  /** 方块本格的天空光：本格挡光（半砖、楼梯）时取六邻里最亮的 */
+  /** 方块本格的体素光：本格挡光（半砖、楼梯）时两种光各取六邻里最亮的 */
   const cellLight = (x: number, y: number, z: number): number => {
     const v = lightAt(x, y, z)
     if (v >= 0) return v
-    let m = -1
-    for (const [dx, dy, dz] of N6) m = Math.max(m, lightAt(x + dx, y + dy, z + dz))
-    return m >= 0 ? m : 15
+    let sky = -1
+    let blk = 0
+    for (const [dx, dy, dz] of N6) {
+      const n = lightAt(x + dx, y + dy, z + dz)
+      if (n < 0) continue
+      sky = Math.max(sky, n & 15)
+      blk = Math.max(blk, n >> 4)
+    }
+    return (sky >= 0 ? sky : 15) | (blk << 4)
   }
 
   const lo = [pad, yLo, pad]
@@ -182,7 +192,7 @@ export function meshVolume(vol: VoxelVolume, opts: MesherOptions = {}): MeshResu
       out[k] = s1 && s2 ? 0 : 3 - (s1 + s2 + c)
     }
   }
-  /** 平滑天空光：每个角取面前一格与该角旁的三格的平均（挡光格不计；两侧都挡时对角也不计），顺序同 aoCorners */
+  /** 平滑体素光：每个角取面前一格与该角旁的三格的平均（挡光格不计；两侧都挡时对角也不计），两种光分开平均，顺序同 aoCorners */
   const lightCorners = (px: number, py: number, pz: number, du: number[], dv: number[], out: number[]): void => {
     const c0 = lightAt(px, py, pz)
     const center = c0 >= 0 ? c0 : cellLight(px, py, pz)
@@ -192,14 +202,19 @@ export function meshVolume(vol: VoxelVolume, opts: MesherOptions = {}): MeshResu
       const l1 = lightAt(px + du[0] * su, py + du[1] * su, pz + du[2] * su)
       const l2 = lightAt(px + dv[0] * sv, py + dv[1] * sv, pz + dv[2] * sv)
       const lc = l1 < 0 && l2 < 0 ? -1 : lightAt(px + du[0] * su + dv[0] * sv, py + du[1] * su + dv[1] * sv, pz + du[2] * su + dv[2] * sv)
-      let sum = center
+      let sky = center & 15
+      let blk = center >> 4
       let n = 1
-      if (l1 >= 0) (sum += l1), n++
-      if (l2 >= 0) (sum += l2), n++
-      if (lc >= 0) (sum += lc), n++
-      out[k] = Math.round(sum / n)
+      for (const l of [l1, l2, lc])
+        if (l >= 0) {
+          sky += l & 15
+          blk += l >> 4
+          n++
+        }
+      out[k] = Math.round(sky / n) | (Math.round(blk / n) << 4)
     }
   }
+
 
   const flagsFor = (id: number): number => (T.tintClass[id] & VertexFlag.TintMask) | (T.emissive[id] ? VertexFlag.Emissive : 0) | (T.warm[id] ? VertexFlag.Warm : 0)
   const tintFor = (tile: number, biome: number): number => T.tint[tile * ZONE_COUNT + biome]
@@ -233,7 +248,7 @@ export function meshVolume(vol: VoxelVolume, opts: MesherOptions = {}): MeshResu
   const uvs = new Array<number>(8)
   const aoTmp = [3, 3, 3, 3]
   const aoOut = [3, 3, 3, 3]
-  const skyTmp = [15, 15, 15, 15]
+  const skyTmp = [15, 15, 15, 15] /* 体素光，见 lightAt */
   const skyOut = [15, 15, 15, 15]
   let quads = 0
 
@@ -248,8 +263,8 @@ export function meshVolume(vol: VoxelVolume, opts: MesherOptions = {}): MeshResu
     const W = hi[u] - lo[u]
     const H = hi[v] - lo[v]
     const mask = new Uint32Array(W * H)
-    /** 四个角的天空光（各 4 位）：与 mask 都相同才合并 */
-    const mask2 = new Uint16Array(W * H)
+    /** 四个角的体素光（各 8 位）：与 mask 都相同才合并 */
+    const mask2 = new Uint32Array(W * H)
     const pos = [0, 0, 0]
     for (const sign of [1, -1]) {
       const nrm = [0, 0, 0]
@@ -264,7 +279,7 @@ export function meshVolume(vol: VoxelVolume, opts: MesherOptions = {}): MeshResu
             const st = at(pos[0], pos[1], pos[2])
             const id = st & 255
             mask[n] = 0
-            mask2[n] = 0xffff
+            mask2[n] = 0xffffffff
             if (!id) continue
             const shape = reg.shape[id]
             const nb = at(pos[0] + nrm[0], pos[1] + nrm[1], pos[2] + nrm[2])
@@ -293,7 +308,7 @@ export function meshVolume(vol: VoxelVolume, opts: MesherOptions = {}): MeshResu
               aoKey = aoTmp[0] | (aoTmp[1] << 2) | (aoTmp[2] << 4) | (aoTmp[3] << 6)
             }
             lightCorners(pos[0] + nrm[0], pos[1] + nrm[1], pos[2] + nrm[2], du, dv, skyTmp)
-            mask2[n] = skyTmp[0] | (skyTmp[1] << 4) | (skyTmp[2] << 8) | (skyTmp[3] << 12)
+            mask2[n] = (skyTmp[0] | (skyTmp[1] << 8) | (skyTmp[2] << 16) | (skyTmp[3] << 24)) >>> 0
             const tinted = T.tint[tile * ZONE_COUNT] !== 0xffffff
             const biome = tinted ? vol.tint[pos[2] * sx + pos[0]] : 0
             const key = (reg.layer[id] << 29) | (flagsFor(id) << 21) | (biome << 16) | (aoKey << 8) | tile
@@ -345,7 +360,7 @@ export function meshVolume(vol: VoxelVolume, opts: MesherOptions = {}): MeshResu
               corners[c * 3 + 2] = z
               uvOf(axis, x, y, z, uvs, c * 2)
               aoOut[c] = (aoKey >> (src * 2)) & 3
-              skyOut[c] = (k2 >> (src * 4)) & 15
+              skyOut[c] = (k2 >>> (src * 8)) & 255
             }
             const rgb = water ? biome * 36 * 65536 : tintFor(tile, biome)
             buffers[layer].quad(corners, nrm[0], nrm[1], nrm[2], uvs, tile, aoOut, rgb, flags, skyOut)

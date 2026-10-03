@@ -12,16 +12,20 @@ export interface FadeHolder {
   fade: { value: number }
 }
 
+/** 方块光的强度：满级（灯笼旁）约为夜里天光的两倍，几格外的街面、檐下染一层暖色 */
+const BLOCK_LIGHT_GAIN = 0.7
+
 const BLOCK_VERTEX_DECL = /* glsl */ `
 attribute vec2 aUv;
 attribute float aTile;
 attribute float aAo;
-attribute float aSky;
+attribute float aLight;
 attribute vec3 aTint;
 attribute float aFlags;
 varying vec3 vBlockUv;
 varying float vAo;
 varying float vSky;
+varying float vBlk;
 varying vec3 vTint;
 varying float vFlags;
 varying vec3 vBWorld;
@@ -97,6 +101,7 @@ uniform float uLotus;
 varying vec3 vBlockUv;
 varying float vAo;
 varying float vSky;
+varying float vBlk;
 varying vec3 vTint;
 varying float vFlags;
 varying vec3 vBWorld;
@@ -188,7 +193,8 @@ export class MaterialLibrary {
           `#include <begin_vertex>
           vBlockUv = vec3(aUv / 16.0, aTile);
           vAo = aAo;
-          vSky = aSky / 15.0;
+          vSky = mod(aLight, 16.0) / 15.0;
+          vBlk = floor(aLight / 16.0 + 0.01) / 15.0;
           vTint = aTint;
           vFlags = aFlags;
           vBWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;
@@ -301,7 +307,15 @@ export class MaterialLibrary {
           // 三者相乘最坏约 0.55 × 0.80 × 0.88 ≈ 0.39（院落里的南北墙），背光面只剩四成天光就死黑了；设下限保住可读性
           reflectedLight.indirectDiffuse *= max(bakedSky(vBWorld) * aoCurve(vAo) * faceShade(vBNormal), 0.55);
           // 天空光（0–15）：檐下、殿内、廊下、门洞里天光渐弱；在上面那道保底之外另乘，深处才真正暗下去
-          reflectedLight.indirectDiffuse *= skyCurve(vSky);`,
+          reflectedLight.indirectDiffuse *= skyCurve(vSky);
+          // 方块光：灯笼、格窗向四周漫开的暖光（不受上面的天光遮蔽，檐下灯笼正照亮檐下）。
+          // 与窗光同一套点灯次序（入夜从点灯中心一圈圈亮起）与远处淡出（远近交界前熄掉，远景没有方块光，交界处不起台阶）
+          if (vBlk > 0.0 && uNight > 0.01) {
+            float blkLit = 1.0 - smoothstep(uLitFar * 0.72, uLitFar, distance(vBWorld, cameraPosition));
+            float blkDue = clamp(distance(vBWorld.xz, uLitCenter.xz) / 400.0, 0.0, 1.0) * 0.75;
+            blkLit *= smoothstep(blkDue, blkDue + 0.25, uLitSeq);
+            reflectedLight.indirectDiffuse += diffuseColor.rgb * uWindow * (vBlk * vBlk) * ${BLOCK_LIGHT_GAIN.toFixed(2)} * uNight * blkLit;
+          }`,
         )
       if (kind === 'cutout') frag = frag.replace('#include <normal_fragment_begin>', 'float faceDirection = 1.0;\nvec3 normal = normalize( vNormal );\nvec3 nonPerturbedNormal = normal;')
       shader.fragmentShader = frag
