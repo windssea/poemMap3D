@@ -1,8 +1,17 @@
 node_modules/
 dist/
 legacy/fonts/MaShanZheng-Regular.ttf
-shots/
 /example
 *.log
 /.openchamber
-/doc/lighting
+
+# 截图一律不入库（验收截图、光照对比图等只留本地）
+shots/
+*.png
+*.jpg
+*.jpeg
+*.webp
+# 运行时用到的图片资源仍入库
+!public/**/*.png
+!public/**/*.jpg
+!public/**/*.webp
