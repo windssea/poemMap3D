@@ -859,7 +859,7 @@ const FENGQIAO: LandmarkDefinition = {
 const ZHONGNAN: LandmarkDefinition = {
   id: 'zhongnan',
   name: '终南山',
-  coordinate: { lng: 108.9, lat: 33.95 },
+  coordinate: { lng: 108.95, lat: 33.76 },
   radius: 50,
   major: true,
   poetryPlaceId: 'zhongnanshan',

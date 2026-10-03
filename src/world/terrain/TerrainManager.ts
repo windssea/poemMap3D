@@ -89,19 +89,29 @@ export class TerrainManager {
       return col
     }
 
-    /* 方块级细节：幅度随当地起伏；平原只留一两格的缓丘 */
+    /* 方块级细节：幅度随当地起伏；平原只留一两格的缓丘。
+       名山峰顶附近压低细节（峰高按实测校准，不让噪声把峰顶抬高压低）——只压峰顶一小圈：
+       此前压到整个山体半径，山腰全成光滑锥面，一侧是一整片平直的崖。 */
     let damp = 1
+    let flank = 0
     for (const p of this.peaks) {
       const dx = x - p.x
       const dz = z - p.z
       if (Math.abs(dx) > p.r * 2.5 || Math.abs(dz) > p.r * 2.5) continue
-      damp = Math.min(damp, 1 - 0.75 * Math.exp(-(dx * dx + dz * dz) / (p.r * p.r)))
+      const d2 = (dx * dx + dz * dz) / (p.r * p.r)
+      damp = Math.min(damp, 1 - 0.75 * Math.exp(-d2 / 0.12))
+      flank = Math.max(flank, Math.exp(-d2 * 0.8) * (1 - Math.exp(-d2 / 0.12)))
     }
     const amp = Math.min(24, 0.7 + relief * 0.95) * damp
     const d = fbm(this.nDetail, x / 52, z / 52, 3)
     const r = ridged(this.nRidge, x / 96, z / 96, 3) - 0.45
     const bump = this.nBump(x / 14, z / 14)
     h += d * amp + r * amp * 0.9 * smoothstep(3, 10, relief) + bump * (0.6 + 0.08 * amp)
+    /* 名山山腰：顺坡的冲沟与岩脊（细长的脊谷交替），山体有褶皱，不是一张光滑的锥面 */
+    if (flank > 0.02) {
+      const g = ridged(this.nGully, x / 22, z / 22, 2) - 0.5
+      h += g * 9 * flank
+    }
     h = this.regional(x, z, h, relief)
     /* 山体退让：起伏大的山地按 7 格一级做出台层。 */
     if (relief > 5) {

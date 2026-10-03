@@ -233,7 +233,8 @@ export const ELEVATION_ANCHORS: readonly ElevationAnchor[] = [
   { name: '六盘山', lng: 106.2, lat: 35.6, meters: 2928, radius: 0.12, kind: 'peak' },
   { name: '小五台山', lng: 115.0, lat: 39.95, meters: 2882, radius: 0.13, kind: 'peak' },
   { name: '长白山', lng: 128.06, lat: 42.0, meters: 2744, radius: 0.2, kind: 'peak' },
-  { name: '终南山', lng: 108.95, lat: 33.95, meters: 2604, radius: 0.12, kind: 'peak' },
+  // 终南山主峰（太乙一带）：地图比例下离长安只有三十来格、峰体压到城边，略向南挪开（实测在北纬 33.95 附近；挪到 33.76——宏观地势是联合校正的，33.80、33.84 会把西安抬高两百多米）
+  { name: '终南山', lng: 108.95, lat: 33.76, meters: 2604, radius: 0.12, kind: 'peak' },
   { name: '巫山', lng: 109.95, lat: 31.3, meters: 2400, radius: 0.14, kind: 'peak' },
   { name: '华山', lng: 110.08, lat: 34.48, meters: 2155, radius: 0.09, kind: 'peak' },
   { name: '武夷山', lng: 117.78, lat: 27.87, meters: 2158, radius: 0.12, kind: 'peak' },
