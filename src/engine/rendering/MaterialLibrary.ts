@@ -207,13 +207,11 @@ export class MaterialLibrary {
           '#include <map_fragment>',
           /* glsl */ `
           vec4 texel = texture(uBlockAtlas, vec3(vBlockUv.x, -vBlockUv.y, vBlockUv.z));
-          float winRaw = dot(texel.rgb, vec3(0.333)); // 亮窗的糊纸 / 窗棂判断用取样原值（下面一行会把 texel 随距离混向平均色）
+          float winRaw = dot(texel.rgb, vec3(0.333)); // 亮窗的糊纸 / 窗棂判断用（mipmap 取样后的亮度，远处自然是纸与棂的平均）
           // 顶点标志按整数用：varying 插值后可能是 39.9999 而不是 40，直接 floor 会在三角形内逐像素地错位一档——
           // 亮窗的「发光」位逐像素时有时无，满窗撒出暗点（纱窗）；色类也会错判。先四舍五入成整数再拆位
           float flagsI = floor(vFlags + 0.5);
           float tclass = mod(flagsI, 8.0);
-          // 亮窗（暖色发光）的窗格：离远了平均成一片纸色，不让三像素一道的木棂在远处闪出摩尔纹
-          if (mod(floor(flagsI / 8.0), 2.0) > 0.5 && mod(floor(flagsI / 32.0), 2.0) > 0.5) texel.rgb = mix(texel.rgb, vec3(0.42, 0.35, 0.24), smoothstep(12.0, 36.0, distance(vBWorld, cameraPosition)));
           ${kind === 'cutout' ? 'if (texel.a < 0.4) discard; float tintAmt = 1.0;' : kind === 'solid' ? 'float tintAmt = 1.0 - texel.a;' : 'float tintAmt = 0.0;'}
           ${kind === 'cutout' ? 'if (uBare > 0.01 && tclass > 1.5 && tclass < 2.5 && hash13(floor(vBWorld * 16.0 + 0.01)) < uBare * snowClimate(vBWorld)) discard; // 冬日落叶：阔叶按像素镂空，露出枝干（岭南常绿不落）' : ''}
           if (tclass > 5.5 && tclass < 6.5 && hash12(floor(vBWorld.xz) + 0.37) > uLotus) discard; // 荷：夏满、春秋稀、冬无（按所在那一格取舍——只看 xz：荷叶底面正落在整数高度上，按三维取整会逐像素在上下两格间跳，叶面被裁、底面留下，成了闪烁的黑斑纹）
@@ -287,12 +285,12 @@ export class MaterialLibrary {
             float cell = hash12(floor(vBWorld.xz / 3.0) + 0.37);
             // 灯笼的火苗轻轻晃（约 1.5–2 Hz、幅度 3%）；窗光不晃——窗格闪烁此前刚修掉（a1e92b8）
             if (!warm) lit *= 1.0 + 0.03 * sin(uTime * (9.0 + 4.0 * cell) + cell * 40.0);
-            // 窗：近处看得见糊纸的亮格与木窗棂的暗条（纸亮、棂暗，不再是整块匀亮的「纱窗」），离远了（12→36 格）渐渐平均成一片暖光，
-            // 不让三像素一道的窗棂在远处闪出摩尔纹（那一段的贴图本身也在同一距离上混向平均色，见上）
-            float paper = smoothstep(0.42, 0.68, winRaw);
-            float farK = smoothstep(12.0, 36.0, distance(vBWorld, cameraPosition));
-            // 远处的平均亮度取田字窗的面积比（糊纸约四成）：近处的格子与远处的平均值亮度一致，过渡中不掉一档
-            float pane = mix(mix(0.10, 1.0, paper), 0.46, farK);
+            // 窗：糊纸亮、窗棂暗，远近一样都看得见「田」字格，不再按距离抹成一整块灯。
+            // 远处防闪靠贴图的 mipmap：糊纸程度对取样亮度是线性的（窗棂 0.075 → 0，暗纸 0.616 → 1），
+            // mipmap 把纸与棂平均后，这里得到的正是糊纸的面积比（约四成），亮度与近处整格的平均一致、不掉档，
+            // 也不会像 smoothstep 那样把平均后的中间灰重新推回黑白两档、在远处闪出摩尔纹
+            float paper = clamp((winRaw - 0.075) / 0.541, 0.0, 1.0);
+            float pane = mix(0.10, 1.0, paper);
             totalEmissiveRadiance += (warm ? uWindow * pane : col * 1.6) * uNight * lit;
           }`,
         )
