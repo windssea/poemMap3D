@@ -26,6 +26,8 @@ export const VertexFlag = {
   Falling: 16,
   /** 暖光（窗纸）：夜里透出暖色，而不是按贴图本色发光 */
   Warm: 32,
+  /** 材质类别（两位，值 = flags >> 6）：1 琉璃瓦、2 彩漆、3 金饰——着色器按类别加不同的高光 */
+  Material: 192,
 } as const
 
 const LIGHT_OPEN = [15, 15, 15, 15] as const

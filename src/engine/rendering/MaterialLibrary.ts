@@ -12,6 +12,54 @@ export interface FadeHolder {
   fade: { value: number }
 }
 
+/**
+ * 材质高光：替换 Lambert 的直射光函数，在漫反射之外按材质类别加一道归一化 Blinn-Phong 高光。
+ * 走直射光路径，所以阴影里、檐下没有高光；只认太阳 / 月亮这一盏（对向补光不出高光，免得背光面出假亮斑）。
+ *  - 琉璃瓦：窄而亮、近白，瓦垄一道道亮带；
+ *  - 彩漆（朱漆墙、柱）：宽而柔，只提一层润色；
+ *  - 金饰：带本色，最亮。
+ * 雨天高光加强、变窄（湿面），不是一律压暗。
+ */
+const MATERIAL_SPEC_PARS = /* glsl */ `
+varying vec3 vViewPosition;
+struct LambertMaterial {
+  vec3 diffuseColor;
+  float specularStrength;
+};
+float gSpecK = 0.0;
+float gSpecShin = 1.0;
+vec3 gSpecCol = vec3(1.0);
+void RE_Direct_Lambert( const in IncidentLight directLight, const in vec3 geometryPosition, const in vec3 geometryNormal, const in vec3 geometryViewDir, const in vec3 geometryClearcoatNormal, const in LambertMaterial material, inout ReflectedLight reflectedLight ) {
+  float dotNL = saturate( dot( geometryNormal, directLight.direction ) );
+  vec3 irradiance = dotNL * directLight.color;
+  reflectedLight.directDiffuse += irradiance * BRDF_Lambert( material.diffuseColor );
+  // 只认太阳 / 月亮：对向补光与太阳的夹角大（点积约 0.3 以下）；级联灯的方向与 uSunDir 有十来度出入，阈值不能卡得太死
+  if ( gSpecK > 0.0 && dot( directLight.direction, normalize( ( viewMatrix * vec4( uSunDir, 0.0 ) ).xyz ) ) > 0.6 ) {
+    vec3 H = normalize( directLight.direction + geometryViewDir );
+    float nh = saturate( dot( geometryNormal, H ) );
+    float fres = 0.6 + 0.4 * pow( 1.0 - saturate( dot( geometryNormal, geometryViewDir ) ), 5.0 );
+    reflectedLight.directDiffuse += irradiance * gSpecCol * gSpecK * fres * pow( nh, gSpecShin ) * ( gSpecShin + 8.0 ) / 25.13;
+  }
+}
+void RE_IndirectDiffuse_Lambert( const in vec3 irradiance, const in vec3 geometryPosition, const in vec3 geometryNormal, const in vec3 geometryViewDir, const in vec3 geometryClearcoatNormal, const in LambertMaterial material, inout ReflectedLight reflectedLight ) {
+  reflectedLight.indirectDiffuse += irradiance * BRDF_Lambert( material.diffuseColor );
+}
+#define RE_Direct RE_Direct_Lambert
+#define RE_IndirectDiffuse RE_IndirectDiffuse_Lambert
+`
+
+/** 材质高光参数：k 强度（乘在直射照度上）、shin 锐度（Blinn-Phong 指数） */
+const SPEC = {
+  glazed: { k: 0.15, shin: 24 },
+  lacquer: { k: 0.06, shin: 10 },
+  metal: { k: 0.35, shin: 30 },
+}
+/**
+ * 琉璃的天光光泽（乘菲涅尔）。体素屋面全是水平 / 竖直面，太阳又多在镜头身后，物理高光在常用机位里几乎看不到；
+ * 琉璃之所以「是琉璃」，靠的是斜看时映出一层天色、受光处一块块釉面明暗不一——这两样与太阳方位无关
+ */
+const GLAZE_SHEEN = 0.15
+
 /** 方块光的强度：满级（灯笼旁）约为夜里天光的两倍，几格外的街面、檐下染一层暖色 */
 const BLOCK_LIGHT_GAIN = 0.7
 
@@ -201,6 +249,7 @@ export class MaterialLibrary {
           vBNormal = normalize(mat3(modelMatrix) * objectNormal);`,
         )
       let frag = shader.fragmentShader
+        .replace('#include <lights_lambert_pars_fragment>', MATERIAL_SPEC_PARS)
         .replace('#include <common>', `#include <common>\n${BLOCK_FRAGMENT_DECL}`)
         .replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>\n if (uFade < 0.999 && bayer4(gl_FragCoord.xy) > uFade) discard;${tier === 'coarse' ? COARSE_MASK : tier === 'far' ? FAR_MASK : ''}`)
         .replace(
@@ -212,6 +261,15 @@ export class MaterialLibrary {
           // 亮窗的「发光」位逐像素时有时无，满窗撒出暗点（纱窗）；色类也会错判。先四舍五入成整数再拆位
           float flagsI = floor(vFlags + 0.5);
           float tclass = mod(flagsI, 8.0);
+          // 材质类别 → 高光强度、锐度、颜色（见 MATERIAL_SPEC_PARS）；雨天湿面高光更强更窄
+          float mcls = floor(flagsI / 64.0);
+          if (mcls > 0.5) {
+            gSpecK = mcls < 1.5 ? ${SPEC.glazed.k.toFixed(3)} : mcls < 2.5 ? ${SPEC.lacquer.k.toFixed(3)} : ${SPEC.metal.k.toFixed(3)};
+            gSpecShin = mcls < 1.5 ? ${SPEC.glazed.shin.toFixed(1)} : mcls < 2.5 ? ${SPEC.lacquer.shin.toFixed(1)} : ${SPEC.metal.shin.toFixed(1)};
+            gSpecCol = mcls > 2.5 ? texel.rgb / max(0.2, dot(texel.rgb, vec3(0.333))) : vec3(1.0, 0.98, 0.94);
+            gSpecK *= 1.0 + 1.2 * uWet;
+            gSpecShin *= 1.0 + 0.8 * uWet;
+          }
           ${kind === 'cutout' ? 'if (texel.a < 0.4) discard; float tintAmt = 1.0;' : kind === 'solid' ? 'float tintAmt = 1.0 - texel.a;' : 'float tintAmt = 0.0;'}
           ${kind === 'cutout' ? 'if (uBare > 0.01 && tclass > 1.5 && tclass < 2.5 && hash13(floor(vBWorld * 16.0 + 0.01)) < uBare * snowClimate(vBWorld)) discard; // 冬日落叶：阔叶按像素镂空，露出枝干（岭南常绿不落）' : ''}
           if (tclass > 5.5 && tclass < 6.5 && hash12(floor(vBWorld.xz) + 0.37) > uLotus) discard; // 荷：夏满、春秋稀、冬无（按所在那一格取舍——只看 xz：荷叶底面正落在整数高度上，按三维取整会逐像素在上下两格间跳，叶面被裁、底面留下，成了闪烁的黑斑纹）
@@ -265,6 +323,8 @@ export class MaterialLibrary {
             || abs(tile - 38.0) < 0.5 || abs(tile - 40.0) < 0.5 || abs(tile - 41.0) < 0.5 || abs(tile - 42.0) < 0.5
             || abs(tile - 6.0) < 0.5 || abs(tile - 7.0) < 0.5 || abs(tile - 48.0) < 0.5;
           if (litSurf) col *= mix(1.0, 1.09, sunLit);
+          // 琉璃釉面：受光处一块块瓦亮度不一（按格取，远近不闪）
+          if (mcls > 0.5 && mcls < 1.5) col *= mix(1.0, 0.93 + 0.16 * hash13(floor(vBWorld - vBNormal * 0.5) + 0.31), sunLit);
           diffuseColor.rgb *= col;
           ${kind === 'translucent' ? 'diffuseColor.a = texel.a;' : ''}
           `,
@@ -309,6 +369,15 @@ export class MaterialLibrary {
           reflectedLight.indirectDiffuse *= max(bakedSky(vBWorld) * aoCurve(vAo) * faceShade(vBNormal), 0.55);
           // 天空光（0–15）：檐下、殿内、廊下、门洞里天光渐弱；在上面那道保底之外另乘，深处才真正暗下去
           reflectedLight.indirectDiffuse *= skyCurve(vSky);
+          // 琉璃斜看映天：反射方向上的天色乘菲涅尔（与水面、天空球同一个 skyBase），檐下随天空光收；夜里淡
+          if (mcls > 0.5 && mcls < 1.5) {
+            vec3 gv = normalize(cameraPosition - vBWorld);
+            vec3 gn = normalize(vBNormal);
+            float gf = 0.04 + 0.96 * pow(1.0 - clamp(dot(gn, gv), 0.0, 1.0), 5.0);
+            vec3 gr = reflect(-gv, gn);
+            gr.y = abs(gr.y);
+            reflectedLight.indirectDiffuse += skyBase(gr) * gf * ${GLAZE_SHEEN.toFixed(2)} * skyCurve(vSky) * (1.0 - 0.7 * uNight);
+          }
           // 方块光：灯笼、格窗向四周漫开的暖光（不受上面的天光遮蔽，檐下灯笼正照亮檐下）。
           // 与窗光同一套点灯次序（入夜从点灯中心一圈圈亮起）与远处淡出（远近交界前熄掉，远景没有方块光，交界处不起台阶）
           if (vBlk > 0.0 && uNight > 0.01) {

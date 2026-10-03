@@ -55,6 +55,21 @@ interface Tables {
 }
 
 const tableCache = new WeakMap<BlockRegistry, Tables>()
+
+/** 材质类别（写进顶点标志高两位）：琉璃瓦有窄而亮的高光，彩漆宽而柔，金饰带本色 */
+export const MaterialClass = { Glazed: 1, Lacquer: 2, Metal: 3 } as const
+const MATERIAL_OF: Record<number, number> = {
+  [B.ROOF_YELLOW]: MaterialClass.Glazed,
+  [B.ROOF_YELLOW_STAIRS]: MaterialClass.Glazed,
+  [B.ROOF_YELLOW_SLAB]: MaterialClass.Glazed,
+  [B.ROOF_GREEN]: MaterialClass.Glazed,
+  [B.ROOF_GREEN_STAIRS]: MaterialClass.Glazed,
+  [B.ROOF_GREEN_SLAB]: MaterialClass.Glazed,
+  [B.LACQUER]: MaterialClass.Lacquer,
+  [B.PILLAR]: MaterialClass.Lacquer,
+  [B.GOLD]: MaterialClass.Metal,
+  [B.FINIAL]: MaterialClass.Metal,
+}
 let defaultTint: Uint32Array | null = null
 
 function tablesFor(reg: BlockRegistry, tint?: Uint32Array): Tables {
@@ -216,7 +231,8 @@ export function meshVolume(vol: VoxelVolume, opts: MesherOptions = {}): MeshResu
   }
 
 
-  const flagsFor = (id: number): number => (T.tintClass[id] & VertexFlag.TintMask) | (T.emissive[id] ? VertexFlag.Emissive : 0) | (T.warm[id] ? VertexFlag.Warm : 0)
+  const flagsFor = (id: number): number =>
+    (T.tintClass[id] & VertexFlag.TintMask) | (T.emissive[id] ? VertexFlag.Emissive : 0) | (T.warm[id] ? VertexFlag.Warm : 0) | ((MATERIAL_OF[id] ?? 0) << 6)
   const tintFor = (tile: number, biome: number): number => T.tint[tile * ZONE_COUNT + biome]
 
   /** 按面轴取贴图（原木等横放时，端面换到侧面） */
