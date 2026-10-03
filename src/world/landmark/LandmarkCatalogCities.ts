@@ -849,4 +849,36 @@ const JIANMEN: LandmarkDefinition = {
   ],
 }
 
-export const CITY_CATALOG: readonly LandmarkDefinition[] = [HUANGHELOU, YUEYANGLOU, TENGWANGGE, GUANQUELOU, DUOJINGLOU, JINLING, LUOYANG, CHENGDU, SUZHOU, HUANGZHOU, YANGZHOU, BIANJING, SHANYIN, MIZHOU, CHUZHOU, XIANGYANG, JUNSHAN, PENGCHENG, HUIZHOU, BAIDICHENG, TAISHAN, JIANMEN]
+/**
+ * 枫桥—寒山寺：苏州城西，运河上一座石拱桥（枫桥），桥南岸寒山寺——山门、大殿、钟楼、普明塔，黄墙围合；
+ * 桥边泊着夜船。「月落乌啼霜满天，江枫渔火对愁眠。姑苏城外寒山寺，夜半钟声到客船」——
+ * 桥作前景引导，寺作中景，暗林作背景；河面留夜色与几点渔火。与苏州园林隔水相望、不争中心。
+ */
+const FENGQIAO: LandmarkDefinition = {
+  id: 'fengqiao',
+  name: '枫桥',
+  coordinate: { lng: 120.563, lat: 31.315 },
+  offset: [-40, -4],
+  radius: 30,
+  major: true,
+  poetryPlaceId: 'fengqiao',
+  terrainModifier: [{ t: 'flatten', x: 2, z: 8, r: 16, blend: 6 }],
+  structures: [
+    // 运河在寺东自东北斜向南流过。枫桥：东西向跨河的石拱桥（沿自身轴线找水面居中跨过）
+    { b: 'bridge', x: 14, z: -6, atLevel: true, span: true, p: { length: 11 } },
+    // 寒山寺：山门朝东对河，大殿居中，钟楼在北，普明塔在西南，殿前小院
+    { b: 'gate', x: 8, z: 4, rot: 1, p: { width: 9, depth: 3, height: 5 } },
+    { b: 'hall', x: -4, z: 4, rot: 3, p: { width: 11, depth: 7, tile: 'gray', terrace: 2, lanterns: true } },
+    { b: 'bellTower', x: -2, z: -10, p: { width: 7 } },
+    { b: 'pagoda', x: -10, z: 18, p: { levels: 5, width: 7 } },
+  ],
+  trees: [{ type: 'broadleaf', pts: [[-20, -12], [-22, 2], [-20, 12]], n: 3 }],
+  // 定稿机位：夜泊（河东岸低看桥在前、寺在后）、全景、寺门（自东看山门）
+  shots: [
+    { id: 'hero', name: '夜泊', yaw: 1.2, pitch: 0.2, distance: 70, offset: [4, 4, 0] },
+    { id: 'context', name: '全景', yaw: 1.0, pitch: 0.75, distance: 110, offset: [4, 0, 2] },
+    { id: 'detail', name: '寺门', yaw: 1.57, pitch: 0.18, distance: 34, offset: [6, 4, 4] },
+  ],
+}
+
+export const CITY_CATALOG: readonly LandmarkDefinition[] = [HUANGHELOU, YUEYANGLOU, TENGWANGGE, GUANQUELOU, DUOJINGLOU, JINLING, LUOYANG, CHENGDU, SUZHOU, HUANGZHOU, YANGZHOU, BIANJING, SHANYIN, MIZHOU, CHUZHOU, XIANGYANG, JUNSHAN, PENGCHENG, HUIZHOU, BAIDICHENG, TAISHAN, JIANMEN, FENGQIAO]
