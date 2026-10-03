@@ -51,7 +51,7 @@ const HANGZHOU: LandmarkDefinition = {
     { b: 'bridge', x: -30, z: 12, rot: 1, atLevel: true, p: { length: 9 } },
     { b: 'bridge', x: -2, z: -26, rot: 0, atLevel: true, p: { length: 9 } },
     { b: 'hall', x: 38, z: -32, p: { width: 13, depth: 9, lanterns: true, terrace: 2 } },
-    { b: 'bridge', x: 14, z: -22, atLevel: true, span: true, p: { length: 9 } },
+    { b: 'bridge', x: 14, z: -34, atLevel: true, span: true, p: { length: 9 } },
     { b: 'hall', x: -52, z: 2, rot: 3, p: { width: 11, depth: 7, terrace: 2, lanterns: true } },
     ...grid([24, 52], [-29], () => false),
     ...grid([24, 31, 45, 52], [-15], () => false, 2),
@@ -64,7 +64,8 @@ const HANGZHOU: LandmarkDefinition = {
     { type: 'willow', variant: 2, pts: [[-29.8, 17], [-27, 29]], n: 3 },
     { type: 'willow', variant: 2, pts: [[-11, -29], [-6, -27]], n: 2 },
     { type: 'willow', variant: 2, pts: [[2, -25], [9, -22]], n: 2 },
-    { type: 'willow', variant: 1, pts: [[14, -24], [15, 24]], n: 6 },
+    // 湖东岸柳：避开北边运河入湖口与中段钱塘江出湖口
+    { type: 'willow', variant: 1, pts: [[14, 10], [15, 24]], n: 3 },
     { type: 'bamboo', pts: [[-60, -6], [-60, 10]], n: 3 },
   ],
   biomeOverride: { biome: BiomeId.Garden, radius: 52 },
