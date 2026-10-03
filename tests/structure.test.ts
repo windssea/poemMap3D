@@ -62,6 +62,7 @@ describe('Structure', () => {
       { top: 'wudian' as const, levels: 3, width: 9, base: 'wall' as const, terrace: 4 },
       { top: 'cuanjian' as const, levels: 3, width: 13 },
       { levels: 2, width: 9 },
+      { top: 'helmet' as const, levels: 3, width: 9, base: 'wall' as const, terrace: 4 },
     ]
     for (const p of variants) expect(analyzeConnectivity(buildBuilding('grandTower', p)).floating, JSON.stringify(p)).toBe(0)
     expect(analyzeConnectivity(buildBuilding('pavilion', { double: true, width: 7, lanterns: true })).floating).toBe(0)

@@ -101,31 +101,37 @@ interface Bird {
  *  - 附近江河湖上有渔舟、客船沿河上下；沿海有明代福船式的大海船缓缓驶过。
  * 全部是方块拼成的小模型，与体素世界同一种语言；数目有上限，远了就收起。
  */
+/** 一盏灯：中心与尺寸（船体模型坐标，x 船头向前） */
+type Lamp = readonly [x: number, y: number, z: number, sx: number, sy: number, sz: number]
+const lantern = (x: number, y: number, z: number, s = 0.3): Lamp => [x, y, z, s, s * 1.3, s]
+/** 客船舱窗（竹帘那三格，两舷各三扇）：夜里透出的是窗光，不是船头一对灯笼 */
+const cabinWindows = (): Lamp[] => [-2.4, -1.0, 0.4].flatMap((x) => [-1.17, 1.17].map((z) => [x + 0.68, 1.68, z, 1.05, 0.55, 0.05] as Lamp))
+
 /**
- * 船灯的位置（船体模型坐标，x 船头向前）：渔舟船头一盏、客船船头一对、海船艉楼两盏大灯笼；
- * 漕船、海上渔船原本没有灯，补一盏艉灯。模型里的灯笼只是着色的方块，夜里不会亮——这里另挂发光的灯芯与光晕。
+ * 船上的灯：渔舟船头一盏、客船两舷舱窗、海船艉楼两盏大灯笼；漕船、海上渔船原本没有灯，补一盏艉灯。
+ * 模型里的灯笼、竹帘只是着色的方块，夜里不会亮——这里另挂发光的灯芯（窗光）与光晕。
  */
-const BOAT_LAMPS: Record<Boat['kind'], readonly (readonly [number, number, number])[]> = {
-  fishing: [[2.4, 1.4, 0]],
-  passenger: [[3.92, 1.4, -0.8], [3.92, 1.4, 0.8]],
-  cargo: [[-5.5, 1.8, 0]],
-  seaFisher: [[-4.8, 2.7, 0]],
-  ship: [[-9.15, 6.0, -2.1], [-9.15, 6.0, 2.1]],
+const BOAT_LAMPS: Record<Boat['kind'], readonly Lamp[]> = {
+  fishing: [lantern(2.4, 1.4, 0)],
+  passenger: cabinWindows(),
+  cargo: [lantern(-5.5, 1.8, 0)],
+  seaFisher: [lantern(-4.8, 2.7, 0)],
+  ship: [lantern(-9.15, 6.0, -2.1, 0.45), lantern(-9.15, 6.0, 2.1, 0.45)],
 }
 
-/** 若干小方块合成一个几何体（每盏灯一块） */
-function lampGeometry(pts: readonly (readonly [number, number, number])[], size: number): THREE.BufferGeometry {
+/** 若干小方块合成一个几何体（每盏灯一块）；grow 为光晕在每个方向上外扩的长度 */
+function lampGeometry(lamps: readonly Lamp[], grow: number): THREE.BufferGeometry {
   const pos: number[] = []
   const idx: number[] = []
-  const box = new THREE.BoxGeometry(size, size * 1.3, size)
-  const bp = box.getAttribute('position')
-  const bi = box.getIndex()!
-  for (const [x, y, z] of pts) {
+  for (const [x, y, z, sx, sy, sz] of lamps) {
+    const box = new THREE.BoxGeometry(sx + grow * 2, sy + grow * 2, sz + grow * 2)
+    const bp = box.getAttribute('position')
+    const bi = box.getIndex()!
     const base = pos.length / 3
     for (let i = 0; i < bp.count; i++) pos.push(bp.getX(i) + x, bp.getY(i) + y, bp.getZ(i) + z)
     for (let i = 0; i < bi.count; i++) idx.push(bi.getX(i) + base)
+    box.dispose()
   }
-  box.dispose()
   const g = new THREE.BufferGeometry()
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
   g.setIndex(idx)
@@ -179,8 +185,8 @@ export class LifeSystem {
     this.birdWing = new THREE.InstancedMesh(birdWingGeometry(), this.mat, MAX_BIRDS * 2)
     this.boatGeo = { fishing: fishingBoatGeometry(), passenger: passengerBoatGeometry(), cargo: cargoBoatGeometry(), ship: mingShipGeometry(), seaFisher: seaFisherGeometry() }
     const kinds = Object.keys(BOAT_LAMPS) as Boat['kind'][]
-    this.lampCoreGeo = Object.fromEntries(kinds.map((k) => [k, lampGeometry(BOAT_LAMPS[k], k === 'ship' ? 0.45 : 0.3)])) as Record<Boat['kind'], THREE.BufferGeometry>
-    this.lampHaloGeo = Object.fromEntries(kinds.map((k) => [k, lampGeometry(BOAT_LAMPS[k], k === 'ship' ? 1.6 : 1.1)])) as Record<Boat['kind'], THREE.BufferGeometry>
+    this.lampCoreGeo = Object.fromEntries(kinds.map((k) => [k, lampGeometry(BOAT_LAMPS[k], 0.02)])) as Record<Boat['kind'], THREE.BufferGeometry>
+    this.lampHaloGeo = Object.fromEntries(kinds.map((k) => [k, lampGeometry(BOAT_LAMPS[k], k === 'ship' ? 0.6 : k === 'passenger' ? 0.25 : 0.4)])) as Record<Boat['kind'], THREE.BufferGeometry>
     for (const im of [...this.bodies, ...this.heads, this.legs, this.smoke, this.birdBody, this.birdWing]) {
       im.count = 0
       im.frustumCulled = false

@@ -721,7 +721,9 @@ export function grandTower(p: BuildingParams = {}): VoxelStructure {
       } else b.s.merge(buildRoof({ width: w + E - 2, depth: d + E - 2, type: top, tile, eaveDepth: 2 }), 0, ry, 0)
       let t = ry
       while (b.s.has(0, t, 0)) t++
-      b.set(0, t, 0, S(B.GOLD)).set(0, t + 1, 0, S(B.FINIAL))
+      // 宝顶：盔顶脊短而低，只立一枚宝顶；其余顶式下垫一块金座
+      if (top === 'helmet') b.set(0, t, 0, S(B.FINIAL))
+      else b.set(0, t, 0, S(B.GOLD)).set(0, t + 1, 0, S(B.FINIAL))
     }
     /* 回廊四角挂灯（悬在斗拱下） */
     if (p.lanterns ?? true) for (const [x, z] of [[gb.x0 - 1, gb.z0 - 1], [gb.x1 + 1, gb.z0 - 1], [gb.x0 - 1, gb.z1 + 1], [gb.x1 + 1, gb.z1 + 1]] as const) b.set(x, y + fh - 1, z, S(B.LANTERN))
