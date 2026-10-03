@@ -500,7 +500,7 @@ export class LandmarkRegistry {
         const s = buildBuilding(spec.b, params).rotate(spec.rot ?? 0)
         const y = (spec.atLevel ? level + 1 : terrain.surfaceHeightAt(x, z) + 1) + (spec.dy ?? 0)
         const bd = BuildingRegistry.get(spec.b)!
-        add(`${def.id}-${spec.b}-${i}`, s, x, y, z, { foundation: bd.foundation === 'stone', clear: isBridge ? 0 : 10, entrance: bd.entrance, rot: spec.rot ?? 0 })
+        add(`${def.id}-${spec.b}-${i}`, s, x, y, z, { foundation: bd.foundation === 'stone', clear: isBridge || spec.overWater ? 0 : 10, entrance: bd.entrance, rot: spec.rot ?? 0 })
       })
 
       /* 瀑布：从崖顶直落潭中 */
