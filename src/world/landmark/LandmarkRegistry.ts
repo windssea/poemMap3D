@@ -62,7 +62,7 @@ export class LandmarkRegistry {
           ? Math.floor(metersToY(def.levelMeters))
           : def.levelMode === 'summit'
             ? this.summitLevel(baseTerrain, x, z)
-            : this.baseLevel(baseTerrain, x, z, !def.terrainModifier?.some((o) => o.t === 'hill'))) + (def.levelDy ?? 0)
+            : this.baseLevel(baseTerrain, x, z, !def.terrainModifier?.some((o) => o.t === 'hill' || o.t === 'ridge'))) + (def.levelDy ?? 0)
       const lm: ResolvedLandmark = {
         index,
         def,
@@ -332,6 +332,46 @@ export class LandmarkRegistry {
               const shore = col.waterDist < 1e8 ? smoothstep(0, 10, col.waterDist) : 1
               // 山形是“至少这么高”：原地已是校准过的真山时不再叠高
               const hh = op.h * f * shore * (0.78 + 0.35 * (0.5 + 0.5 * fbm(n, col.x / 11 + 40, col.z / 11, 3)))
+              col.height = Math.max(col.height, level + hh, col.height + hh * 0.25)
+              break
+            }
+            case 'ridge': {
+              // 最近的一段：距离、沿脊线的位置（0…1）、在哪一侧
+              let best = Infinity
+              let along = 0
+              let side = 0
+              let acc = 0
+              let total = 0
+              for (let i = 1; i < op.pts.length; i++) total += Math.hypot(op.pts[i][0] - op.pts[i - 1][0], op.pts[i][1] - op.pts[i - 1][1])
+              for (let i = 1; i < op.pts.length; i++) {
+                const [ax, az] = op.pts[i - 1]
+                const [bx, bz] = op.pts[i]
+                const len = Math.hypot(bx - ax, bz - az)
+                const hit = segmentDistance(dx, dz, ax, az, bx, bz)
+                if (hit.dist < best) {
+                  best = hit.dist
+                  along = (acc + hit.t * len) / Math.max(1, total)
+                  side = Math.sign((bx - ax) * (dz - az) - (bz - az) * (dx - ax)) || 1
+                }
+                acc += len
+              }
+              const cliffSide = side === op.cliffSide
+              const reach = cliffSide ? op.cliff + 3 : op.w
+              if (best >= reach || wet()) break
+              // 脊线：两头收、中间高，起伏不匀
+              const crest = op.h * Math.pow(Math.sin(Math.PI * Math.min(1, Math.max(0, along))), 0.55) * (0.85 + 0.3 * (0.5 + 0.5 * fbm(n, col.x / 19 + 7, col.z / 19, 2)))
+              let f: number
+              if (cliffSide) {
+                // 陡崖：崖顶一段几乎不降，到崖边陡落；崖脚三格收到地面
+                f = best < op.cliff ? 1 - 0.85 * Math.pow(best / op.cliff, 4) : 0.15 * (1 - (best - op.cliff) / 3)
+              } else {
+                f = Math.pow(1 - best / op.w, 1.5)
+                // 冲沟：缓坡上顺坡几道凹槽，越往坡脚越深
+                const g = Math.pow(Math.max(0, Math.sin(along * total / 6 + 2.2 * fbm(n, col.x / 13, col.z / 13 + 9, 2))), 6)
+                f *= 1 - 0.35 * g * Math.min(1, best / (op.w * 0.35))
+              }
+              const shore = col.waterDist < 1e8 ? smoothstep(0, 10, col.waterDist) : 1
+              const hh = crest * f * shore
               col.height = Math.max(col.height, level + hh, col.height + hh * 0.25)
               break
             }

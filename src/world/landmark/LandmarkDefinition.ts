@@ -12,6 +12,11 @@ export type TerrainOp =
   | { t: 'flatten'; x: number; z: number; r: number; square?: boolean; /** 方形时南北半深（缺省同 r） */ rz?: number; dy?: number; pave?: boolean; blend?: number; overWater?: boolean }
   | { t: 'lake'; x: number; z: number; rx: number; rz: number; depth?: number; rot?: number }
   | { t: 'hill'; x: number; z: number; r: number; h: number; sharp?: number }
+  /**
+   * 山脊：沿折线起脊，两侧不对称——cliffSide 一侧（沿折线前进方向看，1 为右手、-1 为左手）是宽 cliff 的陡崖，
+   * 另一侧是宽 w 的缓坡并有几道冲沟；脊线两头收、中间高（最高 h）。
+   */
+  | { t: 'ridge'; pts: readonly XZ[]; h: number; w: number; cliff: number; cliffSide: 1 | -1 }
   | { t: 'causeway'; pts: readonly XZ[]; w: number; dy?: number }
   | { t: 'canal'; pts: readonly XZ[]; w: number }
   | { t: 'island'; x: number; z: number; r: number; dy?: number }

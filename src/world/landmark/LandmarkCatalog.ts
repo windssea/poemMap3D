@@ -77,8 +77,10 @@ const LUSHAN: LandmarkDefinition = {
   poetryPlaceId: 'lushan',
   terrainModifier: [
     { t: 'flatten', x: 30, z: 34, r: 16, blend: 10 },
-    { t: 'hill', x: 8, z: -20, r: 32, h: 44 },
-    { t: 'hill', x: -28, z: -8, r: 24, h: 30 },
+    // 主峰：一条东西走向的不对称山脊——南面（瀑布、寺、草堂一侧）是陡崖，北坡缓而有冲沟；
+    // 西段一道较低的支脊。不再是几座圆丘叠出的馒头山
+    { t: 'ridge', pts: [[-22, -30], [-4, -24], [10, -22], [30, -30]], h: 46, w: 30, cliff: 9, cliffSide: 1 },
+    { t: 'ridge', pts: [[-44, -2], [-30, -10], [-18, -20]], h: 28, w: 18, cliff: 6, cliffSide: 1 },
     { t: 'hill', x: 2, z: 28, r: 22, h: 16 },
     { t: 'hill', x: -30, z: 32, r: 15, h: 11 },
     { t: 'hill', x: 14, z: -6, r: 12, h: 26, sharp: 1 },
