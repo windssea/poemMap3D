@@ -46,6 +46,10 @@ export class RiverManager {
     const joined = raws.map((raw, i) => {
       const [ex, ez] = raw[raw.length - 1]
       if (!macro.land(ex, ez)) return raw
+      // 末段的去向：接上去的那一段不许掉头（钱塘江尾此前被接回上游的江南运河，江面绕出一个回环、中间夹一块三角陆地）
+      const [px, pz] = raw[Math.max(0, raw.length - 2)]
+      const fx = ex - px
+      const fz = ez - pz
       let best: Vec2 | null = null
       let bd = 70
       raws.forEach((other, j) => {
@@ -54,9 +58,12 @@ export class RiverManager {
           const [ax, az] = other[k - 1]
           const [bx, bz] = other[k]
           const h = segmentDistance(ex, ez, ax, az, bx, bz)
-          if (h.dist < bd && h.dist > 1.5) {
+          const qx = ax + (bx - ax) * h.t
+          const qz = az + (bz - az) * h.t
+          const ahead = (qx - ex) * fx + (qz - ez) * fz >= -0.3 * Math.hypot(qx - ex, qz - ez) * Math.hypot(fx, fz)
+          if (h.dist < bd && h.dist > 1.5 && ahead) {
             bd = h.dist
-            best = [ax + (bx - ax) * h.t, az + (bz - az) * h.t]
+            best = [qx, qz]
           }
         }
       })

@@ -12,9 +12,12 @@ const grid = (xs: number[], zs: number[], skip: (x: number, z: number) => boolea
   for (const x of xs) for (const z of zs) if (!skip(x, z)) out.push({ b: 'house', x, z, rot, p: { width: 7, depth: 5, seed: x * 31 + z } })
   return out
 }
-const steps = (a: number, b: number, s: number) => Array.from({ length: Math.floor((b - a) / s) + 1 }, (_, i) => a + i * s)
 
-/** 杭州：城在湖东，西湖居中；苏堤、白堤、三潭小岛；西、南群山环抱，南屏雷峰、北山保俶 */
+/**
+ * 杭州：西湖居中；苏堤、白堤、三潭小岛；西、南群山环抱，南屏雷峰、北山保俶。
+ * 湖东城在江南运河东岸、钱塘江北岸（此前钱塘江尾被接回上游运河，江面绕出回环，城的方铺地被切成一块孤零零的三角）；
+ * 正街东西向，一座石桥跨运河通湖岸。
+ */
 const HANGZHOU: LandmarkDefinition = {
   id: 'hangzhou',
   name: '杭州',
@@ -36,7 +39,8 @@ const HANGZHOU: LandmarkDefinition = {
     { t: 'causeway', pts: [[-12, -30], [-5, -27]], w: 1.6 },
     { t: 'causeway', pts: [[1, -25], [10, -22]], w: 1.6 },
     { t: 'island', x: -8, z: 8, r: 4.5 },
-    { t: 'flatten', x: 38, z: 2, r: 22, square: true, pave: true, blend: 4 },
+    { t: 'flatten', x: 38, z: -22, r: 18, rz: 9, square: true, blend: 6 },
+    { t: 'pave', x0: 20, z0: -23, x1: 56, z1: -21 },
   ],
   structures: [
     { b: 'pagoda', x: -26, z: 40, p: { levels: 5, width: 7 } },
@@ -46,9 +50,11 @@ const HANGZHOU: LandmarkDefinition = {
     { b: 'bridge', x: -29, z: -12, rot: 1, atLevel: true, p: { length: 9 } },
     { b: 'bridge', x: -30, z: 12, rot: 1, atLevel: true, p: { length: 9 } },
     { b: 'bridge', x: -2, z: -26, rot: 0, atLevel: true, p: { length: 9 } },
-    { b: 'hall', x: 38, z: -12, p: { width: 13, depth: 9, lanterns: true, terrace: 2 } },
+    { b: 'hall', x: 38, z: -32, p: { width: 13, depth: 9, lanterns: true, terrace: 2 } },
+    { b: 'bridge', x: 14, z: -22, atLevel: true, span: true, p: { length: 9 } },
     { b: 'hall', x: -52, z: 2, rot: 3, p: { width: 11, depth: 7, terrace: 2, lanterns: true } },
-    ...grid(steps(24, 52, 10), steps(4, 22, 9), (x, z) => x > 30 && x < 46 && z < 6),
+    ...grid([24, 52], [-29], () => false),
+    ...grid([24, 31, 45, 52], [-15], () => false, 2),
   ],
   trees: [
     { type: 'willow', variant: 2, pts: [[-27, -29], [-29, -16]], n: 3 },
