@@ -37,7 +37,7 @@ const HUANGHELOU: LandmarkDefinition = {
   vegetationProfile: { weights: { pine: 4, broadleaf: 2 }, density: 1 },
 }
 
-/** 岳阳楼：巴陵城西门城台上，三层盔顶（以庑殿写意）、黄琉璃，面西临洞庭；左右三醉亭、仙梅亭 */
+/** 岳阳楼：巴陵城西门城台上，三层盔顶（坡面外撇、陡起外鼓、近脊圆收，面宽大于进深）、黄琉璃，面西临洞庭；左右三醉亭、仙梅亭 */
 const YUEYANGLOU: LandmarkDefinition = {
   id: 'yueyanglou',
   name: '岳阳楼',
@@ -47,7 +47,7 @@ const YUEYANGLOU: LandmarkDefinition = {
   poetryPlaceId: 'p041',
   terrainModifier: [{ t: 'flatten', x: 4, z: 0, r: 20, blend: 6 }],
   structures: [
-    { b: 'grandTower', x: 0, z: 0, rot: 1, p: { levels: 3, width: 9, tile: 'yellow', top: 'wudian', base: 'wall', terrace: 4 } },
+    { b: 'grandTower', x: 0, z: 0, rot: 1, p: { levels: 3, width: 9, tile: 'yellow', top: 'helmet', base: 'wall', terrace: 4 } },
     { b: 'pavilion', x: 6, z: -15, p: { width: 5, tile: 'green', lanterns: true } },
     { b: 'pavilion', x: 6, z: 15, p: { width: 5, tile: 'green', double: true } },
     { b: 'house', x: 17, z: -7, rot: 3, p: { seed: 11, lanterns: true } },

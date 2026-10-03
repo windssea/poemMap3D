@@ -24,7 +24,7 @@ export interface BuildingParams {
   seed?: number
   /** 名楼：平面（方 / 十字抱厦）、顶式、台基（石台 / 城台） */
   plan?: 'square' | 'cross'
-  top?: 'xieshan' | 'cross' | 'cuanjian' | 'wudian'
+  top?: 'xieshan' | 'cross' | 'cuanjian' | 'wudian' | 'helmet'
   base?: 'stone' | 'wall'
   /** 园墙：是否开月洞门（默认开） */
   gate?: boolean
@@ -707,6 +707,9 @@ export function grandTower(p: BuildingParams = {}): VoxelStructure {
       if (top === 'cross') {
         b.s.merge(buildRoof({ width: w + 6, depth: w + 2, type: 'xieshan', tile, eaveDepth: 2 }), 0, ry, 0)
         b.s.merge(buildRoof({ width: w + 6, depth: w + 2, type: 'xieshan', tile, eaveDepth: 2 }).rotate(1), 0, ry, 0)
+      } else if (top === 'helmet') {
+        // 盔顶面宽大于进深（正脊沿面宽），低而宽，不靠加高显气势
+        b.s.merge(buildRoof({ width: w + 6, depth: w + 4, type: 'helmet', tile }), 0, ry, 0)
       } else b.s.merge(buildRoof({ width: w + 6, depth: w + 6, type: top, tile, eaveDepth: 2 }), 0, ry, 0)
       let t = ry
       while (b.s.has(0, t, 0)) t++

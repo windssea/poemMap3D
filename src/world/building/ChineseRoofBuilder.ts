@@ -4,7 +4,7 @@ import { Direction } from '../block/Direction'
 import { StructureBuilder } from '../structure/StructureBuilder'
 import type { VoxelStructure } from '../structure/VoxelStructure'
 
-export type RoofType = 'xieshan' | 'xuanshan' | 'wudian' | 'cuanjian' | 'taiyan' | 'fuyan'
+export type RoofType = 'xieshan' | 'xuanshan' | 'wudian' | 'cuanjian' | 'taiyan' | 'fuyan' | 'helmet'
 export type TileMaterial = 'gray' | 'yellow' | 'green' | 'thatch'
 
 export interface RoofSpec {
@@ -42,6 +42,7 @@ const TILES: Record<TileMaterial, { stairs: number; slab: number; full: number }
  * - 攒尖：四坡收成一点，顶置宝顶；
  * - 塔檐：一圈腰檐；
  * - 楼阁复檐：多重腰檐 + 顶部歇山。
+ * - 盔顶（岳阳楼）：四坡，坡面先外撇、再陡起外鼓、近脊又圆收，侧影如头盔。
  */
 export function buildRoof(spec: RoofSpec): VoxelStructure {
   const t = TILES[spec.tile]
@@ -127,6 +128,36 @@ export function buildRoof(spec: RoofSpec): VoxelStructure {
       }
       if (az === bz) ridgeLine(ax, bx, az, y)
       else ridgeLine(ax, bx, bz + 1, y)
+      upturn(x0, z0, x1, z1, 0)
+      break
+    }
+    case 'helmet': {
+      // 逐层收进计划：flare 一层收两格（檐口外撇 / 近脊圆收），step 收一格，hold 不收（陡起外鼓）
+      const plan = ['flare', 'hold', 'step', 'hold', 'step', 'flare', 'flare']
+      let ax = x0
+      let bx = x1
+      let az = z0
+      let bz = z1
+      let y = 0
+      let i = 0
+      while (az < bz - 1 && bx - ax > 2) {
+        const op = plan[Math.min(i++, plan.length - 1)]
+        ring(ax, az, bx, bz, y)
+        let k = op === 'flare' ? 2 : op === 'step' ? 1 : 0
+        if (k === 2) {
+          if (az + 1 < bz - 1 && ax + 1 < bx - 1) ring(ax + 1, az + 1, bx - 1, bz - 1, y)
+          else k = 1
+        }
+        ax += k
+        bx -= k
+        az += k
+        bz -= k
+        y++
+      }
+      // 收到只剩一两排：盖一层瓦、起正脊（沿面宽方向）
+      const zc = Math.floor((az + bz) / 2)
+      for (let x = ax; x <= bx; x++) for (let z = az; z <= bz; z++) b.set(x, y, z, S(t.slab))
+      if (bx - ax >= 0) ridgeLine(ax, bx, zc, y + 1)
       upturn(x0, z0, x1, z1, 0)
       break
     }
