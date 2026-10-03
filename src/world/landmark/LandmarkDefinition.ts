@@ -16,7 +16,7 @@ export type TerrainOp =
    * 山脊：沿折线起脊，两侧不对称——cliffSide 一侧（沿折线前进方向看，1 为右手、-1 为左手）是宽 cliff 的陡崖，
    * 另一侧是宽 w 的缓坡并有几道冲沟；脊线两头收、中间高（最高 h）。
    */
-  | { t: 'ridge'; pts: readonly XZ[]; h: number; w: number; cliff: number; cliffSide: 1 | -1; /** 峡谷：崖壁直落水边，不在临水处压低 */ toWater?: boolean }
+  | { t: 'ridge'; pts: readonly XZ[]; h: number; w: number; cliff: number; cliffSide: 1 | -1; /** 峡谷：崖壁直落水边，不在临水处压低 */ toWater?: boolean; /** 两头不收（关隘：缺口两侧直接是高崖） */ squareEnds?: boolean }
   | { t: 'causeway'; pts: readonly XZ[]; w: number; dy?: number }
   | { t: 'canal'; pts: readonly XZ[]; w: number }
   | { t: 'island'; x: number; z: number; r: number; dy?: number }

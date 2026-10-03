@@ -814,4 +814,39 @@ const TAISHAN: LandmarkDefinition = {
   ],
 }
 
-export const CITY_CATALOG: readonly LandmarkDefinition[] = [HUANGHELOU, YUEYANGLOU, TENGWANGGE, GUANQUELOU, DUOJINGLOU, JINLING, LUOYANG, CHENGDU, SUZHOU, HUANGZHOU, YANGZHOU, BIANJING, SHANYIN, MIZHOU, CHUZHOU, XIANGYANG, JUNSHAN, PENGCHENG, HUIZHOU, BAIDICHENG, TAISHAN]
+/**
+ * 剑门关：大剑山七十二峰连绵如城，北面是一线绝壁，正中一道窄缺口，关楼横锁其间；蜀道自北而来，穿关南下入蜀。
+ * 「剑阁峥嵘而崔嵬，一夫当关，万夫莫开」——崖是主体，关楼不大，卡在缺口里才显出险。
+ * 地图上东侧有一条南北向的河，整组西移避开；两道山脊北面成崖（迎着北来的路），南坡缓。
+ */
+const JIANMEN: LandmarkDefinition = {
+  id: 'jianmenguan',
+  name: '剑门关',
+  coordinate: { lng: 105.55, lat: 32.35 },
+  offset: [-20, 0],
+  radius: 60,
+  major: true,
+  poetryPlaceId: 'p095',
+  terrainModifier: [
+    { t: 'ridge', pts: [[-80, 4], [-46, -2], [-6, 0]], h: 38, w: 24, cliff: 6, cliffSide: -1, squareEnds: true },
+    { t: 'ridge', pts: [[6, 0], [24, -3], [36, 2]], h: 36, w: 20, cliff: 6, cliffSide: -1, squareEnds: true },
+    { t: 'flatten', x: 0, z: 0, r: 5, rz: 9, square: true, blend: 3 },
+    // 蜀道：自北穿关南下
+    { t: 'path', pts: [[2, -60], [-2, -30], [0, -10], [0, 12], [3, 34], [-1, 60]], w: 1.5 },
+  ],
+  structures: [
+    // 关楼：城门洞（路穿门而过），门上一座重檐楼
+    { b: 'gate', x: 0, z: 0, rot: 2, atLevel: true, p: { width: 11, depth: 7, height: 8 } },
+    { b: 'pavilion', x: 0, z: 0, atLevel: true, dy: 8, p: { width: 7, double: true, tile: 'gray', lanterns: true } },
+    { b: 'archway', x: 1, z: 30, p: { tile: 'gray' } },
+  ],
+  vegetationProfile: { weights: { pine: 6, broadleaf: 1.5 }, density: 1.1 },
+  // 定稿机位：主景自北来路仰看绝壁与关楼；蜀道（俯看山道穿关南下）；近观关门
+  shots: [
+    { id: 'hero', name: '主景', yaw: 3.0, pitch: 0.14, distance: 120, offset: [0, 10, 0] },
+    { id: 'context', name: '蜀道', yaw: 2.6, pitch: 0.75, distance: 170, offset: [0, 0, 0] },
+    { id: 'detail', name: '关门', yaw: 3.14, pitch: 0.12, distance: 40, offset: [0, 6, 0] },
+  ],
+}
+
+export const CITY_CATALOG: readonly LandmarkDefinition[] = [HUANGHELOU, YUEYANGLOU, TENGWANGGE, GUANQUELOU, DUOJINGLOU, JINLING, LUOYANG, CHENGDU, SUZHOU, HUANGZHOU, YANGZHOU, BIANJING, SHANYIN, MIZHOU, CHUZHOU, XIANGYANG, JUNSHAN, PENGCHENG, HUIZHOU, BAIDICHENG, TAISHAN, JIANMEN]

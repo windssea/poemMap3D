@@ -359,7 +359,7 @@ export class LandmarkRegistry {
               const reach = cliffSide ? op.cliff + 3 : op.w
               if (best >= reach || (wet() && !op.toWater)) break
               // 脊线：两头收、中间高，起伏不匀
-              const crest = op.h * Math.pow(Math.sin(Math.PI * Math.min(1, Math.max(0, along))), 0.55) * (0.85 + 0.3 * (0.5 + 0.5 * fbm(n, col.x / 19 + 7, col.z / 19, 2)))
+              const crest = op.h * (op.squareEnds ? 1 : Math.pow(Math.sin(Math.PI * Math.min(1, Math.max(0, along))), 0.55)) * (0.85 + 0.3 * (0.5 + 0.5 * fbm(n, col.x / 19 + 7, col.z / 19, 2)))
               let f: number
               if (cliffSide) {
                 // 陡崖：崖顶一段几乎不降，到崖边陡落；崖脚三格收到地面
