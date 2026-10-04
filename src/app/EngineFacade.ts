@@ -105,6 +105,7 @@ export class EngineFacadeImpl implements EngineFacade, TourPort, TrailPort {
   }
 
   focusShot(placeId: string, shotId: string): void {
+    if (!this.placeShots(placeId).some((s) => s.id === shotId)) return
     void this.engine.focusPlace(placeId, { shotId })
     this.store.set({ selectedShotId: shotId, activeView: null })
   }

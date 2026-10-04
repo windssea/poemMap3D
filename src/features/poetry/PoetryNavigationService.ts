@@ -22,18 +22,20 @@ export class PoetryNavigationService {
       this.store.set({ selectedPlaceId: null, selectedPoemId: null, panelState: 'none' })
       return
     }
-    if (fly) this.focus.focusLandmark(placeId)
+    // 换了地点：旧地点的机位作废（飞过去的话由聚焦重新落到新地点的第一个机位）；与换地点同一次更新，地址历史里旧地点那一条保留原机位
+    const shot = this.store.get().selectedPlaceId !== placeId ? { selectedShotId: null } : {}
     // 一处只有一首：直接展卷；多首先列诗目
     const only = this.places.get(placeId)?.poemIds
-    if (only && only.length === 1) this.store.set({ selectedPlaceId: placeId, selectedPoemId: only[0], panelState: 'poem' })
-    else this.store.set({ selectedPlaceId: placeId, selectedPoemId: null, panelState: 'place' })
+    if (only && only.length === 1) this.store.set({ selectedPlaceId: placeId, selectedPoemId: only[0], panelState: 'poem', ...shot })
+    else this.store.set({ selectedPlaceId: placeId, selectedPoemId: null, panelState: 'place', ...shot })
+    if (fly) this.focus.focusLandmark(placeId)
   }
 
   selectPoem(poemId: string, fly = true): void {
     const p = this.poetry.get(poemId)
     if (!p) return
     const sameePlace = this.store.get().selectedPlaceId === p.placeId
-    this.store.set({ selectedPlaceId: p.placeId, selectedPoemId: poemId, panelState: 'poem' })
+    this.store.set({ selectedPlaceId: p.placeId, selectedPoemId: poemId, panelState: 'poem', ...(sameePlace ? {} : { selectedShotId: null }) })
     if (fly && !sameePlace) this.focus.focusLandmark(p.placeId)
   }
 

@@ -1,3 +1,4 @@
+import { type DeepLinkState, encodeDeepLink, parseDeepLink, sameView } from './DeepLink'
 import { Engine } from '../engine/core/Engine'
 import { ISOLATION, PHASE0 } from '../engine/rendering/LightingDebug'
 import { AmbientSound } from './AmbientSound'
@@ -108,6 +109,59 @@ export async function bootstrap(container: HTMLElement): Promise<AppServices> {
   store.set({ quality: engine.quality.quality, loading: { ready: true, label: '', progress: 1, error: null } })
   if (store.get().debug.chunks) engine.setChunkDebug(true)
   res.lazy('font-poems')
+  /* 分享地址：?p=地点&poem=诗&shot=机位（时令天气 shs/shw/shm 已由应用状态读入）。启动即还原；之后地址跟着选择走——
+     选地点、选诗记入浏览器历史（前进后退可回），换机位、时令天气只改写当前一条。不存在的地点、诗、机位静默忽略 */
+  let applying = false
+  const linkOf = (): DeepLinkState => {
+    const s = store.get()
+    return { place: s.selectedPlaceId, poem: s.selectedPoemId, shot: s.selectedShotId, season: s.season, weather: s.weather, time: s.time }
+  }
+  const applyLink = (l: DeepLinkState): void => {
+    applying = true
+    try {
+      const poem = l.poem ? poetry.get(l.poem) : undefined
+      const place = poem?.placeId ?? (l.place && places.get(l.place) ? l.place : null)
+      if (!place) {
+        navigation.selectPlace(null)
+        return
+      }
+      if (poem) navigation.selectPoem(poem.id, false)
+      else navigation.selectPlace(place, false)
+      if (l.shot && facade.placeShots(place).some((s) => s.id === l.shot)) facade.focusShot(place, l.shot)
+      else facade.focusLandmark(place)
+      if (l.season && l.season !== store.get().season) facade.setSeason(l.season)
+      if (l.weather && l.weather !== store.get().weather) facade.setWeather(l.weather)
+      if (l.time && l.time !== store.get().time) facade.setTime(l.time)
+    } finally {
+      applying = false
+    }
+  }
+  const startLink = parseDeepLink(location.search)
+  if (startLink.place || startLink.poem) applyLink(startLink)
+  let lastLink = linkOf()
+  {
+    const url = encodeDeepLink(lastLink, location.search)
+    if (url !== location.search) history.replaceState(null, '', location.pathname + url + location.hash)
+  }
+  store.subscribe(() => {
+    if (applying || store.get().tourState.active) return
+    const cur = linkOf()
+    const url = encodeDeepLink(cur, location.search)
+    if (url !== location.search) {
+      const path = location.pathname + url + location.hash
+      if (sameView(cur, lastLink)) history.replaceState(null, '', path)
+      else history.pushState(null, '', path)
+    }
+    lastLink = cur
+  })
+  window.addEventListener('popstate', () => {
+    applyLink(parseDeepLink(location.search))
+    lastLink = linkOf()
+    // 还原时丢掉的（已不存在的诗、机位）从地址里拿掉，地址与画面一致
+    const url = encodeDeepLink(lastLink, location.search)
+    if (url !== location.search) history.replaceState(null, '', location.pathname + url + location.hash)
+  })
+
   /* 开发调试：?shp=地点id 启动后直接飞到该地（与 shs/shw/shm 同一套地址参数）。瞬时完成，不等飞行动画——后台标签页被节流时动画走不动 */
   if (import.meta.env.DEV) {
     const param = new URLSearchParams(location.search)

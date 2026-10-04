@@ -321,10 +321,32 @@ function HandScroll({ open }: { open: boolean }) {
             {q.author}足迹
           </button>
         )}
+        <ShareButton />
         <button className="shut" title="收卷 (Esc)" onClick={() => navigation.selectPlace(null)}>
           收卷
         </button>
       </div>
     </>
+  )
+}
+
+/** 分享：复制当前地址（地点、诗、机位、时令天气都在地址里），复制不了就弹出地址让人手动复制 */
+function ShareButton() {
+  const [done, setDone] = useState(false)
+  return (
+    <button
+      title="复制这一处、这首诗、这个画面的链接"
+      onClick={() => {
+        const url = location.href
+        const ok = () => {
+          setDone(true)
+          setTimeout(() => setDone(false), 1600)
+        }
+        if (navigator.clipboard?.writeText) navigator.clipboard.writeText(url).then(ok, () => window.prompt('复制链接', url))
+        else window.prompt('复制链接', url)
+      }}
+    >
+      {done ? '已复制' : '分享'}
+    </button>
   )
 }
