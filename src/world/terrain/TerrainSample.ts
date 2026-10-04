@@ -19,6 +19,8 @@ export interface TerrainColumn {
   biomeOverride: number
   /** 覆盖该列的地标下标（-1 为无） */
   landmark: number
+  /** 落在哪个地标的平台核心里（-1 为无）：后注册的地标不再改它 */
+  coreOf: number
   /** 是否为地标铺装地面（不长草木） */
   paved: boolean
   /** 含沙的浑水（黄河） */

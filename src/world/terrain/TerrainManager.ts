@@ -83,7 +83,7 @@ export class TerrainManager {
     const M = this.macro
     const relief = M.relief(x, z)
     let h = M.height(x, z)
-    const col: TerrainColumn = { x, z, height: h, waterY: -1, waterKind: WaterKind.None, waterDist: 1e9, biomeOverride: -1, landmark: -1, paved: false, silt: false }
+    const col: TerrainColumn = { x, z, height: h, waterY: -1, waterKind: WaterKind.None, waterDist: 1e9, biomeOverride: -1, landmark: -1, coreOf: -1, paved: false, silt: false }
     if (!M.inBounds(x, z)) {
       col.height = SEA_LEVEL - 12
       col.waterY = SEA_LEVEL

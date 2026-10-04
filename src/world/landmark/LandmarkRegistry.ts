@@ -358,6 +358,8 @@ export class LandmarkRegistry {
       minZ: cz - R,
       maxZ: cz + R,
       apply(col: TerrainColumn) {
+        // 别的地标的平台核心（先注册的）不动：城池贴得近时，后一处的平整、山丘会把前一处的台地削平、垫高（金陵削了多景楼的北固山，终南山麓台地把长安城南抬成坡）
+        if (col.coreOf >= 0 && col.coreOf !== index) return
         const dx = col.x - cx
         const dz = col.z - cz
         const d = Math.hypot(dx, dz)
@@ -387,6 +389,7 @@ export class LandmarkRegistry {
               if (wet() && !op.overWater) break
               if (dist < op.r) {
                 core = true
+                if (!op.soft) col.coreOf = index
                 // 平台不凭空垫起一根高柱：比原地高出 20 格以上的（夹在峡壁间的窄缝、崖下）不垫，留给自然地形
                 if (diff > 20 && !op.overWater && lm.def.id.startsWith('place-')) break
                 col.height = target

@@ -27,7 +27,7 @@ const HANGZHOU: LandmarkDefinition = {
   poetryPlaceId: 'hangzhou',
   waterfront: true,
   terrainModifier: [
-    { t: 'flatten', x: 0, z: 0, r: 58, blend: 12 },
+    { t: 'flatten', x: 0, z: 0, r: 58, blend: 12, soft: true },
     { t: 'hill', x: -54, z: -8, r: 22, h: 17 },
     { t: 'hill', x: -46, z: 24, r: 17, h: 12 },
     { t: 'hill', x: -26, z: 44, r: 16, h: 10 },
