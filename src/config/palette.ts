@@ -158,6 +158,39 @@ export const LifeTokens = {
   womanRobes: ['#b8453a', '#e0a0a8', '#5f9a7a', '#b89ab8', '#e2c870', '#e8e2d2'],
   /** 劳作短褐：褐、灰蓝、土黄、青灰 */
   laborRobes: ['#7a5a3e', '#5a6a78', '#a8905a', '#606860'],
+  /** 官员圆领袍：按品色——绯、绿、紫、青 */
+  officialRobes: ['#9a2f2a', '#2f6a4a', '#5a3a6a', '#2f4a7a'],
+  /** 商人：赭、黛、驼、酱 */
+  merchantRobes: ['#7a4e2e', '#3a4a5a', '#8a7450', '#5a3a32'],
+  /** 孩童：石榴红、杏黄、石绿、石青 */
+  childRobes: ['#c8503a', '#e0a040', '#5f9a7a', '#3f6f86'],
+  /** 老人：素褐、灰、茶、玄 */
+  elderRobes: ['#6a6258', '#55545a', '#8a7a62', '#3e3c38'],
+  /** 渔夫（蓑衣之下的短衣） */
+  fisherRobes: ['#5a5a50', '#6a5a40', '#4a5560'],
+  /** 车夫 */
+  carterRobes: ['#5a4a3a', '#4a5258', '#7a6a50'],
+  /** 牲畜毛色 */
+  cattle: '#6a4a32',
+  buffalo: '#3e3a36',
+  horse: '#7a4a2a',
+  horseDark: '#2e2622',
+  mane: '#1e1a16',
+  wool: '#e8e2d2',
+  sheepFace: '#2e2a26',
+  pig: '#2e2a28',
+  pigPink: '#d8a090',
+  hen: '#b07a44',
+  rooster: '#a8452a',
+  comb: '#c8302a',
+  beak: '#d8a03a',
+  horn: '#d8ccb0',
+  hoof: '#1f1c1a',
+  ivory: '#e8e0c8',
+  jade: '#6aa88a',
+  white: '#ecebe6',
+  wood: '#7a5a3a',
+  rope: '#b0905a',
   scarf: '#efe4d0',
   hairpin: '#d8a93c',
   flower: '#c8443a',

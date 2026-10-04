@@ -48,77 +48,276 @@ export class VoxelModelBuilder {
 
 const V = () => new VoxelModelBuilder()
 
-/* ———— 行人：古装三类（士人、劳作者、女子）。身子按实例着色（顶点色是明暗），头与配饰为定色 ———— */
+/* ———— 行人：汉服九类。身子按实例着色（白色顶点色乘衣色，深浅即明暗），头、冠、持物为定色 ———— */
 
-export type FigureKind = 'scholar' | 'labor' | 'woman'
-export const FIGURE_KINDS: readonly FigureKind[] = ['scholar', 'labor', 'woman']
+export type FigureKind = 'official' | 'scholar' | 'maiden' | 'farmer' | 'merchant' | 'child' | 'elder' | 'fisher' | 'carter'
+export const FIGURE_KINDS: readonly FigureKind[] = ['official', 'scholar', 'maiden', 'farmer', 'merchant', 'child', 'elder', 'fisher', 'carter']
 
-/** 身子：白色系顶点色（乘上实例衣色）：衣身、领、腰带、袖 */
-export function figureBody(kind: FigureKind): THREE.BufferGeometry {
-  const b = V()
-  const W = '#ffffff'
-  if (kind === 'scholar') {
-    // 深衣长袍及踝、下摆微张；交领右衽（领口一道浅色）、腰带、广袖垂到膝
-    b.box(-0.2, 0.14, -0.26, 0.2, 1.5, 0.26, W, 0.84)
-    b.box(-0.24, 0.1, -0.31, 0.24, 0.48, 0.31, W, 0.8)
-    b.box(0.2, 1.18, -0.13, 0.226, 1.5, -0.02, W, 1.08)
-    b.box(0.2, 1.3, 0.0, 0.226, 1.5, 0.1, W, 1.08)
-    b.box(-0.21, 0.94, -0.27, 0.21, 1.04, 0.27, W, 0.28)
+/** 各类人的身量（整体缩放：孩童矮一截）与步速系数（老人慢） */
+export const FIGURE_SCALE: Record<FigureKind, number> = { official: 1, scholar: 1, maiden: 0.94, farmer: 1, merchant: 1, child: 0.62, elder: 0.95, fisher: 1, carter: 1 }
+export const FIGURE_PACE: Record<FigureKind, number> = { official: 0.75, scholar: 0.9, maiden: 0.95, farmer: 1, merchant: 1, child: 1.25, elder: 0.55, fisher: 0.9, carter: 0.8 }
+
+const W = '#ffffff'
+
+/** 长袍：交领右衽、腰带、袖；广袖垂到膝（官、士），窄袖（商、老） */
+function robe(b: VoxelModelBuilder, wide: boolean, hem = 0.14): void {
+  b.box(-0.2, hem, -0.26, 0.2, 1.5, 0.26, W, 0.84)
+  b.box(-0.24, hem - 0.04, -0.31, 0.24, hem + 0.34, 0.31, W, 0.8)
+  b.box(0.2, 1.18, -0.13, 0.226, 1.5, -0.02, W, 1.08)
+  b.box(0.2, 1.3, 0.0, 0.226, 1.5, 0.1, W, 1.08)
+  b.box(-0.21, 0.94, -0.27, 0.21, 1.04, 0.27, W, 0.28)
+  if (wide) {
     b.box(-0.15, 0.62, -0.46, 0.17, 1.44, -0.26, W, 0.9)
     b.box(-0.15, 0.62, 0.26, 0.17, 1.44, 0.46, W, 0.9)
-  } else if (kind === 'woman') {
-    // 襦（短上衣）+ 高腰长裙（下摆展开）+ 腰带；窄袖
-    b.box(-0.17, 1.02, -0.23, 0.17, 1.5, 0.23, W, 1.0)
-    b.box(0.17, 1.22, -0.1, 0.19, 1.5, 0.1, W, 1.1)
-    b.box(-0.2, 0.1, -0.27, 0.2, 1.12, 0.27, W, 0.8)
-    b.box(-0.26, 0.08, -0.33, 0.26, 0.42, 0.33, W, 0.76)
-    b.box(-0.19, 1.08, -0.25, 0.19, 1.17, 0.25, W, 0.4)
-    b.box(-0.1, 0.84, -0.36, 0.12, 1.46, -0.23, W, 0.95)
-    b.box(-0.1, 0.84, 0.23, 0.12, 1.46, 0.36, W, 0.95)
   } else {
-    // 短褐到膝、草绳束腰、窄袖挽到小臂
-    b.box(-0.19, 0.72, -0.25, 0.19, 1.5, 0.25, W, 0.9)
-    b.box(-0.2, 0.86, -0.26, 0.2, 0.93, 0.26, W, 0.45)
-    b.box(-0.1, 1.0, -0.37, 0.1, 1.46, -0.25, W, 0.9)
-    b.box(-0.1, 1.0, 0.25, 0.1, 1.46, 0.37, W, 0.9)
+    b.box(-0.1, 0.86, -0.37, 0.1, 1.46, -0.26, W, 0.9)
+    b.box(-0.1, 0.86, 0.26, 0.1, 1.46, 0.37, W, 0.9)
+  }
+}
+
+/** 短衣到膝、束腰、窄袖 */
+function tunic(b: VoxelModelBuilder): void {
+  b.box(-0.19, 0.72, -0.25, 0.19, 1.5, 0.25, W, 0.9)
+  b.box(-0.2, 0.86, -0.26, 0.2, 0.93, 0.26, W, 0.45)
+  b.box(-0.1, 1.0, -0.37, 0.1, 1.46, -0.25, W, 0.9)
+  b.box(-0.1, 1.0, 0.25, 0.1, 1.46, 0.37, W, 0.9)
+}
+
+/** 身子（按实例着色） */
+export function figureBody(kind: FigureKind): THREE.BufferGeometry {
+  const b = V()
+  switch (kind) {
+    case 'official':
+      // 圆领袍：领口一圈圆、袍长及踝、广袖；革带在头部定色里
+      robe(b, true, 0.1)
+      b.box(-0.22, 1.42, -0.22, 0.22, 1.5, 0.22, W, 1.12)
+      break
+    case 'scholar':
+      robe(b, true)
+      break
+    case 'maiden':
+      // 齐胸襦裙：短襦、胸前系带的长裙（下摆展开）、窄袖
+      b.box(-0.17, 1.12, -0.23, 0.17, 1.5, 0.23, W, 1.05)
+      b.box(-0.2, 0.1, -0.27, 0.2, 1.3, 0.27, W, 0.82)
+      b.box(-0.26, 0.08, -0.33, 0.26, 0.42, 0.33, W, 0.76)
+      b.box(-0.21, 1.22, -0.28, 0.21, 1.3, 0.28, W, 0.5)
+      b.box(-0.1, 0.84, -0.36, 0.12, 1.46, -0.23, W, 0.95)
+      b.box(-0.1, 0.84, 0.23, 0.12, 1.46, 0.36, W, 0.95)
+      break
+    case 'merchant':
+      // 半长袍（到小腿）、窄袖
+      robe(b, false, 0.4)
+      break
+    case 'elder':
+      robe(b, false, 0.14)
+      break
+    default:
+      // 农、渔、车夫、孩童：短衣 + 裤（腿另画）
+      tunic(b)
   }
   return b.build()
 }
 
-/** 头与定色配饰：面、眉眼、发；士人幞头（两翅平展）、女子高髻金簪簪花与披帛、劳作者斗笠；袖口露手 */
+/** 头（面、眉眼、发）与定色的冠帽、配饰、持物 */
 export function figureHead(kind: FigureKind): THREE.BufferGeometry {
   const b = V()
   b.box(-0.2, 1.5, -0.2, 0.2, 1.92, 0.2, T.skin)
   b.box(0.2, 1.72, -0.11, 0.206, 1.76, -0.05, T.hair)
   b.box(0.2, 1.72, 0.05, 0.206, 1.76, 0.11, T.hair)
-  b.box(-0.21, 1.78, -0.21, 0.14, 1.94, 0.21, T.hair)
-  b.box(-0.21, 1.5, -0.21, -0.14, 1.94, 0.21, T.hair)
-  if (kind === 'scholar') {
-    b.box(-0.22, 1.9, -0.22, 0.2, 2.02, 0.22, T.hair)
-    b.box(-0.15, 2.02, -0.13, 0.07, 2.16, 0.13, T.hair)
-    b.box(-0.24, 1.95, -0.62, -0.19, 1.99, 0.62, T.hair)
-    // 广袖口露手
+  const hairCol = kind === 'elder' ? T.white : T.hair
+  b.box(-0.21, 1.78, -0.21, 0.14, 1.94, 0.21, hairCol)
+  b.box(-0.21, 1.5, -0.21, -0.14, 1.94, 0.21, hairCol)
+  const wideHands = () => {
     b.box(0.08, 0.64, -0.42, 0.2, 0.74, -0.3, T.skin)
     b.box(0.08, 0.64, 0.3, 0.2, 0.74, 0.42, T.skin)
-  } else if (kind === 'woman') {
-    b.box(-0.14, 1.94, -0.12, 0.06, 2.24, 0.12, T.hair)
-    b.box(-0.1, 2.12, -0.2, 0.02, 2.22, 0.2, T.hair)
-    b.box(-0.03, 2.14, -0.26, 0.01, 2.18, 0.26, T.hairpin)
-    b.box(0.02, 2.06, 0.1, 0.1, 2.14, 0.18, T.flower)
-    // 披帛：搭肩、两端垂到小臂
-    b.box(-0.07, 1.44, -0.3, 0.07, 1.54, 0.3, T.scarf)
-    b.box(-0.05, 0.62, -0.4, 0.03, 1.44, -0.36, T.scarf)
-    b.box(-0.05, 0.62, 0.36, 0.03, 1.44, 0.4, T.scarf)
-    b.box(0.06, 0.84, -0.34, 0.16, 0.92, -0.25, T.skin)
-    b.box(0.06, 0.84, 0.25, 0.16, 0.92, 0.34, T.skin)
-  } else {
+  }
+  const narrowHands = () => {
+    b.box(0.02, 0.8, -0.37, 0.12, 0.88, -0.27, T.skin)
+    b.box(0.02, 0.8, 0.27, 0.12, 0.88, 0.37, T.skin)
+  }
+  const hat = () => {
     // 斗笠：三层渐收的草编锥顶
     b.box(-0.5, 1.93, -0.5, 0.5, 1.99, 0.5, T.straw)
     b.box(-0.32, 1.99, -0.32, 0.32, 2.07, 0.32, T.straw, 0.95)
     b.box(-0.15, 2.07, -0.15, 0.15, 2.16, 0.15, T.straw, 0.9)
     b.box(-0.04, 2.16, -0.04, 0.04, 2.22, 0.04, T.straw, 0.85)
-    b.box(0.02, 0.98, -0.37, 0.12, 1.06, -0.27, T.skin)
-    b.box(0.02, 0.98, 0.27, 0.12, 1.06, 0.37, T.skin)
+  }
+  switch (kind) {
+    case 'official':
+      // 展脚幞头：黑纱帽、两翅平展很长；革带（带銙金色）；双手捧笏于胸前
+      b.box(-0.22, 1.9, -0.22, 0.2, 2.04, 0.22, T.hair)
+      b.box(-0.16, 2.04, -0.14, 0.08, 2.2, 0.14, T.hair)
+      b.box(-0.2, 1.97, -0.8, -0.15, 2.01, 0.8, T.hair)
+      b.box(-0.22, 0.93, -0.28, 0.22, 1.05, 0.28, T.hat)
+      b.box(0.21, 0.95, -0.08, 0.23, 1.03, 0.08, T.gold)
+      b.box(0.2, 1.0, -0.12, 0.36, 1.12, 0.12, T.skin)
+      b.box(0.3, 1.04, -0.04, 0.34, 1.62, 0.04, T.ivory)
+      break
+    case 'scholar':
+      // 方巾（软巾、两条巾带垂到背后）；手持一卷书
+      b.box(-0.22, 1.9, -0.22, 0.2, 2.06, 0.22, T.hat)
+      b.box(-0.24, 1.5, -0.08, -0.21, 1.9, -0.03, T.hat)
+      b.box(-0.24, 1.5, 0.03, -0.21, 1.9, 0.08, T.hat)
+      wideHands()
+      b.box(0.14, 0.7, 0.32, 0.26, 0.76, 0.5, T.ivory)
+      break
+    case 'maiden':
+      // 双丫髻、金簪、簪花；披帛搭肩垂到小臂
+      b.box(-0.12, 1.94, -0.2, 0.04, 2.14, -0.06, T.hair)
+      b.box(-0.12, 1.94, 0.06, 0.04, 2.14, 0.2, T.hair)
+      b.box(-0.03, 2.08, -0.24, 0.01, 2.12, 0.24, T.hairpin)
+      b.box(0.02, 2.02, 0.12, 0.1, 2.1, 0.2, T.flower)
+      b.box(-0.07, 1.44, -0.3, 0.07, 1.54, 0.3, T.scarf)
+      b.box(-0.05, 0.62, -0.4, 0.03, 1.44, -0.36, T.scarf)
+      b.box(-0.05, 0.62, 0.36, 0.03, 1.44, 0.4, T.scarf)
+      b.box(0.06, 0.84, -0.34, 0.16, 0.92, -0.25, T.skin)
+      b.box(0.06, 0.84, 0.25, 0.16, 0.92, 0.34, T.skin)
+      break
+    case 'farmer':
+      // 斗笠；锄头扛在右肩（柄斜过肩、锄板在背后）
+      hat()
+      narrowHands()
+      b.box(-0.6, 1.5, 0.3, 0.5, 1.56, 0.36, T.wood)
+      b.box(-0.68, 1.3, 0.28, -0.6, 1.56, 0.38, T.hoof)
+      break
+    case 'merchant':
+      // 小帽（软脚幞头，两脚垂后）；腰间钱袋；肩挑扁担两头竹筐
+      b.box(-0.22, 1.9, -0.22, 0.2, 2.04, 0.22, T.hat)
+      b.box(-0.24, 1.6, -0.1, -0.21, 1.92, 0.1, T.hat)
+      b.box(0.18, 0.7, 0.12, 0.28, 0.9, 0.26, T.gold)
+      narrowHands()
+      b.box(-0.04, 1.52, -0.95, 0.04, 1.58, 0.95, T.wood)
+      for (const z of [-0.95, 0.95]) {
+        b.box(-0.02, 0.9, z - 0.02, 0.02, 1.52, z + 0.02, T.rope)
+        b.box(-0.24, 0.5, z - 0.24, 0.24, 0.9, z + 0.24, T.straw)
+      }
+      break
+    case 'child':
+      // 总角：头顶两个小髻；拿一只风车
+      b.box(-0.1, 1.92, -0.2, 0.04, 2.04, -0.08, T.hair)
+      b.box(-0.1, 1.92, 0.08, 0.04, 2.04, 0.2, T.hair)
+      narrowHands()
+      b.box(0.08, 0.86, 0.3, 0.12, 1.5, 0.34, T.wood)
+      b.box(0.04, 1.42, 0.22, 0.16, 1.62, 0.42, T.flower)
+      break
+    case 'elder':
+      // 白发白须、幅巾；拄杖
+      b.box(-0.22, 1.9, -0.22, 0.18, 2.02, 0.22, T.hat)
+      b.box(0.2, 1.36, -0.1, 0.27, 1.62, 0.1, T.white)
+      narrowHands()
+      b.box(0.26, 0.0, 0.3, 0.32, 1.2, 0.36, T.wood)
+      b.box(0.22, 1.16, 0.26, 0.36, 1.26, 0.4, T.wood)
+      break
+    case 'fisher':
+      // 蓑衣（披到膝的草编）、斗笠、鱼篓挂腰、钓竿斜指前上方
+      hat()
+      b.box(-0.24, 0.7, -0.3, 0.2, 1.52, 0.3, T.straw, 0.82)
+      b.box(-0.26, 0.7, -0.32, 0.22, 0.9, 0.32, T.straw, 0.7)
+      b.box(0.04, 0.6, 0.28, 0.24, 0.92, 0.46, T.straw, 0.9)
+      narrowHands()
+      for (let k = 0; k < 6; k++) b.box(0.1 + k * 0.28, 0.9 + k * 0.24, -0.33, 0.38 + k * 0.28, 0.95 + k * 0.24, -0.29, T.wood)
+      break
+    case 'carter':
+      // 幞巾（布包头）；双手前伸推独轮车（车在 cartGeometry）
+      b.box(-0.22, 1.9, -0.22, 0.2, 2.04, 0.22, T.hat)
+      b.box(-0.06, 2.04, -0.08, 0.1, 2.12, 0.08, T.hat)
+      b.box(0.12, 0.88, -0.32, 0.5, 0.96, -0.24, T.skin)
+      b.box(0.12, 0.88, 0.24, 0.5, 0.96, 0.32, T.skin)
+      break
+  }
+  return b.build()
+}
+
+/** 独轮车：车夫身前，两根车把、木箱、前头一只大轮 */
+export function cartGeometry(): THREE.BufferGeometry {
+  const b = V()
+  b.box(0.45, 0.82, -0.32, 1.5, 0.88, -0.26, T.wood)
+  b.box(0.45, 0.82, 0.26, 1.5, 0.88, 0.32, T.wood)
+  b.box(1.0, 0.5, -0.4, 2.0, 0.84, 0.4, T.wood, 0.9)
+  b.box(1.05, 0.84, -0.32, 1.9, 1.08, 0.32, T.straw)
+  b.box(1.95, 0.0, -0.06, 2.45, 0.6, 0.06, T.batten)
+  b.box(2.1, 0.15, -0.08, 2.3, 0.45, 0.08, T.wood)
+  b.box(1.3, 0.0, -0.3, 1.36, 0.5, -0.24, T.wood)
+  b.box(1.3, 0.0, 0.24, 1.36, 0.5, 0.3, T.wood)
+  return b.build()
+}
+
+/* ———— 牲畜：黄牛、水牛、马、羊、猪、鸡。+x 为头，原点在四蹄中心的地面上 ———— */
+
+export type AnimalKind = 'cattle' | 'buffalo' | 'horse' | 'sheep' | 'pig' | 'chicken'
+export const ANIMAL_KINDS: readonly AnimalKind[] = ['cattle', 'buffalo', 'horse', 'sheep', 'pig', 'chicken']
+
+function legs4(b: VoxelModelBuilder, x0: number, x1: number, hz: number, h: number, w: number, col: string): void {
+  for (const x of [x0, x1])
+    for (const z of [-hz, hz]) {
+      b.box(x - w, 0.08, z - w, x + w, h, z + w, col, 0.9)
+      b.box(x - w - 0.01, 0, z - w - 0.01, x + w + 0.01, 0.08, z + w + 0.01, T.hoof)
+    }
+}
+
+export function animalGeometry(kind: AnimalKind): THREE.BufferGeometry {
+  const b = V()
+  switch (kind) {
+    case 'cattle':
+    case 'buffalo': {
+      const c = kind === 'cattle' ? T.cattle : T.buffalo
+      legs4(b, -0.55, 0.55, 0.26, 0.62, 0.1, c)
+      b.box(-0.85, 0.6, -0.4, 0.75, 1.32, 0.4, c)
+      b.box(0.2, 1.3, -0.2, 0.6, 1.42, 0.2, c, 0.92)
+      b.box(0.75, 0.86, -0.22, 1.2, 1.3, 0.22, c, 0.95)
+      b.box(1.2, 0.86, -0.14, 1.3, 1.08, 0.14, c, 0.7)
+      if (kind === 'buffalo') {
+        // 水牛：一对向后弯的大角
+        b.box(0.86, 1.3, -0.5, 0.98, 1.38, -0.2, T.horn)
+        b.box(0.7, 1.32, -0.6, 0.86, 1.42, -0.5, T.horn)
+        b.box(0.86, 1.3, 0.2, 0.98, 1.38, 0.5, T.horn)
+        b.box(0.7, 1.32, 0.5, 0.86, 1.42, 0.6, T.horn)
+      } else {
+        b.box(0.9, 1.3, -0.32, 0.98, 1.42, -0.22, T.horn)
+        b.box(0.9, 1.3, 0.22, 0.98, 1.42, 0.32, T.horn)
+        b.box(-0.2, 0.6, -0.41, 0.3, 1.0, 0.41, T.white, 0.9)
+      }
+      b.box(-0.92, 0.6, -0.04, -0.85, 1.25, 0.04, c, 0.7)
+      break
+    }
+    case 'horse':
+      legs4(b, -0.5, 0.5, 0.18, 0.82, 0.08, T.horse)
+      b.box(-0.75, 0.8, -0.27, 0.68, 1.4, 0.27, T.horse)
+      // 颈斜向前上，头微低
+      b.box(0.55, 1.2, -0.15, 0.9, 1.85, 0.15, T.horse)
+      b.box(0.85, 1.6, -0.14, 1.32, 1.86, 0.14, T.horse, 0.95)
+      b.box(1.22, 1.6, -0.12, 1.34, 1.74, 0.12, T.horseDark)
+      b.box(0.55, 1.4, -0.06, 0.88, 1.98, 0.06, T.mane)
+      b.box(0.86, 1.86, -0.12, 0.94, 1.98, -0.06, T.horse)
+      b.box(0.86, 1.86, 0.06, 0.94, 1.98, 0.12, T.horse)
+      b.box(-0.88, 0.75, -0.07, -0.75, 1.38, 0.07, T.mane)
+      // 鞍
+      b.box(-0.2, 1.4, -0.3, 0.25, 1.48, 0.3, T.lacquer)
+      break
+    case 'sheep':
+      legs4(b, -0.28, 0.28, 0.16, 0.36, 0.06, T.sheepFace)
+      b.box(-0.48, 0.34, -0.3, 0.4, 0.86, 0.3, T.wool)
+      b.box(-0.4, 0.86, -0.24, 0.32, 0.92, 0.24, T.wool, 0.95)
+      b.box(0.38, 0.56, -0.15, 0.7, 0.86, 0.15, T.sheepFace)
+      b.box(0.4, 0.8, -0.24, 0.5, 0.86, 0.24, T.sheepFace, 0.9)
+      break
+    case 'pig':
+      legs4(b, -0.26, 0.26, 0.16, 0.26, 0.07, T.pig)
+      b.box(-0.5, 0.24, -0.27, 0.45, 0.72, 0.27, T.pig)
+      b.box(0.45, 0.34, -0.2, 0.68, 0.68, 0.2, T.pig, 0.95)
+      b.box(0.68, 0.38, -0.12, 0.76, 0.52, 0.12, T.pigPink)
+      b.box(0.48, 0.66, -0.2, 0.58, 0.76, -0.1, T.pig, 0.8)
+      b.box(0.48, 0.66, 0.1, 0.58, 0.76, 0.2, T.pig, 0.8)
+      break
+    case 'chicken':
+      b.box(-0.02, 0, -0.08, 0.02, 0.14, -0.05, T.beak)
+      b.box(-0.02, 0, 0.05, 0.02, 0.14, 0.08, T.beak)
+      b.box(-0.16, 0.14, -0.12, 0.14, 0.38, 0.12, T.hen)
+      b.box(-0.26, 0.26, -0.06, -0.14, 0.48, 0.06, T.rooster)
+      b.box(0.08, 0.34, -0.07, 0.22, 0.52, 0.07, T.hen)
+      b.box(0.22, 0.42, -0.02, 0.28, 0.46, 0.02, T.beak)
+      b.box(0.1, 0.52, -0.02, 0.2, 0.58, 0.02, T.comb)
+      break
   }
   return b.build()
 }

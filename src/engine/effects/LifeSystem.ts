@@ -6,6 +6,7 @@ import type { WorldContext } from '../../world/generation/WorldContext'
 import type { ResolvedLandmark } from '../../world/landmark/LandmarkRegistry'
 import { Occupancy } from '../../world/structure/OccupancyMap'
 import { WaterKind } from '../../world/terrain/TerrainSample'
+import { BiomeId } from '../../world/biome/BiomeId'
 import { Random } from '../../utils/math'
 import {
   birdBodyGeometry,
@@ -13,7 +14,14 @@ import {
   cargoBoatGeometry,
   fishingBoatGeometry,
   seaFisherGeometry,
+  ANIMAL_KINDS,
+  type AnimalKind,
+  animalGeometry,
+  cartGeometry,
   FIGURE_KINDS,
+  FIGURE_PACE,
+  FIGURE_SCALE,
+  type FigureKind,
   figureBody,
   figureHead,
   legGeometry,
@@ -23,6 +31,7 @@ import {
 } from './LifeModels'
 
 const MAX_PEOPLE = 90
+const MAX_ANIMALS = 40
 const MAX_SMOKE = 160
 const MAX_BIRDS = 24
 const MAX_RIVER_BOATS = 16
@@ -44,10 +53,40 @@ interface Walker {
   speed: number
   phase: number
   robe: THREE.Color
-  hat: number
+  /** 第几类人（FIGURE_KINDS 下标） */
+  kind: number
   /** 站着不动的（摊贩、看货的） */
   still: boolean
 }
+
+interface Animal {
+  kind: number
+  x: number
+  z: number
+  y: number
+  a: number
+  tx: number
+  tz: number
+  speed: number
+  /** 站着吃草的剩余秒数 */
+  graze: number
+  phase: number
+}
+
+/** 各类人的衣色 */
+const ROBES: Record<FigureKind, readonly string[]> = {
+  official: T.officialRobes,
+  scholar: T.scholarRobes,
+  maiden: T.womanRobes,
+  farmer: T.laborRobes,
+  merchant: T.merchantRobes,
+  child: T.childRobes,
+  elder: T.elderRobes,
+  fisher: T.fisherRobes,
+  carter: T.carterRobes,
+}
+const KIND = Object.fromEntries(FIGURE_KINDS.map((k, i) => [k, i])) as Record<FigureKind, number>
+const AKIND = Object.fromEntries(ANIMAL_KINDS.map((k, i) => [k, i])) as Record<AnimalKind, number>
 
 interface Smoke {
   x: number
@@ -145,6 +184,13 @@ export class LifeSystem {
   private readonly bodies: THREE.InstancedMesh[]
   private readonly heads: THREE.InstancedMesh[]
   private readonly legs: THREE.InstancedMesh
+  /** 车夫推的独轮车 */
+  private readonly carts: THREE.InstancedMesh
+  /** 牲畜：每种一个实例网格 */
+  private readonly animalMeshes: THREE.InstancedMesh[]
+  private animals: Animal[] = []
+  /** 牲畜可去的格（地标范围里的空地，不上街） */
+  private pasture = new Set<number>()
   private readonly smoke: THREE.InstancedMesh
   private readonly smokeMat: THREE.MeshLambertMaterial
   private readonly birdBody: THREE.InstancedMesh
@@ -179,6 +225,8 @@ export class LifeSystem {
     this.bodies = FIGURE_KINDS.map((k) => new THREE.InstancedMesh(figureBody(k), this.mat, MAX_PEOPLE))
     this.heads = FIGURE_KINDS.map((k) => new THREE.InstancedMesh(figureHead(k), this.mat, MAX_PEOPLE))
     this.legs = new THREE.InstancedMesh(legGeometry(), this.mat, MAX_PEOPLE * 2)
+    this.carts = new THREE.InstancedMesh(cartGeometry(), this.mat, MAX_PEOPLE)
+    this.animalMeshes = ANIMAL_KINDS.map((k) => new THREE.InstancedMesh(animalGeometry(k), this.mat, MAX_ANIMALS))
     this.smokeMat = new THREE.MeshLambertMaterial({ color: new THREE.Color(T.smoke), transparent: true, opacity: 0.55, depthWrite: false })
     this.smoke = new THREE.InstancedMesh(smokeGeometry(), this.smokeMat, MAX_SMOKE)
     this.birdBody = new THREE.InstancedMesh(birdBodyGeometry(), this.mat, MAX_BIRDS)
@@ -187,7 +235,7 @@ export class LifeSystem {
     const kinds = Object.keys(BOAT_LAMPS) as Boat['kind'][]
     this.lampCoreGeo = Object.fromEntries(kinds.map((k) => [k, lampGeometry(BOAT_LAMPS[k], 0.02)])) as Record<Boat['kind'], THREE.BufferGeometry>
     this.lampHaloGeo = Object.fromEntries(kinds.map((k) => [k, lampGeometry(BOAT_LAMPS[k], k === 'ship' ? 0.6 : k === 'passenger' ? 0.25 : 0.4)])) as Record<Boat['kind'], THREE.BufferGeometry>
-    for (const im of [...this.bodies, ...this.heads, this.legs, this.smoke, this.birdBody, this.birdWing]) {
+    for (const im of [...this.bodies, ...this.heads, this.legs, this.carts, ...this.animalMeshes, this.smoke, this.birdBody, this.birdWing]) {
       im.count = 0
       im.frustumCulled = false
       im.castShadow = im !== this.smoke
@@ -213,6 +261,7 @@ export class LifeSystem {
     if (!this.group.visible) return
     const near = !!this.place && distance < LIFE_DISTANCE
     this.stepWalkers(near ? dt : 0, time, near, night)
+    this.stepAnimals(near ? dt : 0, time, near, night)
     this.stepSmoke(dt, near, night, daylight)
     this.stepBirds(dt, time, near && night < 0.5)
     this.stepBoats(dt, time)
@@ -262,6 +311,8 @@ export class LifeSystem {
 
   private populate(lm: ResolvedLandmark | null): void {
     this.walkers = []
+    this.animals = []
+    this.pasture = new Set()
     this.smokes = []
     this.puffs = []
     this.birds = []
@@ -289,20 +340,43 @@ export class LifeSystem {
     this.walkable = walkable
     const busy = (lm.def.major ? 1.6 : 1) * (lm.def.walls ? 1.5 : 1)
     const n = Math.min(MAX_PEOPLE - 20, Math.round(Math.min(cells.length / 18, 50) * busy))
+    /* 人群构成：城里官、士、商多，乡间农人、孩童、老人多；渔夫只在水边 */
+    const town = !!lm.def.walls?.length || paved.length > 120
+    const mix: [FigureKind, number][] = town
+      ? [['official', 0.08], ['scholar', 0.16], ['maiden', 0.18], ['merchant', 0.17], ['farmer', 0.07], ['child', 0.1], ['elder', 0.1], ['carter', 0.08], ['fisher', 0.06]]
+      : [['farmer', 0.28], ['maiden', 0.15], ['child', 0.14], ['elder', 0.12], ['scholar', 0.07], ['merchant', 0.06], ['carter', 0.07], ['fisher', 0.1], ['official', 0.01]]
+    const nearWater = (x: number, z: number) => {
+      for (let dz = -4; dz <= 4; dz += 2)
+        for (let dx = -4; dx <= 4; dx += 2) {
+          const c = t.column(x + dx, z + dz)
+          if (c.waterY >= 0 && c.waterY >= c.height) return true
+        }
+      return false
+    }
     for (let i = 0; i < n && cells.length; i++) {
       const [x, z] = this.rnd.pick(cells)
-      this.walkers.push(this.walker(x + 0.5, z + 0.5, false))
+      let u = this.rnd.next()
+      let kind: FigureKind = 'farmer'
+      for (const [k, wgt] of mix) {
+        if (u < wgt) {
+          kind = k
+          break
+        }
+        u -= wgt
+      }
+      if (kind === 'fisher' && !nearWater(x, z)) kind = town ? 'merchant' : 'farmer'
+      this.walkers.push(this.walker(x + 0.5, z + 0.5, false, kind))
     }
+    this.populateAnimals(lm, open)
     /* 摊贩与看货的人；有炊烟的屋 */
     for (const p of lm.placements) {
       const id = p.id
       if (id.includes('-stall-') && this.walkers.length < MAX_PEOPLE - 1) {
-        const v = this.walker(p.x + 0.5, p.z - 1.5, true)
+        const v = this.walker(p.x + 0.5, p.z - 1.5, true, 'merchant')
         v.a = Math.PI / 2
-        v.hat = 1
         this.walkers.push(v)
         if (this.rnd.chance(0.6)) {
-          const c = this.walker(p.x + this.rnd.range(-0.8, 0.8), p.z + 2.6, true)
+          const c = this.walker(p.x + this.rnd.range(-0.8, 0.8), p.z + 2.6, true, this.rnd.pick(['maiden', 'scholar', 'elder', 'child'] as FigureKind[]))
           c.a = -Math.PI / 2
           this.walkers.push(c)
         }
@@ -315,12 +389,8 @@ export class LifeSystem {
       this.birds.push({ cx: lm.x + this.rnd.range(-20, 20), cz: lm.z + this.rnd.range(-20, 20), y: lm.level + this.rnd.range(26, 48), r: this.rnd.range(10, 26), w: this.rnd.range(0.25, 0.5) * (this.rnd.chance(0.5) ? 1 : -1), t: this.rnd.range(0, 10), phase: this.rnd.range(0, 6) })
   }
 
-  private walker(x: number, z: number, still: boolean): Walker {
+  private walker(x: number, z: number, still: boolean, kind: FigureKind): Walker {
     const t = this.ctx.terrain.column(Math.floor(x), Math.floor(z))
-    // 类别：约四成士人、三成五女子、二成五劳作者（摊贩另设为劳作者）
-    const u = this.rnd.next()
-    const hat = u < 0.4 ? 0 : u < 0.75 ? 2 : 1
-    const robes = hat === 0 ? T.scholarRobes : hat === 2 ? T.womanRobes : T.laborRobes
     return {
       x,
       z,
@@ -329,10 +399,10 @@ export class LifeSystem {
       tx: x,
       tz: z,
       dir: this.rnd.int(0, 3),
-      speed: this.rnd.range(0.9, 1.6),
+      speed: this.rnd.range(0.9, 1.6) * FIGURE_PACE[kind],
       phase: this.rnd.range(0, 6.28),
-      robe: new THREE.Color(this.rnd.pick(robes as unknown as string[])),
-      hat,
+      robe: new THREE.Color(this.rnd.pick(ROBES[kind] as string[])),
+      kind: KIND[kind],
       still,
     }
   }
@@ -340,8 +410,9 @@ export class LifeSystem {
   /* ———— 行人 ———— */
 
   private stepWalkers(dt: number, time: number, near: boolean, night: number): void {
-    const counts = [0, 0, 0]
+    const counts = FIGURE_KINDS.map(() => 0)
     let n = 0
+    let carts = 0
     if (near) {
       // 夜里街上人少：只留一部分（摊贩收摊）
       const keep = night > 0.6 ? 0.3 : 1
@@ -352,27 +423,37 @@ export class LifeSystem {
         const moving = !w.still
         const swing = moving ? Math.sin(time * 7 * w.speed + w.phase) * 0.6 : Math.sin(time * 1.5 + w.phase) * 0.04
         const bob = moving ? Math.abs(Math.sin(time * 7 * w.speed + w.phase)) * 0.06 : 0
-        this.q.setFromEuler(this.e.set(0, -w.a, 0))
-        this.m.compose(this.v.set(w.x, w.y + bob, w.z), this.q, this.s.set(1, 1, 1))
-        const ci = counts[w.hat]++
-        this.bodies[w.hat].setMatrixAt(ci, this.m)
-        this.bodies[w.hat].setColorAt(ci, w.robe)
-        this.heads[w.hat].setMatrixAt(ci, this.m)
+        const kind = FIGURE_KINDS[w.kind]
+        const sc = FIGURE_SCALE[kind]
+        // 老人微微前倾
+        this.q.setFromEuler(this.e.set(0, -w.a, kind === 'elder' ? -0.12 : 0, 'YXZ'))
+        this.m.compose(this.v.set(w.x, w.y + bob * sc, w.z), this.q, this.s.setScalar(sc))
+        const ci = counts[w.kind]++
+        this.bodies[w.kind].setMatrixAt(ci, this.m)
+        this.bodies[w.kind].setColorAt(ci, w.robe)
+        this.heads[w.kind].setMatrixAt(ci, this.m)
+        if (kind === 'carter') {
+          this.q.setFromEuler(this.e.set(0, -w.a, 0))
+          this.m.compose(this.v.set(w.x, w.y, w.z), this.q, this.s.set(1, 1, 1))
+          this.carts.setMatrixAt(carts++, this.m)
+        }
         for (const side of [-1, 1]) {
           // 髋部在身体左右各 0.12 格：先按朝向转过去，再绕横轴前后摆
           this.q.setFromEuler(this.e.set(0, -w.a, 0))
-          this.v.set(0, 0, side * 0.12).applyQuaternion(this.q)
+          this.v.set(0, 0, side * 0.12 * sc).applyQuaternion(this.q)
           this.v.x += w.x
-          this.v.y = w.y + 0.66 + bob
+          this.v.y = w.y + (0.66 + bob) * sc
           this.v.z += w.z
           this.q.setFromEuler(this.e.set(0, -w.a, swing * side, 'YXZ'))
-          this.m.compose(this.v, this.q, this.s.set(1, 1, 1))
+          this.m.compose(this.v, this.q, this.s.setScalar(sc))
           this.legs.setMatrixAt(n * 2 + (side > 0 ? 1 : 0), this.m)
         }
         n++
       }
     }
     this.legs.count = n * 2
+    this.carts.count = carts
+    this.carts.instanceMatrix.needsUpdate = true
     FIGURE_KINDS.forEach((_k, i) => {
       for (const im of [this.bodies[i], this.heads[i]]) {
         im.count = counts[i]
@@ -419,6 +500,116 @@ export class LifeSystem {
     while (da > Math.PI) da -= Math.PI * 2
     while (da < -Math.PI) da += Math.PI * 2
     w.a += da * Math.min(1, dt * 10)
+  }
+
+  /* ———— 牲畜 ———— */
+
+  /**
+   * 牲畜：放在地标范围里的空地上（不上铺地的街），按地方配种类——北方草原多羊、马，北方农区牛马猪鸡，
+   * 南方水乡水牛、猪、鸡；鸡三五成群挨着人家。城池里少放
+   */
+  private populateAnimals(lm: ResolvedLandmark, open: [number, number][]): void {
+    if (open.length < 40) return
+    this.pasture = new Set(open.map(([x, z]) => x * 65536 + z))
+    const s = this.ctx.terrain.sample(lm.x, lm.z)
+    const lat = this.P.unproject(lm.x, lm.z).lat
+    const steppe = s.biome === BiomeId.Steppe || s.biome === BiomeId.Plateau || s.biome === BiomeId.Gobi || s.biome === BiomeId.Desert
+    const mix: [AnimalKind, number][] = steppe
+      ? [['sheep', 0.55], ['horse', 0.3], ['cattle', 0.15]]
+      : lat > 33
+        ? [['cattle', 0.25], ['horse', 0.2], ['sheep', 0.15], ['pig', 0.15], ['chicken', 0.25]]
+        : [['buffalo', 0.35], ['pig', 0.25], ['chicken', 0.35], ['horse', 0.05]]
+    const n = Math.min(MAX_ANIMALS - 8, Math.round(Math.min(open.length / 60, 18) * (lm.def.walls?.length ? 0.5 : 1)))
+    for (let i = 0; i < n; i++) {
+      let u = this.rnd.next()
+      let kind: AnimalKind = mix[0][0]
+      for (const [k, wgt] of mix) {
+        if (u < wgt) {
+          kind = k
+          break
+        }
+        u -= wgt
+      }
+      const [x, z] = this.rnd.pick(open)
+      // 羊、鸡成群：同一处放几只
+      const flock = kind === 'sheep' ? 3 : kind === 'chicken' ? 3 : 1
+      for (let j = 0; j < flock && this.animals.length < MAX_ANIMALS - 1; j++) this.animals.push(this.animal(AKIND[kind], x + this.rnd.range(-1.5, 1.5), z + this.rnd.range(-1.5, 1.5)))
+    }
+  }
+
+  private animal(kind: number, x: number, z: number): Animal {
+    const c = this.ctx.terrain.column(Math.floor(x), Math.floor(z))
+    const k = ANIMAL_KINDS[kind]
+    return {
+      kind,
+      x,
+      z,
+      y: Math.floor(c.height) + 1,
+      a: this.rnd.range(0, Math.PI * 2),
+      tx: x,
+      tz: z,
+      speed: k === 'chicken' ? 0.8 : k === 'horse' ? 0.7 : 0.35,
+      graze: this.rnd.range(0, 6),
+      phase: this.rnd.range(0, 6.28),
+    }
+  }
+
+  private stepAnimals(dt: number, time: number, near: boolean, night: number): void {
+    const counts = ANIMAL_KINDS.map(() => 0)
+    if (near)
+      for (const an of this.animals) {
+        // 夜里歇着不动
+        if (night < 0.6) this.wander(an, dt)
+        const moving = an.graze <= 0
+        const bob = moving ? Math.abs(Math.sin(time * 6 + an.phase)) * 0.04 : 0
+        // 吃草时低头（整体前俯一点），鸡啄食点头更快
+        const peck = !moving ? (ANIMAL_KINDS[an.kind] === 'chicken' ? Math.max(0, Math.sin(time * 5 + an.phase)) * 0.5 : 0.08) : 0
+        this.q.setFromEuler(this.e.set(0, -an.a, -peck, 'YXZ'))
+        this.m.compose(this.v.set(an.x, an.y + bob, an.z), this.q, this.s.set(1, 1, 1))
+        this.animalMeshes[an.kind].setMatrixAt(counts[an.kind]++, this.m)
+      }
+    this.animalMeshes.forEach((im, i) => {
+      im.count = counts[i]
+      im.instanceMatrix.needsUpdate = true
+    })
+  }
+
+  private wander(an: Animal, dt: number): void {
+    if (an.graze > 0) {
+      an.graze -= dt
+      if (an.graze <= 0) {
+        // 吃完一口，往附近随便挪几格
+        for (let k = 0; k < 6; k++) {
+          const tx = Math.floor(an.x + this.rnd.range(-4, 4))
+          const tz = Math.floor(an.z + this.rnd.range(-4, 4))
+          if (this.pasture.has(tx * 65536 + tz)) {
+            an.tx = tx + 0.5
+            an.tz = tz + 0.5
+            break
+          }
+        }
+      }
+      return
+    }
+    const dx = an.tx - an.x
+    const dz = an.tz - an.z
+    const d = Math.hypot(dx, dz)
+    if (d < 0.08) {
+      an.graze = this.rnd.range(3, 9)
+      const c = this.ctx.terrain.column(Math.floor(an.x), Math.floor(an.z))
+      an.y = Math.floor(c.height) + 1
+      return
+    }
+    const step = Math.min(d, an.speed * dt)
+    an.x += (dx / d) * step
+    an.z += (dz / d) * step
+    const c = this.ctx.terrain.column(Math.floor(an.x), Math.floor(an.z))
+    an.y += (Math.floor(c.height) + 1 - an.y) * Math.min(1, dt * 6)
+    const target = Math.atan2(dz, dx)
+    let da = target - an.a
+    while (da > Math.PI) da -= Math.PI * 2
+    while (da < -Math.PI) da += Math.PI * 2
+    an.a += da * Math.min(1, dt * 4)
   }
 
   /* ———— 炊烟 ———— */
