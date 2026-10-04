@@ -1,3 +1,4 @@
+import { BiomeId } from '../biome/BiomeId'
 import { hash2i, hashUnit } from '../../utils/math'
 import { B } from '../block/Blocks'
 import { S } from '../block/BlockState'
@@ -23,7 +24,9 @@ export function decorateGround(vol: VoxelVolume, region: TerrainRegion, occupanc
       /* 荷：湖、塘里水深一到三格处成片（大片的空处留着水面），偶有荷花 */
       if (s.waterY >= 0) {
         const depth = s.waterY - s.surfaceY
-        if ((s.waterKind === WaterKind.Lake || s.waterKind === WaterKind.Pond) && depth >= 1 && depth <= 3 && vol.get(x, s.waterY + 1, z) === 0) {
+        // 荒漠里的泉（月牙泉）不长荷
+        const arid = s.biome === BiomeId.Desert || s.biome === BiomeId.Gobi
+        if (!arid && (s.waterKind === WaterKind.Lake || s.waterKind === WaterKind.Pond) && depth >= 1 && depth <= 3 && vol.get(x, s.waterY + 1, z) === 0) {
           const patch = hashUnit(hash2i(x >> 3, z >> 3, seed + 431))
           const r = hashUnit(hash2i(x, z, seed + 433))
           if (patch < 0.3 && r < 0.62) vol.set(x, s.waterY + 1, z, S(r < 0.07 ? B.LOTUS_FLOWER : B.LOTUS_PAD))

@@ -1,3 +1,4 @@
+import { BiomeId } from '../biome/BiomeId'
 import type { LandmarkDefinition, StructureSpec } from './LandmarkDefinition'
 
 /*
@@ -1171,4 +1172,48 @@ const LONGMEN: LandmarkDefinition = {
   ],
 }
 
-export const CITY_CATALOG: readonly LandmarkDefinition[] = [HUANGHELOU, YUEYANGLOU, TENGWANGGE, GUANQUELOU, DUOJINGLOU, JINLING, LUOYANG, CHENGDU, SUZHOU, HUANGZHOU, YANGZHOU, BIANJING, SHANYIN, MIZHOU, CHUZHOU, XIANGYANG, JUNSHAN, PENGCHENG, HUIZHOU, BAIDICHENG, TAISHAN, JIANMEN, FENGQIAO, ZHONGNAN, WANGCHUAN, LANTING, TIANMU, EMEI, HUASHAN, HUANGSHAN, LONGMEN]
+/**
+ * 敦煌鸣沙山月牙泉：沙丘环抱一弯月牙形的泉（弧带，不是椭圆湖），泉南内岸月泉阁、几株柳与一圈芦苇，
+ * 南面鸣沙山高大沙脊、背风坡陡面向泉，北面较低的沙丘。岑参《碛中作》是出敦煌西行大碛所作，
+ * 与月牙泉合为一处是空间压缩。
+ */
+const YUEYAQUAN: LandmarkDefinition = {
+  id: 'yueyaquan',
+  name: '月牙泉',
+  coordinate: { lng: 94.67, lat: 40.09 },
+  // 敦煌城（海拔校准点）就在几格之北：泉与沙丘整体南移，不削低校准点
+  offset: [0, 40],
+  radius: 60,
+  major: true,
+  poetryPlaceId: 'yueyaquan',
+  // 坐标落在一座小沙包上：泉面按四周沙地算，不在沙包顶上
+  levelDy: -11,
+  terrainModifier: [
+    { t: 'flatten', x: 0, z: 0, r: 22, blend: 10 },
+    // 月牙：弧心在泉南，弧带向北拱起，两角收尖朝南
+    { t: 'crescent', x: 0, z: 0, r: 15, a0: Math.PI * 1.0, a1: Math.PI * 2.0, w: 7, depth: 2 },
+    // 鸣沙山：泉南高大沙脊，背风陡坡朝北对着泉
+    { t: 'dune', pts: [[-48, 24], [-18, 30], [8, 26], [30, 32], [50, 26]], h: 28, w: 30, lee: -1 },
+    // 泉北、东西两侧较低的沙丘
+    { t: 'dune', pts: [[-40, -30], [-10, -36], [16, -30], [42, -36]], h: 15, w: 20, lee: 1 },
+    { t: 'dune', pts: [[-44, -12], [-38, 10]], h: 10, w: 14, lee: -1 },
+    { t: 'dune', pts: [[40, -14], [44, 8]], h: 9, w: 12, lee: 1 },
+  ],
+  structures: [
+    // 月泉阁：内岸面北临泉
+    { b: 'grandTower', x: 0, z: 11, rot: 2, p: { levels: 2, width: 7, depth: 5, tile: 'green', top: 'xieshan', terrace: 1, shrink: 2, floorH: [4, 4] } },
+    { b: 'pavilion', x: -10, z: 10, p: { width: 3, tile: 'gray' } },
+    { b: 'house', x: 10, z: 12, rot: 3, p: { seed: 501 } },
+  ],
+  trees: [{ type: 'willow', variant: 0, pts: [[-17, 4], [-17, 8]], n: 2 }, { type: 'willow', variant: 0, pts: [[17, 4], [17, 8]], n: 2 }],
+  biomeOverride: { biome: BiomeId.Desert, radius: 58 },
+  vegetationProfile: { weights: { willow: 1 }, density: 0.05 },
+  shots: [
+    // 沙丘侧俯：从鸣沙山脊上北望，月牙整弯落在沙丘间
+    { id: 'hero', name: '月牙', yaw: 0.15, pitch: 0.95, distance: 76, offset: [0, 2, -4] },
+    { id: 'shore', name: '泉岸', yaw: 1.3, pitch: 0.2, distance: 26, offset: [0, 3, -6] },
+    { id: 'dunes', name: '鸣沙山', yaw: -2.6, pitch: 0.28, distance: 120, offset: [0, 10, 10] },
+  ],
+}
+
+export const CITY_CATALOG: readonly LandmarkDefinition[] = [HUANGHELOU, YUEYANGLOU, TENGWANGGE, GUANQUELOU, DUOJINGLOU, JINLING, LUOYANG, CHENGDU, SUZHOU, HUANGZHOU, YANGZHOU, BIANJING, SHANYIN, MIZHOU, CHUZHOU, XIANGYANG, JUNSHAN, PENGCHENG, HUIZHOU, BAIDICHENG, TAISHAN, JIANMEN, FENGQIAO, ZHONGNAN, WANGCHUAN, LANTING, TIANMU, EMEI, HUASHAN, HUANGSHAN, LONGMEN, YUEYAQUAN]

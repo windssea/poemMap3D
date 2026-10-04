@@ -456,6 +456,62 @@ export class LandmarkRegistry {
               col.height = Math.max(col.height, level + hh, col.height + hh * 0.25)
               break
             }
+            case 'crescent': {
+              const ox = dx - op.x
+              const oz = dz - op.z
+              const rho = Math.hypot(ox, oz)
+              let ang = Math.atan2(oz, ox)
+              while (ang < op.a0) ang += Math.PI * 2
+              const t = (ang - op.a0) / (op.a1 - op.a0)
+              // 弧外两角之外：只算到最近一端的距离，给岸坡用
+              const half = t >= 0 && t <= 1 ? (op.w / 2) * Math.pow(Math.sin(Math.PI * t), 0.8) : 0
+              const edge = Math.abs(rho - op.r) - half
+              if (half > 0.6 && edge < 0) {
+                const k = Math.min(1, -edge / Math.max(1, half))
+                col.waterY = level
+                col.height = Math.min(col.height, level - 1 - Math.round((op.depth ?? 2) * Math.sqrt(k)))
+                col.waterKind = WaterKind.Lake
+                col.waterDist = 0
+              } else if (half > 0.6 && edge < 6) {
+                // 泉岸：一圈缓坡落到水面
+                col.height = Math.min(col.height, lerp(level + 0.5, col.height, smoothstep(0, 6, edge)))
+                if (edge < col.waterDist) {
+                  col.waterDist = edge
+                  col.waterKind = WaterKind.Lake
+                }
+              }
+              break
+            }
+            case 'dune': {
+              let best = Infinity
+              let along = 0
+              let side = 0
+              let acc = 0
+              let total = 0
+              for (let i = 1; i < op.pts.length; i++) total += Math.hypot(op.pts[i][0] - op.pts[i - 1][0], op.pts[i][1] - op.pts[i - 1][1])
+              for (let i = 1; i < op.pts.length; i++) {
+                const [ax, az] = op.pts[i - 1]
+                const [bx, bz] = op.pts[i]
+                const len = Math.hypot(bx - ax, bz - az)
+                const hit = segmentDistance(dx, dz, ax, az, bx, bz)
+                if (hit.dist < best) {
+                  best = hit.dist
+                  along = (acc + hit.t * len) / Math.max(1, total)
+                  side = Math.sign((bx - ax) * (dz - az) - (bz - az) * (dx - ax)) || 1
+                }
+                acc += len
+              }
+              // 背风坡宽只有迎风坡的四成：脊线是一道锐利的沙棱
+              const reach = side === op.lee ? op.w * 0.4 : op.w
+              if (best >= reach || wet() || col.waterDist < 3) break
+              const crest = op.h * Math.pow(Math.sin(Math.PI * Math.min(1, Math.max(0, along))), 0.6) * (0.85 + 0.3 * (0.5 + 0.5 * fbm(n, col.x / 23 + 5, col.z / 23, 2)))
+              const g = best / reach
+              const f = side === op.lee ? 1 - Math.pow(g, 1.3) : Math.pow(1 - g, 1.8)
+              const hh = crest * f * smoothstep(3, 12, col.waterDist >= 1e8 ? 99 : col.waterDist)
+              col.height = Math.max(col.height, level + hh)
+              core = true
+              break
+            }
             case 'spire': {
               const dist = Math.hypot(dx - op.x, dz - op.z)
               if (dist >= op.r || wet()) break
