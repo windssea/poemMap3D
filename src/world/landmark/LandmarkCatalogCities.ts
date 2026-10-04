@@ -1121,6 +1121,8 @@ const HUANGSHAN: LandmarkDefinition = {
   ],
   structures: [
     { b: 'pavilion', x: 2, z: -2, atLevel: true, dy: -2, p: { width: 5, tile: 'gray' } },
+    // 峰顶亭旁一棵迎客松：长枝伸出峰顶，从远处看峰尖上一抹松影
+    { b: 'sculptedPine', x: -3, z: 2 },
     { b: 'hall', x: -2, z: 15, atLevel: true, dy: -38, p: { width: 7, depth: 5, tile: 'gray', terrace: 1, lanterns: true } },
     { b: 'sculptedPine', x: 4, z: 18, atLevel: true, dy: -38 },
   ],
