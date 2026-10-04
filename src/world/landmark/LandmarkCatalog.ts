@@ -125,10 +125,11 @@ const CHANGAN: LandmarkDefinition = {
   major: true,
   poetryPlaceId: 'changan',
   terrainModifier: [
-    { t: 'flatten', x: 0, z: 0, r: 32, rz: 22, square: true, blend: 6 },
+    // 城南切进终南山北麓：过渡带整个削成缓坡，城外南边是一道渐起的坡原，不是切出来的崖
+    { t: 'flatten', x: 0, z: 0, r: 32, rz: 22, square: true, blend: 6, shave: true },
     { t: 'flatten', x: 38, z: 8, r: 8, blend: 6 },
     { t: 'pave', x0: -2, z0: -17, x1: 2, z1: 22 },
-    { t: 'pave', x0: -30, z0: -2, x1: 36, z1: 2 },
+    { t: 'pave', x0: -30, z0: -1, x1: 36, z1: 3 },
     { t: 'pave', x0: -26, z0: 9, x1: -10, z1: 11 },
     { t: 'pave', x0: 10, z0: 9, x1: 26, z1: 11 },
     { t: 'flatten', x: 0, z: -11, r: 7, square: true, pave: true, blend: 0 },
@@ -136,13 +137,13 @@ const CHANGAN: LandmarkDefinition = {
   walls: [{ x: 0, z: 0, hw: 28, hd: 18, height: 8, gates: ['n', 's', 'e', 'w'] }],
   structures: [
     /* 宫城 */
-    { b: 'hall', x: 0, z: -11, p: { width: 13, depth: 7, height: 6, double: true, tile: 'yellow', lanterns: true, terrace: 2 } },
+    { b: 'hall', x: 0, z: -13, p: { width: 13, depth: 7, height: 6, double: true, tile: 'yellow', lanterns: true, terrace: 2 } },
     { b: 'hall', x: -12, z: -11, rot: 3, p: { width: 7, depth: 5, tile: 'yellow', terrace: 1 } },
     { b: 'hall', x: 12, z: -11, rot: 1, p: { width: 7, depth: 5, tile: 'yellow', terrace: 1 } },
     { b: 'courtyard', x: -21, z: -10, p: { width: 11, seed: 3 } },
     { b: 'courtyard', x: 21, z: -10, p: { width: 11, seed: 5 } },
-    /* 钟楼：十字街心 */
-    { b: 'bellTower', x: 0, z: 0, p: { width: 9 } },
+    /* 皇城正门朱雀门：朱雀大街由此南下直抵城南正门（唐长安街心并无钟楼，钟楼是明代西安城的） */
+    { b: 'gate', x: 0, z: -3, p: { width: 13, depth: 5, height: 6, tile: 'yellow', lanterns: true } },
     /* 西市 */
     { b: 'shop', x: -22, z: 5, p: { seed: 11 } },
     { b: 'shop', x: -13, z: 5, p: { seed: 12 } },
@@ -165,6 +166,13 @@ const CHANGAN: LandmarkDefinition = {
     { type: 'broadleaf', variant: 4, pts: [[33, 14], [44, 16]], n: 3 },
   ],
   vegetationProfile: { weights: { broadleaf: 3, willow: 2, peach: 0.5 }, density: 0.6 },
+  shots: [
+    // 机位都在城北（渭河一侧）：城南紧贴终南山，从南面看全被山挡住
+    { id: 'hero', name: '全城', yaw: 2.55, pitch: 0.55, distance: 115 },
+    // 中轴：城北南望，北门、宫殿、朱雀门一线，终南山作背景
+    { id: 'axis', name: '中轴', yaw: 3.14, pitch: 0.3, distance: 80, offset: [0, 6, 6] },
+    { id: 'tower', name: '雁塔', yaw: 2.8, pitch: 0.32, distance: 64, offset: [39, 22, 9] },
+  ],
 }
 
 export const LANDMARK_CATALOG: readonly LandmarkDefinition[] = [HANGZHOU, LUSHAN, CHANGAN, ...CITY_CATALOG]

@@ -400,7 +400,7 @@ export class LandmarkRegistry {
                 const flat = lerp(target, col.height, k)
                 // 过渡带上高出甚多的是山：削得越来越少（连续渐变，不在某个高差处一刀切出一面墙）
                 // 远低于台面的（崖下、谷底）也不去填：那是天然的崖，不是要垫的缓坡
-                const keep = diff < 0 ? smoothstep(8, 30, -diff) : smoothstep(14, 28, diff)
+                const keep = diff < 0 ? (op.shave ? 0 : smoothstep(8, 30, -diff)) : smoothstep(14, 28, diff)
                 col.height = lerp(flat, col.height, keep)
               }
               break

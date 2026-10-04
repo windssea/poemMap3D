@@ -855,7 +855,8 @@ const FENGQIAO: LandmarkDefinition = {
 
 /**
  * 终南山：长安城南的高峰（宏观地形按实测海拔校准过，山形不动）。太乙峰顶一座重檐亭；
- * 北麓（向着长安）楼观台——道观的殿、钟楼、牌坊坐在削出的台地上，一条石阶自观后上峰；
+ * 峰东山谷里是楼观台——道观的殿、钟楼坐在谷中台地上，牌坊立在谷口向着长安，一条石阶自观后上峰
+ * （台地不落在峰北山脚：那里离长安城南墙只有几格，削台、垫台都会把城南抬成一道坡）；
  * 南坡一条山溪出谷，溪头是王维的终南别业（「行到水穷处，坐看云起时」）。
  */
 const ZHONGNAN: LandmarkDefinition = {
@@ -869,16 +870,16 @@ const ZHONGNAN: LandmarkDefinition = {
   terrainModifier: [
     { t: 'flatten', x: 0, z: 0, r: 4, blend: 3 },
     // 楼观台：北麓台地（比峰顶低约 50 格）
-    { t: 'flatten', x: 6, z: -34, r: 9, dy: -50, blend: 6 },
-    { t: 'path', pts: [[6, -26], [2, -18], [-2, -10], [0, -4]], w: 1.1 },
+    { t: 'flatten', x: 21, z: -8, r: 9, dy: -44, blend: 6 },
+    { t: 'path', pts: [[17, -14], [8, -10], [2, -6], [0, -3]], w: 1.1 },
     // 山溪：南坡出谷
     { t: 'canal', pts: [[-18, 10], [-16, 26], [-12, 46]], w: 1 },
   ],
   structures: [
     { b: 'pavilion', x: 0, z: 0, atLevel: true, p: { width: 5, double: true, tile: 'gray' } },
-    { b: 'hall', x: 6, z: -34, rot: 2, atLevel: true, dy: -50, p: { width: 9, depth: 7, tile: 'gray', terrace: 1, lanterns: true } },
-    { b: 'bellTower', x: 17, z: -32, atLevel: true, dy: -50, p: { width: 7 } },
-    { b: 'archway', x: 6, z: -44, rot: 2, p: { tile: 'gray' } },
+    { b: 'hall', x: 17, z: -8, rot: 2, atLevel: true, dy: -44, p: { width: 9, depth: 7, tile: 'gray', terrace: 1, lanterns: true } },
+    { b: 'bellTower', x: 27, z: -8, atLevel: true, dy: -44, p: { width: 7 } },
+    { b: 'archway', x: 17, z: -19, rot: 2, p: { tile: 'gray' } },
     { b: 'hut', x: -8, z: 32, p: { width: 5, depth: 5 } },
   ],
   trees: [{ type: 'bamboo', pts: [[-4, 28], [-4, 36]], n: 2 }],
@@ -904,29 +905,30 @@ const WANGCHUAN: LandmarkDefinition = {
   major: true,
   poetryPlaceId: 'p043',
   terrainModifier: [
-    { t: 'flatten', x: -4, z: -14, r: 12, blend: 6 },
-    { t: 'canal', pts: [[-48, -34], [-24, -18], [-6, 2], [10, 10], [8, 24], [2, 46]], w: 1.5 },
+    // 别业台地偏东：地图比例下离长安城东墙只有二十来格，台地比长安高二十多格，偏西会把城东的大雁塔一并垫上去
+    { t: 'flatten', x: 10, z: -16, r: 14, blend: 6 },
+    { t: 'canal', pts: [[-6, -42], [-4, -26], [-2, -8], [10, 10], [8, 24], [2, 46]], w: 1.5 },
     { t: 'lake', x: 4, z: 6, rx: 11, rz: 6, depth: 2, rot: 0.4 },
-    { t: 'hill', x: 30, z: -18, r: 16, h: 16 },
+    { t: 'hill', x: 38, z: -4, r: 13, h: 16 },
   ],
   structures: [
-    { b: 'gardenHall', x: -4, z: -14, p: { width: 9, depth: 5, lanterns: true } },
-    { b: 'house', x: -16, z: -16, rot: 1, p: { seed: 41 } },
-    { b: 'hut', x: -26, z: 8, rot: 1, p: { width: 5, depth: 5 } },
-    { b: 'pavilion', x: 30, z: -18, p: { width: 5, tile: 'gray' } },
+    { b: 'gardenHall', x: 10, z: -14, p: { width: 9, depth: 5, lanterns: true } },
+    { b: 'house', x: 10, z: -26, p: { seed: 41 } },
+    { b: 'hut', x: -14, z: 14, rot: 1, p: { width: 5, depth: 5 } },
+    { b: 'pavilion', x: 38, z: -4, p: { width: 5, tile: 'gray' } },
     { b: 'bridge', x: 8, z: 20, atLevel: true, span: true, p: { length: 7 } },
   ],
   trees: [
-    { type: 'bamboo', pts: [[-32, 2], [-32, 14], [-22, 16], [-20, 2]], n: 8 },
-    { type: 'pine', variant: 0, pts: [[-30, 26], [-18, 22], [-26, 38], [-12, 36]], n: 6 },
+    { type: 'bamboo', pts: [[-20, 8], [-20, 20], [-10, 22], [-8, 8]], n: 8 },
+    { type: 'pine', variant: 0, pts: [[-22, 28], [-10, 26], [-18, 40], [-4, 38]], n: 6 },
     { type: 'willow', variant: 0, pts: [[-6, 0], [12, 0]], n: 2 },
   ],
   vegetationProfile: { weights: { pine: 4, broadleaf: 3, bamboo: 2 }, density: 1.1 },
   // 定稿机位：主景（自南俯看欹湖与北岸别业）、竹里馆、华子冈
   shots: [
     { id: 'hero', name: '主景', yaw: 0.3, pitch: 0.8, distance: 120, offset: [0, 0, 0] },
-    { id: 'bamboo', name: '竹里馆', yaw: 0.4, pitch: 0.8, distance: 46, offset: [-24, 0, 8] },
-    { id: 'hill', name: '华子冈', yaw: 0.9, pitch: 0.6, distance: 75, offset: [26, 6, -16] },
+    { id: 'bamboo', name: '竹里馆', yaw: 0.4, pitch: 0.8, distance: 46, offset: [-14, 0, 14] },
+    { id: 'hill', name: '华子冈', yaw: 0.9, pitch: 0.6, distance: 75, offset: [34, 6, -4] },
   ],
 }
 
