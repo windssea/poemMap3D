@@ -27,10 +27,10 @@ import {
   gardenWall,
 } from './BuildingFactory'
 import { flowerBed, gardenGate, gardenHall, gardenPaving, stoneBoat, zigzagBridge } from './GardenBuildings'
-import { sculptedPine } from './MountainBuildings'
+import { grottoFacade, sculptedPine } from './MountainBuildings'
 import { quay, skiff } from './WaterfrontBuildings'
 
-export type BuildingId = 'grandTower' | 'waterPavilion' | 'corridor' | 'rockery' | 'gardenWall' | 'gardenHall' | 'zigzagBridge' | 'stoneBoat' | 'gardenGate' | 'gardenPaving' | 'flowerBed' | 'loft' | 'courtyard' | 'shop' | 'stall' | 'bellTower' | 'archway' | 'lamp' | 'house' | 'hall' | 'pavilion' | 'pagoda' | 'brickPagoda' | 'gate' | 'wall' | 'tower' | 'bridge' | 'stupa' | 'terrace' | 'hut' | 'quay' | 'skiff' | 'sculptedPine'
+export type BuildingId = 'grandTower' | 'waterPavilion' | 'corridor' | 'rockery' | 'gardenWall' | 'gardenHall' | 'zigzagBridge' | 'stoneBoat' | 'gardenGate' | 'gardenPaving' | 'flowerBed' | 'loft' | 'courtyard' | 'shop' | 'stall' | 'bellTower' | 'archway' | 'lamp' | 'house' | 'hall' | 'pavilion' | 'pagoda' | 'brickPagoda' | 'gate' | 'wall' | 'tower' | 'bridge' | 'stupa' | 'terrace' | 'hut' | 'quay' | 'skiff' | 'sculptedPine' | 'grottoFacade'
 
 export interface BuildingDefinition {
   id: BuildingId
@@ -76,6 +76,7 @@ const defs: BuildingDefinition[] = [
   { id: 'quay', name: '码头', entrance: 'none', foundation: 'stone', build: quay },
   { id: 'skiff', name: '泊舟', entrance: 'none', foundation: 'none', build: skiff },
   { id: 'sculptedPine', name: '名松', entrance: 'none', foundation: 'none', build: sculptedPine },
+  { id: 'grottoFacade', name: '石窟', entrance: 'none', foundation: 'stone', build: grottoFacade },
 ]
 
 /** 数据驱动的建筑注册表：新增建筑只需加一条定义 */

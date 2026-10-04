@@ -1132,4 +1132,43 @@ const HUANGSHAN: LandmarkDefinition = {
   ],
 }
 
-export const CITY_CATALOG: readonly LandmarkDefinition[] = [HUANGHELOU, YUEYANGLOU, TENGWANGGE, GUANQUELOU, DUOJINGLOU, JINLING, LUOYANG, CHENGDU, SUZHOU, HUANGZHOU, YANGZHOU, BIANJING, SHANYIN, MIZHOU, CHUZHOU, XIANGYANG, JUNSHAN, PENGCHENG, HUIZHOU, BAIDICHENG, TAISHAN, JIANMEN, FENGQIAO, ZHONGNAN, WANGCHUAN, LANTING, TIANMU, EMEI, HUASHAN, HUANGSHAN]
+/**
+ * 龙门石窟：洛阳城南伊阙。伊水自南向北穿过两山之间，西为龙门山、东为香山，两岸对峙如阙；
+ * 西山临水的崖面上凿满大小石龛，正中奉先寺大龛（卢舍那大像）面东临河；东岸香山寺一殿，一座石桥过伊水。
+ * （实际在洛阳城南十余公里；图上比例压缩，往南挪开，不与洛阳城叠在一起。）
+ */
+const LONGMEN: LandmarkDefinition = {
+  id: 'longmen',
+  name: '龙门石窟',
+  coordinate: { lng: 112.47, lat: 34.56 },
+  offset: [0, 70],
+  // 谷底按河面算：伊水北流出谷汇入洛阳一带，谷底不高出洛阳太多（不然出谷是一级级跌水）
+  levelDy: -22,
+  radius: 44,
+  major: true,
+  poetryPlaceId: 'longmen',
+  terrainModifier: [
+    // 河谷底：伊水与两岸窄滩；先削出谷，再起两山
+    { t: 'flatten', x: 0, z: 0, r: 12, rz: 46, square: true, blend: 3, shave: true },
+    // 两山夹一水：西山陡崖面东、东山陡崖面西（崖面分级退让）
+    { t: 'ridge', pts: [[-23, -44], [-24, 0], [-22, 44]], h: 26, w: 18, cliff: 3, cliffSide: -1 },
+    { t: 'ridge', pts: [[16, -44], [15, 0], [17, 44]], h: 18, w: 16, cliff: 4, cliffSide: 1 },
+    { t: 'canal', pts: [[2, 48], [1, 0], [2, -60]], w: 3 },
+  ],
+  structures: [
+    { b: 'grottoFacade', x: -10, z: 0, rot: 3, atLevel: true, p: { width: 41, height: 22 } },
+    { b: 'bridge', x: 1, z: 18, atLevel: true, span: true, p: { length: 9 } },
+    { b: 'hall', x: 9, z: -12, rot: 1, atLevel: true, p: { width: 7, depth: 5, tile: 'gray', terrace: 1, lanterns: true } },
+    { b: 'pavilion', x: 8, z: 10, atLevel: true, p: { width: 3, tile: 'gray' } },
+  ],
+  trees: [{ type: 'pine', variant: 0, pts: [[10, -26], [10, 30]], n: 4 }],
+  vegetationProfile: { weights: { pine: 3, broadleaf: 3 }, density: 0.7 },
+  shots: [
+    // 隔河从东岸平看崖面（大龛正对），伊水在下沿留白
+    { id: 'hero', name: '奉先寺', yaw: 2.6, pitch: 0.16, distance: 44, offset: [-8, 10, 0] },
+    { id: 'context', name: '伊阙', yaw: 0.05, pitch: 0.4, distance: 110, offset: [0, 6, 0] },
+    { id: 'detail', name: '卢舍那', yaw: 1.57, pitch: 0.12, distance: 30, offset: [-14, 9, 0] },
+  ],
+}
+
+export const CITY_CATALOG: readonly LandmarkDefinition[] = [HUANGHELOU, YUEYANGLOU, TENGWANGGE, GUANQUELOU, DUOJINGLOU, JINLING, LUOYANG, CHENGDU, SUZHOU, HUANGZHOU, YANGZHOU, BIANJING, SHANYIN, MIZHOU, CHUZHOU, XIANGYANG, JUNSHAN, PENGCHENG, HUIZHOU, BAIDICHENG, TAISHAN, JIANMEN, FENGQIAO, ZHONGNAN, WANGCHUAN, LANTING, TIANMU, EMEI, HUASHAN, HUANGSHAN, LONGMEN]

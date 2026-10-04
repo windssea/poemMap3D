@@ -1,9 +1,9 @@
 import { B } from '../block/Blocks'
 import { S } from '../block/BlockState'
-import { Axis } from '../block/Direction'
+import { Axis, Direction } from '../block/Direction'
 import { StructureBuilder } from '../structure/StructureBuilder'
 import type { VoxelStructure } from '../structure/VoxelStructure'
-import { type BuildingParams, post } from './BuildingFactory'
+import { type BuildingParams, post, stairs } from './BuildingFactory'
 
 /*
  * 山岳营造：名松等不随机的定稿造型。约定同 BuildingFactory：正面朝南（+Z）、y = 0 是地面上第一格。
@@ -43,5 +43,75 @@ export function sculptedPine(_p: BuildingParams = {}): VoxelStructure {
   pad(3, 6, 0, 2, 2) // 长枝中段
   pad(8, 5, 0, 3, 2) // 长枝梢：伸得最远的一片
   pad(9, 6, 0, 1, 1)
+  return b.build()
+}
+
+/**
+ * 龙门石窟崖面：一段朝南（+Z）的石灰岩崖壁，嵌进山体（背后 z < 0 是实心岩）。
+ * 正中奉先寺大龛：开口宽 15、高 17，龛内一尊结跏趺坐的卢舍那大像（莲座、身、肩、头、肉髻，背后一圈火焰形背光），
+ * 左右各一尊立像（弟子、菩萨，简化为高身窄肩）；两翼崖面上三排大小不一的小龛，节奏错落；
+ * 龛前一道石台阶自水边上到大龛。造型克制、对称，不做随机变形。
+ * width：崖面总长（默认 41）；height：崖高（默认 22）。
+ */
+export function grottoFacade(p: BuildingParams = {}): VoxelStructure {
+  const W = p.width ?? 41
+  const H = p.height ?? 22
+  const hw = Math.floor(W / 2)
+  const b = new StructureBuilder('grotto-facade')
+  const rock = S(B.LIMESTONE)
+  const carve = S(B.MARBLE)
+  // 崖体：厚 6（z = −5…0），顶面按 x 起伏，两头收低
+  for (let x = -hw; x <= hw; x++) {
+    const top = H - Math.round(4 * Math.pow(Math.abs(x) / hw, 2)) + ((x * 7) % 3 === 0 ? 1 : 0)
+    for (let z = -5; z <= 0; z++) for (let y = -2; y < top; y++) b.set(x, y, z, rock)
+  }
+  // 大龛：方口圆顶，深 5（z = −4…0 挖空，z = −5 为龛壁）
+  const nw = 7
+  const nh = 16
+  for (let x = -nw; x <= nw; x++)
+    for (let y = 2; y <= nh; y++) {
+      const arch = y > nh - nw ? Math.hypot(x, y - (nh - nw)) <= nw + 0.3 : true
+      if (arch) for (let z = -4; z <= 0; z++) b.set(x, y, z, 0)
+    }
+  // 龛底台（y = 1）与龛前一级踏步（z = 1）
+  for (let x = -nw; x <= nw; x++) for (let z = -4; z <= 0; z++) b.set(x, 1, z, S(B.STONE_BRICK))
+  for (let x = -2; x <= 2; x++) b.set(x, 0, 1, stairs(B.STONE_BRICK_STAIRS, Direction.North))
+  // 背光：龛壁上一圈浅浮雕（大理石色）
+  for (let x = -6; x <= 6; x++)
+    for (let y = 4; y <= nh; y++) {
+      const d = Math.hypot(x, (y - 10) * 0.85)
+      if (d > 5.3 && d < 6.4) b.set(x, y, -5, carve)
+    }
+  // 卢舍那大像：莲座 → 盘腿 → 身 → 肩 → 颈 → 头 → 肉髻
+  const box = (x0: number, y0: number, z0: number, x1: number, y1: number, z1: number) => {
+    for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) for (let z = z0; z <= z1; z++) b.set(x, y, z, carve)
+  }
+  box(-4, 2, -4, 4, 2, -1) // 莲座
+  box(-5, 3, -4, 5, 4, -1) // 盘腿
+  box(-3, 5, -4, 3, 9, -2) // 身
+  box(-4, 9, -4, 4, 9, -2) // 肩
+  box(-1, 10, -4, 1, 10, -3) // 颈
+  box(-2, 11, -4, 2, 13, -2) // 头
+  box(-1, 14, -4, 1, 14, -3) // 肉髻
+  box(-4, 5, -2, -4, 7, -2) // 双手垂在膝上
+  box(4, 5, -2, 4, 7, -2)
+  // 两侧立像：弟子、菩萨，各一对
+  for (const sx of [-1, 1]) {
+    box(sx * 6, 2, -4, sx * 6, 9, -3)
+    b.set(sx * 6, 10, -3, carve).set(sx * 6, 10, -4, carve)
+  }
+  // 两翼小龛：三排，大小错落
+  const niche = (cx: number, y0: number, w: number, h: number) => {
+    for (let x = cx - w; x <= cx + w; x++) for (let y = y0; y < y0 + h; y++) b.set(x, y, 0, 0).set(x, y, -1, 0)
+    for (let y = y0; y < y0 + Math.max(1, h - 1); y++) b.set(cx, y, -1, carve) // 龛中一尊小像
+  }
+  for (const side of [-1, 1])
+    for (let i = 0; i < 4; i++) {
+      const cx = side * (10 + i * 3)
+      if (Math.abs(cx) > hw - 2) continue
+      niche(cx, 3 + (i % 2), i === 0 ? 1 : 0, 3)
+      niche(cx + side, 9 + ((i + 1) % 2), 0, 2)
+      if (Math.abs(cx) < hw - 5) niche(cx, 14, 0, 2)
+    }
   return b.build()
 }
