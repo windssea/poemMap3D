@@ -96,6 +96,8 @@ export class EngineFacadeImpl implements EngineFacade, TourPort, TrailPort {
 
   focusLandmark(id: string, opts?: FlightOptions & { shot?: number }): void {
     void this.engine.focusPlace(id, opts)
+    // 飞到一处名胜默认落在第一个定稿机位
+    this.store.set({ selectedShotId: this.placeShots(id)[0]?.id ?? null, activeView: null })
   }
 
   placeShots(placeId: string): { id: string; name: string }[] {
@@ -104,6 +106,7 @@ export class EngineFacadeImpl implements EngineFacade, TourPort, TrailPort {
 
   focusShot(placeId: string, shotId: string): void {
     void this.engine.focusPlace(placeId, { shotId })
+    this.store.set({ selectedShotId: shotId, activeView: null })
   }
 
   setTime(time: TimeOfDay): void {
@@ -166,6 +169,8 @@ export class EngineFacadeImpl implements EngineFacade, TourPort, TrailPort {
 
   flyToView(key: string): void {
     void this.engine.flyToView(key)
+    // 换到视角预设：镜头已离开所选地点，旧地点的取景按钮不再显示
+    this.store.set({ activeView: key, selectedShotId: null })
   }
 
   flyToGeo(lng: number, lat: number, distance = 260): void {

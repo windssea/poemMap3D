@@ -78,6 +78,9 @@ export async function bootstrap(container: HTMLElement): Promise<AppServices> {
   })
   engine.events.on('interact', () => {
     if (store.get().tourState.active) tour.stop()
+    // 用户自己动了镜头：不再停在哪个机位、哪个视角上
+    const st = store.get()
+    if (st.selectedShotId || st.activeView) store.set({ selectedShotId: null, activeView: null })
   })
   /* 背景音：随季节、时辰、天气调配；上次开着的，等用户第一次点按后再出声（浏览器要求） */
   const sound = new AmbientSound()

@@ -36,6 +36,10 @@ export interface AppState {
   loading: { ready: boolean; label: string; progress: number; error: string | null }
   selectedPlaceId: string | null
   selectedPoemId: string | null
+  /** 当前所在的定稿机位（取景按钮高亮）；用户拖动、换视角后清空 */
+  selectedShotId: string | null
+  /** 当前所在的视角预设（全国、江南……）；选地点、选机位、拖动后清空 */
+  activeView: string | null
   search: string
   panelState: PanelState
   cameraLevel: CameraLevel
@@ -84,6 +88,8 @@ function initial(): AppState {
     loading: { ready: false, label: '研墨', progress: 0, error: null },
     selectedPlaceId: null,
     selectedPoemId: null,
+    selectedShotId: null,
+    activeView: null,
     search: '',
     panelState: 'none',
     cameraLevel: 'national',
