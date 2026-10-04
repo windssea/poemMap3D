@@ -10,7 +10,11 @@ export class FogSystem {
   /** 场景主题可额外加雾 */
   extra = 1
 
-  update(distance: number, color: THREE.Color, weatherFog: number, enabled = true): void {
+  /**
+   * mist：雾天 0–1。按乘子把 near 拉近不够——地标镜头 80 来格，晴天 near 在 500 格外，乘 0.65 还在 300 格外，
+   * 画里什么都看不出。雾天直接按镜头距离给：注视点处已薄薄一层（near≈0.3D），过了注视点一倍半就白茫茫。
+   */
+  update(distance: number, color: THREE.Color, weatherFog: number, enabled = true, mist = 0): void {
     this.fog.color.copy(color)
     if (!enabled) {
       this.fog.near = 1e6
@@ -21,7 +25,9 @@ export class FogSystem {
     // 相对上一轮再远。文档 130–160 / 360–460 是小场景；这里镜头距离 D 时 near≈2.8D，far≈2.7×near。
     const near = (distance * 2.8 + 250) * k
     const far = (distance * 7.5 + 700) * Math.sqrt(k)
-    this.fog.near = near
-    this.fog.far = Math.max(near + 420, far)
+    const mNear = distance * 0.3 + 8
+    const mFar = distance * 1.45 + 70
+    this.fog.near = near + (mNear - near) * mist
+    this.fog.far = Math.max(this.fog.near + 60 + 360 * (1 - mist), far + (mFar - far) * mist)
   }
 }

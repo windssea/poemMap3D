@@ -16,8 +16,8 @@ import { WorldConfig, yToMeters } from '../WorldConfig'
 import { type TerrainColumn, type TerrainModifier, type TerrainSample, WaterKind } from './TerrainSample'
 
 /** 地域地貌判定：在该点与四周 20 格处看宏观类型的占比 */
-/** 含沙的江河：水面泛黄（黄河） */
-const SILTY = new Set(['yellow'])
+/** 含沙的江河：水面泛黄。黄河按反馈保持原来的青绿水色，暂不启用；要给某条河上浑水色，把它的 id 加进来 */
+const SILTY = new Set<string>([])
 
 const KIND_TAPS: readonly (readonly [number, number])[] = [
   [0, 0],

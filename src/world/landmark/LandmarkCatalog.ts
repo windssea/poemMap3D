@@ -37,7 +37,8 @@ const HANGZHOU: LandmarkDefinition = {
     { t: 'causeway', pts: [[-29.4, -9], [-30, 9]], w: 1.6 },
     { t: 'causeway', pts: [[-29.8, 15], [-27, 30]], w: 1.6 },
     { t: 'causeway', pts: [[-12, -30], [-5, -27]], w: 1.6 },
-    { t: 'causeway', pts: [[1, -25], [10, -22]], w: 1.6 },
+    // 白堤东段只到运河入湖口西侧为止（原先伸到 x 10，正好把河口堵死）
+    { t: 'causeway', pts: [[1, -25], [6, -23.5]], w: 1.6 },
     { t: 'island', x: -8, z: 8, r: 4.5 },
     { t: 'flatten', x: 38, z: -22, r: 18, rz: 9, square: true, blend: 6 },
     { t: 'pave', x0: 20, z0: -23, x1: 56, z1: -21 },
@@ -46,7 +47,7 @@ const HANGZHOU: LandmarkDefinition = {
     { b: 'pagoda', x: -26, z: 45, p: { levels: 5, width: 9, style: 'leifeng' } },
     { b: 'pagoda', x: -16, z: -44, p: { levels: 7, style: 'spire' } },
     { b: 'pavilion', x: -8, z: 8, p: { width: 5, lanterns: true } },
-    { b: 'pavilion', x: 12, z: -21, p: { width: 5 } },
+    { b: 'pavilion', x: 18, z: -27, p: { width: 5 } },
     { b: 'bridge', x: -29, z: -12, rot: 1, atLevel: true, p: { length: 9 } },
     { b: 'bridge', x: -30, z: 12, rot: 1, atLevel: true, p: { length: 9 } },
     { b: 'bridge', x: -2, z: -26, rot: 0, atLevel: true, p: { length: 9 } },
@@ -63,7 +64,7 @@ const HANGZHOU: LandmarkDefinition = {
     { type: 'peach', pts: [[-29.6, -4], [-30, 4]], n: 2 },
     { type: 'willow', variant: 2, pts: [[-29.8, 17], [-27, 29]], n: 3 },
     { type: 'willow', variant: 2, pts: [[-11, -29], [-6, -27]], n: 2 },
-    { type: 'willow', variant: 2, pts: [[2, -25], [9, -22]], n: 2 },
+    { type: 'willow', variant: 2, pts: [[2, -25], [5, -24]], n: 2 },
     // 湖东岸柳：避开北边运河入湖口与中段钱塘江出湖口
     { type: 'willow', variant: 1, pts: [[14, 10], [15, 24]], n: 3 },
     { type: 'bamboo', pts: [[-60, -6], [-60, 10]], n: 3 },

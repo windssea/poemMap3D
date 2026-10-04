@@ -130,10 +130,11 @@ export class EnvironmentManager {
     u.uLotus.value += (lotusWant - u.uLotus.value) * Math.min(1, dt * 1.2)
     /* 山岚：晨起最浓，暮色次之，白天淡；雨雪加浓 */
     const mistBase = this.time.key === 'dawn' ? 0.34 : this.time.key === 'dusk' ? 0.2 : this.time.key === 'night' ? 0.16 : 0.08
-    const mistWant = Math.min(0.8, mistBase + wet * 0.3 + this.weather.mist * 0.42)
+    const mistWant = Math.min(0.9, mistBase + wet * 0.3 + this.weather.mist * 0.62)
     u.uMist.value += (mistWant - u.uMist.value) * Math.min(1, dt * 1.5)
     u.uMistY.value += (focus.y + 3 - u.uMistY.value) * Math.min(1, dt * 2)
-    u.uMistNear.value = distance
+    // 雾天山岚从更近处起（注视点之后不远就一层层白下去）
+    u.uMistNear.value = distance * (1 - 0.6 * this.weather.mist)
     u.uWet.value = this.weather.rain
     /* 冬：画面偏冷、略褪色；阔叶落尽，水面结冰 */
     const winter = S.snow
@@ -196,7 +197,9 @@ export class EnvironmentManager {
     const fogCol = top.copy(L.fog).lerp(this.rainSky, rainK * 0.35).lerp(this.snowSky, snowK * 0.4).lerp(this.winterFog, winter * 0.2 * (1 - L.night))
     // 白天雾色向中段青靠一点，避免雾和天色完全拧开；不再整体压暗——远处把光还回去靠的是距离，不是发灰
     if (L.night < 0.15) fogCol.lerp(mid, 0.3)
-    this.fog.update(distance, fogCol, W.fog, !tw || tw.fog)
+    // 雾天：雾色向乳白灰靠（夜里压暗，不发亮）
+    fogCol.lerp(this.mistSky, mistK * 0.7 * (1 - 0.7 * L.night))
+    this.fog.update(distance, fogCol, W.fog, !tw || tw.fog, mistK)
     const clim = snowClimateAt(focus.y, focus.z)
     this.precipitation.update(elapsed, focus, distance, Math.min(1, this.weather.rain + this.weather.snow * (1 - clim)), this.weather.snow * clim, pixelRatio)
     this.particles.update(elapsed, focus, distance, this.season.key, wet, pixelRatio)
