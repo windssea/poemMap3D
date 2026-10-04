@@ -9,7 +9,7 @@ const lamps = (xs: readonly number[], zs: readonly number[]): StructureSpec[] =>
 
 /* ================= 名楼 ================= */
 
-/** 黄鹤楼：武昌蛇山西头，十字抱厦、十字脊，黄琉璃；山脚牌坊、胜像宝塔，山上白云亭 */
+/** 黄鹤楼：武昌蛇山北头（蛇山一道顺江长脊），十字抱厦、十字脊，黄琉璃；山脚牌坊、胜像宝塔，山上白云亭 */
 const HUANGHELOU: LandmarkDefinition = {
   id: 'huanghelou',
   name: '黄鹤楼',
@@ -24,8 +24,9 @@ const HUANGHELOU: LandmarkDefinition = {
     { id: 'detail', name: '近观', yaw: 0.15, pitch: 0.2, distance: 40, offset: [-6, 15, 9] },
   ],
   terrainModifier: [
-    { t: 'hill', x: 12, z: 2, r: 26, h: 13 },
-    { t: 'hill', x: -6, z: 0, r: 17, h: 11 },
+    // 蛇山：一道顺江的长脊（不是两座圆丘）。这里江从楼东侧南北流过，脊就沿西岸从楼下向南蜿蜒，北头托起黄鹤楼
+    { t: 'ridge', pts: [[-12, -6], [-6, 0], [2, 12], [10, 26], [16, 42]], h: 14, w: 16, cliff: 6, cliffSide: 1 },
+    { t: 'hill', x: 12, z: 2, r: 14, h: 12 },
     { t: 'flatten', x: -6, z: 0, r: 13, dy: 11, blend: 6 },
     { t: 'flatten', x: 18, z: 2, r: 5, dy: 13, blend: 4 },
   ],
