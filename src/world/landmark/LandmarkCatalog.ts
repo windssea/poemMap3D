@@ -100,7 +100,7 @@ const LUSHAN: LandmarkDefinition = {
     { t: 'hill', x: 2, z: 28, r: 22, h: 16 },
     { t: 'hill', x: -30, z: 32, r: 15, h: 11 },
     { t: 'hill', x: 14, z: -6, r: 12, h: 26, sharp: 1 },
-    { t: 'lake', x: 14, z: 8, rx: 8, rz: 6, depth: 3 },
+    { t: 'lake', x: 14, z: 8, rx: 8, rz: 6, depth: 3, rim: true },
   ],
   structures: [
     { b: 'pavilion', x: 6, z: -22, p: { width: 5 } },

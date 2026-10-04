@@ -10,7 +10,7 @@ type XZ = readonly [number, number]
 /** 地形操作（局部坐标：方块，以地标中心为原点，x 向东、z 向南） */
 export type TerrainOp =
   | { t: 'flatten'; x: number; z: number; r: number; square?: boolean; /** 方形时南北半深（缺省同 r） */ rz?: number; dy?: number; pave?: boolean; blend?: number; overWater?: boolean }
-  | { t: 'lake'; x: number; z: number; rx: number; rz: number; depth?: number; rot?: number }
+  | { t: 'lake'; x: number; z: number; rx: number; rz: number; depth?: number; rot?: number; /** 潭口：岸外低于水面处补一圈潭沿（挂在坡上的潭） */ rim?: boolean }
   | { t: 'hill'; x: number; z: number; r: number; h: number; sharp?: number }
   /**
    * 山脊：沿折线起脊，两侧不对称——cliffSide 一侧（沿折线前进方向看，1 为右手、-1 为左手）是宽 cliff 的陡崖，

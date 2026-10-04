@@ -371,6 +371,8 @@ export class LandmarkRegistry {
         const wet0 = wet()
         /** 落在某个平整台面核心（建筑落脚处）里：临水退让不削它 */
         let core = false
+        /** 潭沿：此列地面至少这么高 */
+        let rimFloor = -Infinity
         for (const op of ops) {
           switch (op.t) {
             case 'flatten': {
@@ -423,6 +425,16 @@ export class LandmarkRegistry {
                 if (dist < col.waterDist) {
                   col.waterDist = dist
                   col.waterKind = WaterKind.Lake
+                }
+              }
+              // 潭口：岸外地面比水面低（潭挂在坡上、下临大湖）时补一圈潭沿，向外按落差放宽、渐落回原地——
+              // 不然水面的侧壁整个露出来，是一道立在坡上的水墙
+              // 按原地面算（山丘先把这里垫高、临水退让再削回去，同样会削出缺口），末尾封顶之后再兜一次底
+              if (op.rim && rr >= 1 && rr < 3) {
+                const lip = level + 0.5
+                if (h0 < lip) {
+                  const band = 1.15 + Math.min(1.8, ((lip - h0) * 1.3) / Math.min(op.rx, op.rz))
+                  if (rr < band) rimFloor = Math.max(rimFloor, lerp(lip, h0, smoothstep(1.15, band, rr)))
                 }
               }
               break
@@ -558,6 +570,10 @@ export class LandmarkRegistry {
         if (!core && !wet0 && !wet() && wd0 < 60 && col.height > h0) {
           const cap = h0 + Math.max(0, wd0 - 1) * 1.4
           if (col.height > cap) col.height = cap
+        }
+        if (col.height < rimFloor) {
+          col.height = rimFloor
+          if (col.waterY >= 0 && col.height >= col.waterY) col.waterY = -1
         }
       },
     }
