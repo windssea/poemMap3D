@@ -25,6 +25,8 @@ const HANGZHOU: LandmarkDefinition = {
   radius: 66,
   major: true,
   poetryPlaceId: 'hangzhou',
+  // 湖城：街上照常热闹，西湖边不放牲畜
+  life: { people: 1, mix: { scholar: 0.25, maiden: 0.25, merchant: 0.15, elder: 0.12, child: 0.1, official: 0.05, fisher: 0.08 }, animals: {} },
   waterfront: true,
   terrainModifier: [
     { t: 'flatten', x: 0, z: 0, r: 58, blend: 12, soft: true },

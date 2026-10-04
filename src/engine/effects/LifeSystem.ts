@@ -88,6 +88,56 @@ const ROBES: Record<FigureKind, readonly string[]> = {
 }
 const KIND = Object.fromEntries(FIGURE_KINDS.map((k, i) => [k, i])) as Record<FigureKind, number>
 const AKIND = Object.fromEntries(ANIMAL_KINDS.map((k, i) => [k, i])) as Record<AnimalKind, number>
+interface ResolvedLife {
+  town: boolean
+  people: number
+  mix: Partial<Record<FigureKind, number>>
+  /** null：按地域默认配牲畜；空对象：不放 */
+  animals: Partial<Record<AnimalKind, number>> | null
+  animalDensity: number
+}
+
+const TOWN_MIX: Partial<Record<FigureKind, number>> = { official: 0.08, scholar: 0.16, maiden: 0.18, merchant: 0.17, farmer: 0.07, child: 0.1, elder: 0.1, carter: 0.08, fisher: 0.06 }
+const VILLAGE_MIX: Partial<Record<FigureKind, number>> = { farmer: 0.28, maiden: 0.15, child: 0.14, elder: 0.12, scholar: 0.07, merchant: 0.06, carter: 0.07, fisher: 0.1, official: 0.01 }
+/** 园林、雅集：书生、少女、老人停驻观景，不走商贩，不放牲畜 */
+const GARDEN_MIX: Partial<Record<FigureKind, number>> = { scholar: 0.4, maiden: 0.3, elder: 0.2, child: 0.1 }
+/** 山中寺观、名山：少量访客 */
+const MOUNTAIN_MIX: Partial<Record<FigureKind, number>> = { scholar: 0.4, elder: 0.3, farmer: 0.15, maiden: 0.15 }
+
+/**
+ * 一处地标的市井配置：显式写了 life 的为准，其余按类型推——有城墙或大片铺地的是城镇；园林（生物群系覆盖为园林）
+ * 是雅集；峰顶取址或主体是名松、石窟的是名山；其余为乡村。地标叙事优先于生物群系
+ */
+function lifeProfileOf(lm: ResolvedLandmark, paved: number): ResolvedLife {
+  const d = lm.def
+  const town = !!d.walls?.length || paved > 120
+  const garden = d.biomeOverride?.biome === BiomeId.Garden && !d.walls?.length
+  const mountain = d.levelMode === 'summit' || d.hero?.kind === 'tree' || d.hero?.kind === 'carving'
+  const base: ResolvedLife = garden
+    ? { town: false, people: 0.6, mix: GARDEN_MIX, animals: {}, animalDensity: 0 }
+    : mountain
+      ? { town: false, people: 0.35, mix: MOUNTAIN_MIX, animals: {}, animalDensity: 0 }
+      : town
+        ? { town: true, people: 1, mix: TOWN_MIX, animals: null, animalDensity: 1 }
+        : { town: false, people: 1, mix: VILLAGE_MIX, animals: null, animalDensity: 1 }
+  const L = d.life
+  if (!L) return base
+  return {
+    town: base.town,
+    people: L.people ?? base.people,
+    mix: L.mix ?? base.mix,
+    animals: L.animals ?? base.animals,
+    animalDensity: L.animalDensity ?? (L.animals ? 1 : base.animalDensity),
+  }
+}
+
+/** 权重表 → 归一的 [种类, 权重] 列表（去掉 0） */
+function norm<K extends string>(w: Partial<Record<K, number>>): [K, number][] {
+  const e = (Object.entries(w) as [K, number][]).filter(([, v]) => v > 0)
+  const sum = e.reduce((a, [, v]) => a + v, 0) || 1
+  return e.map(([k, v]) => [k, v / sum])
+}
+
 /** 体型净空：牛马四周一格也要是空地（不贴着墙、岸），羊猪鸡只看脚下 */
 const MARGIN: Record<AnimalKind, number> = { cattle: 1, buffalo: 1, horse: 1, sheep: 0, pig: 0, chicken: 0 }
 
@@ -346,13 +396,12 @@ export class LifeSystem {
     const cells = paved.length > 30 ? paved : [...paved, ...open]
     const walkable = new Set(cells.map(([x, z]) => x * 65536 + z))
     this.walkable = walkable
-    const busy = (lm.def.major ? 1.6 : 1) * (lm.def.walls ? 1.5 : 1)
+    const prof = lifeProfileOf(lm, paved.length)
+    const busy = (lm.def.major ? 1.6 : 1) * (lm.def.walls ? 1.5 : 1) * prof.people
     const n = Math.min(MAX_PEOPLE - 20, Math.round(Math.min(cells.length / 18, 50) * busy))
-    /* 人群构成：城里官、士、商多，乡间农人、孩童、老人多；渔夫只在水边 */
-    const town = !!lm.def.walls?.length || paved.length > 120
-    const mix: [FigureKind, number][] = town
-      ? [['official', 0.08], ['scholar', 0.16], ['maiden', 0.18], ['merchant', 0.17], ['farmer', 0.07], ['child', 0.1], ['elder', 0.1], ['carter', 0.08], ['fisher', 0.06]]
-      : [['farmer', 0.28], ['maiden', 0.15], ['child', 0.14], ['elder', 0.12], ['scholar', 0.07], ['merchant', 0.06], ['carter', 0.07], ['fisher', 0.1], ['official', 0.01]]
+    /* 人群构成按地标的市井配置；渔夫只在水边 */
+    const town = prof.town
+    const mix = norm(prof.mix) as [FigureKind, number][]
     const nearWater = (x: number, z: number) => {
       for (let dz = -4; dz <= 4; dz += 2)
         for (let dx = -4; dx <= 4; dx += 2) {
@@ -375,7 +424,7 @@ export class LifeSystem {
       if (kind === 'fisher' && !nearWater(x, z)) kind = town ? 'merchant' : 'farmer'
       this.walkers.push(this.walker(x + 0.5, z + 0.5, false, kind))
     }
-    this.populateAnimals(lm, open)
+    this.populateAnimals(lm, open, prof)
     /* 摊贩与看货的人；有炊烟的屋 */
     for (const p of lm.placements) {
       const id = p.id
@@ -516,18 +565,23 @@ export class LifeSystem {
    * 牲畜：放在地标范围里的空地上（不上铺地的街），按地方配种类——北方草原多羊、马，北方农区牛马猪鸡，
    * 南方水乡水牛、猪、鸡；鸡三五成群挨着人家。城池里少放
    */
-  private populateAnimals(lm: ResolvedLandmark, open: [number, number][]): void {
+  private populateAnimals(lm: ResolvedLandmark, open: [number, number][], prof: ResolvedLife): void {
     if (open.length < 40) return
     this.pasture = new Set(open.map(([x, z]) => x * 65536 + z))
-    const s = this.ctx.terrain.sample(lm.x, lm.z)
-    const lat = this.P.unproject(lm.x, lm.z).lat
-    const steppe = s.biome === BiomeId.Steppe || s.biome === BiomeId.Plateau || s.biome === BiomeId.Gobi || s.biome === BiomeId.Desert
-    const mix: [AnimalKind, number][] = steppe
-      ? [['sheep', 0.55], ['horse', 0.3], ['cattle', 0.15]]
-      : lat > 33
-        ? [['cattle', 0.25], ['horse', 0.2], ['sheep', 0.15], ['pig', 0.15], ['chicken', 0.25]]
-        : [['buffalo', 0.35], ['pig', 0.25], ['chicken', 0.35], ['horse', 0.05]]
-    const n = Math.min(MAX_ANIMALS - 8, Math.round(Math.min(open.length / 60, 18) * (lm.def.walls?.length ? 0.5 : 1)))
+    let mix: [AnimalKind, number][]
+    if (prof.animals) mix = norm(prof.animals) as [AnimalKind, number][]
+    else {
+      const s = this.ctx.terrain.sample(lm.x, lm.z)
+      const lat = this.P.unproject(lm.x, lm.z).lat
+      const steppe = s.biome === BiomeId.Steppe || s.biome === BiomeId.Plateau || s.biome === BiomeId.Gobi || s.biome === BiomeId.Desert
+      mix = steppe
+        ? [['sheep', 0.55], ['horse', 0.3], ['cattle', 0.15]]
+        : lat > 33
+          ? [['cattle', 0.25], ['horse', 0.2], ['sheep', 0.15], ['pig', 0.15], ['chicken', 0.25]]
+          : [['buffalo', 0.35], ['pig', 0.25], ['chicken', 0.35], ['horse', 0.05]]
+    }
+    if (!mix.length) return
+    const n = Math.min(MAX_ANIMALS - 8, Math.round(Math.min(open.length / 60, 18) * (lm.def.walls?.length ? 0.5 : 1) * prof.animalDensity))
     for (let i = 0; i < n; i++) {
       let u = this.rnd.next()
       let kind: AnimalKind = mix[0][0]

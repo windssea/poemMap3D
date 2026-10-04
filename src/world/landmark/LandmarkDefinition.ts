@@ -51,6 +51,20 @@ export interface StructureSpec {
   span?: boolean
 }
 
+export type LifeFigure = 'official' | 'scholar' | 'maiden' | 'farmer' | 'merchant' | 'child' | 'elder' | 'fisher' | 'carter'
+export type LifeAnimal = 'cattle' | 'buffalo' | 'horse' | 'sheep' | 'pig' | 'chicken'
+
+/**
+ * 一处的市井：密度（相对默认的倍数）、各类人的权重、牲畜种类权重（空对象为不放牲畜）与数量倍数。
+ * 例：兰亭只有书生、老人、少女，没有牲畜；山寺人少；边关多车夫、商旅与马。
+ */
+export interface LifeProfile {
+  people?: number
+  mix?: Partial<Record<LifeFigure, number>>
+  animals?: Partial<Record<LifeAnimal, number>>
+  animalDensity?: number
+}
+
 export interface CityWallSpec {
   x: number
   z: number
@@ -111,6 +125,8 @@ export interface LandmarkDefinition {
    * 自然或雕刻主景（黄山迎客松、龙门大龛）要显式写，主楼视廊、取景朝向都跟它走
    */
   hero?: { structure: number; kind: 'building' | 'tree' | 'carving' | 'pass' }
+  /** 市井：这处的人群与牲畜（缺省按地标类型：有城墙的是城镇，园林、山寺、乡村各有默认） */
+  life?: LifeProfile
   /** 水面上的小舟、瀑布等特写元素 */
   waterfall?: { x: number; z: number; top: number; width: number; dir: 'n' | 's' | 'e' | 'w' }
   /** 允许穿城而过的江河（如洛水贯都）：避让时不算它，城墙在水上留水门 */

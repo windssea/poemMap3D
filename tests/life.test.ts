@@ -78,3 +78,27 @@ describe('市井：出生与 60 秒游走', () => {
     expect(meshes.length).toBeGreaterThanOrEqual(9 * 2 + 1 + 1 + 6)
   }, 60000)
 })
+
+describe('各地标的市井配置', () => {
+  it('园林、雅集、名山不放牲畜；关隘只有马和牛；兰亭只有书生、老人、童子', async () => {
+    const { testWorld } = await import('./helpers')
+    const { LifeSystem } = await import('../src/engine/effects/LifeSystem')
+    const { ANIMAL_KINDS, FIGURE_KINDS } = await import('../src/engine/effects/LifeModels')
+    const w = testWorld()
+    const life = new LifeSystem(w) as any
+    const run = (id: string) => {
+      const lm = w.landmarks.landmarks.find((l) => l.def.id === id)!
+      life.populate(lm)
+      return {
+        animals: new Set((life.animals as { kind: number }[]).map((a) => ANIMAL_KINDS[a.kind])),
+        people: new Set((life.walkers as { kind: number; still: boolean }[]).filter((p) => !p.still).map((p) => FIGURE_KINDS[p.kind])),
+      }
+    }
+    for (const id of ['suzhou', 'lanting', 'huangshan', 'hangzhou']) expect(run(id).animals.size, id).toBe(0)
+    const pass = run('jianmenguan')
+    for (const a of pass.animals) expect(['horse', 'cattle']).toContain(a)
+    const lt = run('lanting')
+    for (const p of lt.people) expect(['scholar', 'elder', 'child', 'farmer', 'merchant']).toContain(p)
+    expect(lt.people.has('scholar')).toBe(true)
+  }, 120000)
+})

@@ -323,6 +323,8 @@ const SUZHOU: LandmarkDefinition = {
   radius: 54,
   major: true,
   poetryPlaceId: 'suzhou',
+  // 园林：游园的书生、少女、老人，不放牲畜
+  life: { people: 0.6, mix: { scholar: 0.35, maiden: 0.35, elder: 0.2, child: 0.1 }, animals: {} },
   // 定稿机位：全园总览、远香堂（自南俯看堂、九曲桥与池心亭）、池北（自北俯看池、石舫与堂）、后园（见山楼、冠云峰）。
   // 园小而密、斜看只见层层屋顶，都近乎俯看
   shots: [
@@ -818,6 +820,8 @@ const JIANMEN: LandmarkDefinition = {
   radius: 60,
   major: true,
   poetryPlaceId: 'p095',
+  // 关隘：往来的车夫、商旅、官差，马多
+  life: { people: 0.8, mix: { carter: 0.25, merchant: 0.25, official: 0.15, scholar: 0.15, farmer: 0.1, elder: 0.1 }, animals: { horse: 0.7, cattle: 0.3 }, animalDensity: 0.6 },
   // 关墙：自关门两侧顺山坡一路爬上两边山脊（按长城的做法砌：马道、垛口，脊上收在墩台），关口连着两边山脉
   greatWall: [
     [[7, -1], [16, -1], [24, -2]],
@@ -871,6 +875,8 @@ const FENGQIAO: LandmarkDefinition = {
   radius: 30,
   major: true,
   poetryPlaceId: 'fengqiao',
+  // 夜泊：岸上人稀，多是渔人、船家与寺里的老人，只在人家门前几只鸡
+  life: { people: 0.5, mix: { fisher: 0.3, merchant: 0.15, elder: 0.2, scholar: 0.2, maiden: 0.15 }, animals: { chicken: 1 }, animalDensity: 0.3 },
   terrainModifier: [{ t: 'flatten', x: 2, z: 8, r: 16, blend: 6 }],
   structures: [
     // 运河在寺东自东北斜向南流过。枫桥：东西向跨河的石拱桥（沿自身轴线找水面居中跨过）
@@ -982,6 +988,8 @@ const LANTING: LandmarkDefinition = {
   radius: 32,
   major: true,
   poetryPlaceId: 'lanting',
+  // 雅集：书生临水而坐，几位老人、童子，不放牲畜
+  life: { people: 0.6, mix: { scholar: 0.6, elder: 0.25, child: 0.15 }, animals: {} },
   terrainModifier: [
     { t: 'flatten', x: 0, z: 0, r: 20, blend: 8 },
     { t: 'hill', x: -6, z: -30, r: 20, h: 16 },
@@ -1209,6 +1217,8 @@ const YUEYAQUAN: LandmarkDefinition = {
   radius: 60,
   major: true,
   poetryPlaceId: 'yueyaquan',
+  // 绿洲：商旅、车夫歇脚，几匹马、一小群羊
+  life: { people: 0.4, mix: { merchant: 0.35, carter: 0.3, scholar: 0.15, elder: 0.1, child: 0.1 }, animals: { horse: 0.6, sheep: 0.4 }, animalDensity: 0.5 },
   // 坐标落在一座小沙包上：泉面按四周沙地算，不在沙包顶上
   levelDy: -11,
   terrainModifier: [
@@ -1285,6 +1295,8 @@ const SHANHAIGUAN: LandmarkDefinition = {
   radius: 44,
   major: true,
   poetryPlaceId: 'shanhaiguan',
+  // 关隘：往来的车夫、商旅、官差，马多
+  life: { people: 0.8, mix: { carter: 0.25, merchant: 0.25, official: 0.15, scholar: 0.15, farmer: 0.1, elder: 0.1 }, animals: { horse: 0.7, cattle: 0.3 }, animalDensity: 0.6 },
   terrainModifier: [
     { t: 'flatten', x: 0, z: 0, r: 20, rz: 16, square: true, blend: 8 },
     { t: 'pave', x0: -2, z0: -15, x1: 2, z1: 15 },
@@ -1325,6 +1337,8 @@ const JIAYUGUAN: LandmarkDefinition = {
   radius: 40,
   major: true,
   poetryPlaceId: 'jiayuguan',
+  // 关隘：往来的车夫、商旅、官差，马多
+  life: { people: 0.8, mix: { carter: 0.25, merchant: 0.25, official: 0.15, scholar: 0.15, farmer: 0.1, elder: 0.1 }, animals: { horse: 0.7, cattle: 0.3 }, animalDensity: 0.6 },
   terrainModifier: [{ t: 'flatten', x: 0, z: 0, r: 25, rz: 19, square: true, blend: 8 }],
   // 罗城与内城的城门隔开十格：靠太近两座门楼叠在一起，后放的门楼清空时把前一座的墙削掉
   walls: [
@@ -1359,6 +1373,8 @@ const YANMENGUAN: LandmarkDefinition = {
   radius: 36,
   major: true,
   poetryPlaceId: 'p064',
+  // 关隘：往来的车夫、商旅、官差，马多
+  life: { people: 0.8, mix: { carter: 0.25, merchant: 0.25, official: 0.15, scholar: 0.15, farmer: 0.1, elder: 0.1 }, animals: { horse: 0.7, cattle: 0.3 }, animalDensity: 0.6 },
   terrainModifier: [{ t: 'flatten', x: 0, z: 0, r: 14, rz: 12, square: true, blend: 8 }],
   walls: [{ x: 0, z: 0, hw: 11, hd: 9, height: 9, gates: ['n', 's'], gateLevels: 2 }],
   // 李牧祠在城西半边、面东：不压住南北门之间的关道
