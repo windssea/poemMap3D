@@ -115,7 +115,6 @@ export class ChunkGenerator {
       }
       vol.emitters = ext.length ? Int32Array.from(ext) : null
     }
-    this.greatWall.apply(vol)
 
     /* 树：树根在外扩范围内的都要考虑（树冠可能伸进来） */
     const R = MAX_TREE_RADIUS
@@ -128,6 +127,8 @@ export class ChunkGenerator {
       if (p.world.maxX < x0 || p.world.minX > x1 || p.world.maxZ < z0 || p.world.minZ > z1) continue
       if (placeStructure(vol, p)) treeCount++
     }
+    /* 长城在树之后砌：树冠伸进马道、敌台门洞的枝叶由墙清掉 */
+    this.greatWall.apply(vol)
 
     /* 地被 */
     if (decorate) decorateGround(vol, region, this.landmarks.occupancy, this.seed)

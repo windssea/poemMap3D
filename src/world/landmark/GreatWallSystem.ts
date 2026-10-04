@@ -23,7 +23,14 @@ interface WallPoint {
   oz: number
   /** 墙身走向是否偏南北（敌台门开在哪两面） */
   alongZ: boolean
+  /** 敌台门在门面上的偏移：墙斜着穿过敌台时，马道从门面偏一侧进出，门开在那里 */
+  door: number
+  /** 属于哪条墙线、线上第几点（拓扑检查用） */
+  line: number
+  seq: number
 }
+
+
 
 interface Beacon {
   x: number
@@ -57,7 +64,8 @@ export class GreatWallSystem {
   readonly points: WallPoint[] = []
   private readonly buckets = new Map<number, WallPoint[]>()
   private readonly beacons: Beacon[] = []
-  private readonly gates: PreparedPlacement[] = []
+  /** 墙上券门关楼（没有手工关城的关隘） */
+  readonly gates: PreparedPlacement[] = []
 
   constructor(terrain: TerrainManager, occupancy: OccupancyMap, landmarks?: LandmarkRegistry) {
     const P = getProjection()
@@ -67,9 +75,10 @@ export class GreatWallSystem {
     // 没有手工关城的关隘：墙上开券门
     const passes = GREAT_WALL_PASSES.map((p) => P.project(p.lng, p.lat)).filter((p) => !forts.some((f) => p.x >= f.x0 - 30 && p.x <= f.x1 + 30 && p.z >= f.z0 - 30 && p.z <= f.z1 + 30))
     const seen = new Set<number>()
+    const usedPass = new Set<number>()
     const lines = [projectLine(P, GREAT_WALL), projectLine(P, GREAT_WALL_INNER)]
     for (const l of landmarks?.landmarks ?? []) for (const g of l.def.greatWall ?? []) lines.push(g.map(([x, z]) => [l.x + x, l.z + z] as [number, number]))
-    for (const line of lines) {
+    lines.forEach((line, lineIdx) => {
       const raw: { x: number; z: number; g: number }[] = []
       for (const [fx, fz] of resamplePolyline(line, 1)) {
         const x = Math.round(fx)
@@ -80,35 +89,122 @@ export class GreatWallSystem {
         raw.push({ x, z, g: terrain.column(x, z).height })
       }
       const n = raw.length
-      // 关隘券门：最近的一点
-      const gateAt = new Map<number, number>()
-      for (const p of passes) {
+      const valid = raw.map((r) => {
+        const c = terrain.column(r.x, r.z)
+        return !(c.waterY >= 0 && c.height < c.waterY) && !inFort(r.x, r.z)
+      })
+      // 关隘券门：每个关隘只开一座（内外长城在居庸关交汇，两条线都会经过它）
+      const gateIdx: number[] = []
+      passes.forEach((p, pi) => {
+        if (usedPass.has(pi)) return
         let best = -1
         let bd = 12
         raw.forEach((r, i) => {
           const d = Math.hypot(r.x - p.x, r.z - p.z)
-          if (d < bd) {
+          if (valid[i] && d < bd) {
             bd = d
             best = i
           }
         })
-        if (best >= 0) gateAt.set(best, 0)
-      }
+        if (best >= 0) {
+          gateIdx.push(best)
+          usedPass.add(pi)
+        }
+      })
+      const gateNear = (i: number, r: number) => gateIdx.some((gi) => Math.abs(gi - i) <= r)
+      // 走向：前后各三格
+      const tan = raw.map((_, i) => {
+        const a = raw[Math.max(0, i - 3)]
+        const b = raw[Math.min(n - 1, i + 3)]
+        const tl = Math.hypot(b.x - a.x, b.z - a.z) || 1
+        return [(b.x - a.x) / tl, (b.z - a.z) / tl] as const
+      })
+      // 墙顶：前后七格地面的平均（马道不随地面乱跳），夹在地面以上 4–9 格之间
+      const top = raw.map((r, i) => {
+        let sum = 0
+        let cnt = 0
+        for (let j = Math.max(0, i - 3); j <= Math.min(n - 1, i + 3); j++) {
+          sum += raw[j].g
+          cnt++
+        }
+        return Math.round(Math.min(r.g + 9, Math.max(r.g + 4, sum / cnt + HEIGHT)))
+      })
+      // 敌台
+      const tower = new Int8Array(n)
       let sinceTower = TOWER_EVERY >> 1
       let towers = 0
       for (let i = 0; i < n; i++) {
+        if (!valid[i] || gateNear(i, 14)) continue // 敌台门不对着券门关楼的门座
+        ++sinceTower
+        // 敌台连同前后六格要一样高：只落在这一段地面起伏不过五格的地方，陡坡上往后顺延（不在坡上撑起一根高台）
+        let gLo = Infinity
+        let gHi = -Infinity
+        for (let j = Math.max(0, i - 6); j <= Math.min(n - 1, i + 6); j++) {
+          gLo = Math.min(gLo, raw[j].g)
+          gHi = Math.max(gHi, raw[j].g)
+        }
+        if (gHi - gLo > 5) continue
+        if (sinceTower >= TOWER_EVERY) {
+          sinceTower = 0
+          tower[i] = towers++ % 2 === 0 ? 2 : 1
+        }
+      }
+      // 关城伸出的支线：远端收在一座敌台上（墙爬上山头、止于墩台），不悬一截
+      if (lineIdx >= 2) {
+        let last = n - 1
+        while (last > 0 && !valid[last]) last--
+        if (!tower[last]) {
+          for (let j = Math.max(0, last - 16); j < last; j++) tower[j] = 0
+          tower[last] = 1
+        }
+      }
+      // 马道：相邻两格至多差一格，一路走得上去；只有地面本身一格陡过一格的崖坡，才许跟着地面多跨（天梯）。
+      // 只抬不降的单调传播：每格不低于邻格减去允许的落差，反复到不再变——一定收敛，也不会在两遍之间来回推翻
+      const lo = raw.map((r) => Math.floor(r.g) - 2) // 最低比地面低两格（墙顶以上三格会清空，成一道切进坡里的马道）
+      for (let i = 0; i < n; i++) top[i] = Math.max(top[i], lo[i])
+      const allow = (i: number, j: number) => Math.max(1, Math.ceil(Math.abs(raw[i].g - raw[j].g) - 0.25))
+      const prop = () => {
+        for (let pass = 0; pass < 400; pass++) {
+          let changed = false
+          for (let i = 1; i < n; i++) {
+            const v = top[i - 1] - allow(i, i - 1)
+            if (top[i] < v) {
+              top[i] = v
+              changed = true
+            }
+          }
+          for (let i = n - 2; i >= 0; i--) {
+            const v = top[i + 1] - allow(i, i + 1)
+            if (top[i] < v) {
+              top[i] = v
+              changed = true
+            }
+          }
+          if (!changed) break
+        }
+      }
+      // 敌台前后六格与台同高：门外就是马道，不是一级台阶。台取这一段的最高值，传播后若被抬得不平，再取最高、再传播
+      const windows: [number, number][] = []
+      for (let i = 0; i < n; i++) if (tower[i]) windows.push([Math.max(0, i - 6), Math.min(n - 1, i + 6)])
+      for (let round = 0; round < 50; round++) {
+        let flat = true
+        for (const [j0, j1] of windows) {
+          let t = -Infinity
+          for (let j = j0; j <= j1; j++) t = Math.max(t, top[j])
+          for (let j = j0; j <= j1; j++)
+            if (top[j] !== t) {
+              top[j] = t
+              flat = false
+            }
+        }
+        prop()
+        if (flat && round > 0) break
+      }
+
+      for (let i = 0; i < n; i++) {
+        if (!valid[i]) continue
         const { x, z, g } = raw[i]
-        const c = terrain.column(x, z)
-        if (c.waterY >= 0 && c.height < c.waterY) continue
-        if (inFort(x, z)) continue
-        // 走向：前后各三格
-        const a = raw[Math.max(0, i - 3)]
-        const b = raw[Math.min(n - 1, i + 3)]
-        let tx = b.x - a.x
-        let tz = b.z - a.z
-        const tl = Math.hypot(tx, tz) || 1
-        tx /= tl
-        tz /= tl
+        const [tx, tz] = tan[i]
         // 墙外：两条法向里朝北（z 小）的那条——明长城外侧是塞北
         let ox = -tz
         let oz = tx
@@ -116,36 +212,25 @@ export class GreatWallSystem {
           ox = -ox
           oz = -oz
         }
-        // 墙顶：前后七格地面的平均（马道不随地面乱跳），再夹在地面以上 4–9 格之间
-        let sum = 0
-        let cnt = 0
-        for (let j = Math.max(0, i - 3); j <= Math.min(n - 1, i + 3); j++) {
-          sum += raw[j].g
-          cnt++
-        }
-        const top = Math.round(Math.min(g + 9, Math.max(g + 4, sum / cnt + HEIGHT)))
-        const nearGate = [...gateAt.keys()].some((gi) => Math.abs(gi - i) <= 7)
-        let tower = 0
-        if (!nearGate && ++sinceTower >= TOWER_EVERY) {
-          sinceTower = 0
-          tower = towers++ % 2 === 0 ? 2 : 1
-        }
-        if (gateAt.has(i)) {
+        if (gateIdx.includes(i)) {
           // 券门关楼：顺墙走向摆，门洞穿墙
           const rot = Math.abs(tx) >= Math.abs(tz) ? 0 : 1
-          const s = buildBuilding('gate', { width: 13, depth: 7, height: top - Math.floor(g), lanterns: true, gateLevels: 2 }).rotate(rot)
+          const s = buildBuilding('gate', { width: 13, depth: 7, height: top[i] - Math.floor(g), lanterns: true, gateLevels: 2 }).rotate(rot)
           const pl = preparePlacement({ id: 'wall-gate', structure: s, x, y: Math.floor(g) + 1, z, mode: PlaceMode.Replace, foundation: S(B.STONE_BRICK), clearHeight: 20, order: 1 << 30 })
           this.gates.push(pl)
           occupancy.markRect(pl.world.minX, pl.world.minZ, pl.world.maxX, pl.world.maxZ, Occupancy.Building)
         }
-        if (nearGate && Math.abs([...gateAt.keys()].find((gi) => Math.abs(gi - i) <= 7)! - i) <= 6) continue
-        const pt: WallPoint = { x, z, top, tower, ox, oz, alongZ: Math.abs(tz) > Math.abs(tx) }
+        if (gateNear(i, 6)) continue
+        const alongZ = Math.abs(tz) > Math.abs(tx)
+        // 中线穿出门面的位置：沿主轴走 TOWER_R 格时横向偏出多少
+        const door = Math.round(alongZ ? (TOWER_R * tx) / tz : (TOWER_R * tz) / tx)
+        const pt: WallPoint = { x, z, top: top[i], tower: tower[i], ox, oz, alongZ, door: Math.max(-(TOWER_R - 1), Math.min(TOWER_R - 1, door)), line: lineIdx, seq: i }
         this.points.push(pt)
         const bk = ((Math.floor(x / BUCKET) + 1024) << 11) | (Math.floor(z / BUCKET) + 1024)
         const bucket = this.buckets.get(bk)
         if (bucket) bucket.push(pt)
         else this.buckets.set(bk, [pt])
-        const r = tower ? TOWER_R : WALL_R
+        const r = tower[i] ? TOWER_R : WALL_R
         occupancy.markRect(x - r - 1, z - r - 1, x + r + 1, z + r + 1, Occupancy.Building)
         // 烽火台：墙外山头
         if (i % BEACON_EVERY === BEACON_EVERY >> 1) {
@@ -158,7 +243,7 @@ export class GreatWallSystem {
           }
         }
       }
-    }
+    })
   }
 
   apply(vol: VoxelVolume): number {
@@ -201,6 +286,8 @@ export class GreatWallSystem {
         if (cur && cur !== B.WATER && cur !== B.TALL_GRASS && cur !== B.REED && cur !== B.SHRUB) break
       }
       for (let y = yb + 1; y <= p.top; y++) vol.set(x, y, z, S(y <= yb + 2 ? B.STONE_BRICK : B.CITY_BRICK))
+      // 墙顶以上先清空（伸进来的树冠、地形）：马道、敌台室内与门洞留出走人的空
+      for (let y = p.top + 1; y <= p.top + (tower ? 3 : 3); y++) vol.set(x, y, z, 0)
       n++
       if (tower) {
         this.towerCell(vol, x, z, dx, dz, p)
@@ -250,8 +337,8 @@ export class GreatWallSystem {
     const rim = Math.max(Math.abs(dx), Math.abs(dz)) === TOWER_R
     const corner = Math.abs(dx) === TOWER_R && Math.abs(dz) === TOWER_R
     if (rim) {
-      // 顺墙两面正中开门（马道穿过敌台）
-      const doorFace = p.alongZ ? Math.abs(dz) === TOWER_R && dx === 0 : Math.abs(dx) === TOWER_R && dz === 0
+      // 门开在马道中线穿出门面的地方（墙斜着过敌台时偏向一侧），三格宽，正对马道
+      const doorFace = p.alongZ ? Math.abs(dz) === TOWER_R && Math.abs(dx - Math.sign(dz) * p.door) <= 1 : Math.abs(dx) === TOWER_R && Math.abs(dz - Math.sign(dx) * p.door) <= 1
       for (let y = T + 1; y <= T + 3; y++) {
         let id: number = B.CITY_BRICK
         if (doorFace && y <= T + 2) id = 0

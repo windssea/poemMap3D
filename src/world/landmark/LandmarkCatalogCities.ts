@@ -1276,9 +1276,8 @@ const JIAYUGUAN: LandmarkDefinition = {
     { x: 0, z: 0, hw: 12, hd: 10, height: 10, gates: ['e', 'w'], gateLevels: 3 },
     { x: -3, z: 0, hw: 19, hd: 15, height: 8, gates: ['e', 'w'], gateLevels: { w: 3 } },
   ],
-  // 长城：东南来的大墙接罗城东南角；罗城西北、西南两角各起一段墙，北上黑山、南下讨赖河
+  // 长城：东南来的大墙自己伸到关城为止；罗城西北、西南两角各起一段墙，北上黑山、南下讨赖河
   greatWall: [
-    [[34, 18], [24, 16], [17, 16]],
     [[-23, -16], [-26, -30], [-30, -48]],
     [[-23, 16], [-26, 32], [-28, 48]],
   ],
@@ -1307,7 +1306,8 @@ const YANMENGUAN: LandmarkDefinition = {
   poetryPlaceId: 'p064',
   terrainModifier: [{ t: 'flatten', x: 0, z: 0, r: 14, rz: 12, square: true, blend: 8 }],
   walls: [{ x: 0, z: 0, hw: 11, hd: 9, height: 9, gates: ['n', 's'], gateLevels: 2 }],
-  structures: [{ b: 'hall', x: 0, z: 0, rot: 1, p: { width: 9, depth: 5, tile: 'gray', terrace: 1, lanterns: true } }],
+  // 李牧祠在城西半边、面东：不压住南北门之间的关道
+  structures: [{ b: 'hall', x: -7, z: 0, rot: 3, p: { width: 7, depth: 5, tile: 'gray', terrace: 1, lanterns: true } }],
   vegetationProfile: { weights: { pine: 3, broadleaf: 1 }, density: 0.5 },
   shots: [
     { id: 'hero', name: '关楼', yaw: 0.3, pitch: 0.2, distance: 60, offset: [0, 12, 9] },
