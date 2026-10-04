@@ -45,6 +45,8 @@ export interface StructureSpec {
   atLevel?: boolean
   /** 可以立在水上（水榭、桥） */
   overWater?: boolean
+  /** 不砌地基（叠在别的建筑顶上的楼亭：地基会一路垫到地面，把下面的门洞堵死） */
+  noFoundation?: boolean
   /** 桥：沿自身轴线在 ±20 格内找水面，居中跨过去（河道位置由地形决定） */
   span?: boolean
 }

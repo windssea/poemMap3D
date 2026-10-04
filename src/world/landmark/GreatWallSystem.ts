@@ -153,7 +153,14 @@ export class GreatWallSystem {
       if (lineIdx >= 2) {
         let last = n - 1
         while (last > 0 && !valid[last]) last--
-        if (!tower[last]) {
+        let gLo = Infinity
+        let gHi = -Infinity
+        for (let j = Math.max(0, last - 6); j <= last; j++) {
+          gLo = Math.min(gLo, raw[j].g)
+          gHi = Math.max(gHi, raw[j].g)
+        }
+        // 缓处收在墩台；陡处不立台（台连同前后几格要齐平，会在坡上撑成高柱），墙直接顶进山体
+        if (!tower[last] && gHi - gLo <= 5) {
           for (let j = Math.max(0, last - 16); j < last; j++) tower[j] = 0
           tower[last] = 1
         }

@@ -14,7 +14,11 @@ describe('长城拓扑', () => {
   const pts = gw.points
   const forts = w.landmarks.landmarks.flatMap((l) => (l.def.walls ?? []).map((c) => ({ id: l.def.id, x0: l.x + c.x - c.hw, x1: l.x + c.x + c.hw, z0: l.z + c.z - c.hd, z1: l.z + c.z + c.hd })))
   const nearFort = (x: number, z: number, m: number) => forts.some((f) => x >= f.x0 - m && x <= f.x1 + m && z >= f.z0 - m && z <= f.z1 + m)
-  const gateC = gw.gates.map((g) => ({ x: (g.world.minX + g.world.maxX) / 2, z: (g.world.minZ + g.world.maxZ) / 2 }))
+  // 券门关楼、地标里的关门（剑门关这样墙从关门两侧爬上山的）都算墙的着落
+  const gateC = [
+    ...gw.gates.map((g) => ({ x: (g.world.minX + g.world.maxX) / 2, z: (g.world.minZ + g.world.maxZ) / 2 })),
+    ...w.landmarks.landmarks.flatMap((l) => l.placements.filter((p) => /-gate-\d+$/.test(p.id)).map((p) => ({ x: p.x, z: p.z }))),
+  ]
   const nearGate = (x: number, z: number, m: number) => gateC.some((g) => Math.hypot(g.x - x, g.z - z) <= m)
   const wet = (x: number, z: number) => {
     const c = w.terrain.column(x, z)
@@ -62,6 +66,13 @@ describe('长城拓扑', () => {
         let ok = nearFort(e.x, e.z, 4) || nearGate(e.x, e.z, 10) || e.tower > 0
         for (let dz = -4; dz <= 4 && !ok; dz++) for (let dx = -4; dx <= 4 && !ok; dx++) if (wet(e.x + dx, e.z + dz)) ok = true
         if (!ok) ok = pts.some((q) => q.line !== line && Math.hypot(q.x - e.x, q.z - e.z) <= 4)
+        // 墙顶进山体：端点外三格内地面已高到墙顶附近
+        if (!ok) {
+          const o = l.length > 1 ? (e === l[0] ? l[1] : l[l.length - 2]) : e
+          const dx = Math.sign(e.x - o.x)
+          const dz = Math.sign(e.z - o.z)
+          for (let k = 1; k <= 3 && !ok; k++) if (w.terrain.column(e.x + dx * k, e.z + dz * k).height >= e.top - 2) ok = true
+        }
         if (!ok) bad.push(`线${line} 端点 (${e.x},${e.z})`)
       }
     expect(bad, bad.join('；')).toEqual([])

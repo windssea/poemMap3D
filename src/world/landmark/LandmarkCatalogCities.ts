@@ -818,6 +818,11 @@ const JIANMEN: LandmarkDefinition = {
   radius: 60,
   major: true,
   poetryPlaceId: 'p095',
+  // 关墙：自关门两侧顺山坡一路爬上两边山脊（按长城的做法砌：马道、垛口，脊上收在墩台），关口连着两边山脉
+  greatWall: [
+    [[7, -1], [16, -1], [24, -2]],
+    [[-7, -1], [-16, -1], [-24, -1]],
+  ],
   terrainModifier: [
     // 大剑山：两道山脊在关口断开，北面绝壁分级退让；脊线不再是一道平顶墙——脊上起一串剑锋（石峰），高低错落
     { t: 'ridge', pts: [[-84, 6], [-58, -4], [-32, 2], [-12, -1]], h: 28, w: 28, cliff: 9, cliffSide: -1, squareEnds: true },
@@ -841,10 +846,7 @@ const JIANMEN: LandmarkDefinition = {
   structures: [
     // 关楼：城门洞（路穿门而过），门上一座重檐楼
     { b: 'gate', x: 0, z: 0, rot: 2, atLevel: true, p: { width: 11, depth: 7, height: 8 } },
-    { b: 'pavilion', x: 0, z: 0, atLevel: true, dy: 8, p: { width: 7, double: true, tile: 'gray', lanterns: true } },
-    // 关墙：自关门两侧接到两边山坡上，关口仍是一道「门」
-    { b: 'wall', x: 6, z: -1, atLevel: true, p: { length: 10, height: 8 } },
-    { b: 'wall', x: -15, z: -1, atLevel: true, p: { length: 10, height: 8 } },
+    { b: 'pavilion', x: 0, z: 0, atLevel: true, dy: 8, noFoundation: true, p: { width: 7, double: true, tile: 'gray', lanterns: true } },
     { b: 'archway', x: 1, z: 30, p: { tile: 'gray' } },
   ],
   vegetationProfile: { weights: { pine: 6, broadleaf: 1.5 }, density: 1.1 },
