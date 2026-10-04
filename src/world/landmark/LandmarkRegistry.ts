@@ -710,11 +710,12 @@ export class LandmarkRegistry {
         run(wx - w.hw, wz + w.hd, L, false, w.gates.includes('s') ? w.hw : null)
         run(wx - w.hw, wz - w.hd, D, true, w.gates.includes('w') ? w.hd : null)
         run(wx + w.hw, wz - w.hd, D, true, w.gates.includes('e') ? w.hd : null)
-        const gate = buildBuilding('gate', { width: 13, depth: 7, height: h, lanterns: true })
         const gates: Record<string, [number, number, number]> = { n: [wx, wz - w.hd, 2], s: [wx, wz + w.hd, 0], w: [wx - w.hw, wz, 1], e: [wx + w.hw, wz, 3] }
         for (const g of w.gates) {
           const [gx, gz, rot] = gates[g]
-          add(`gate-${index}-${g}`, gate.rotate(rot), gx, y, gz, { clear: h + 10, entrance: 'both', rot })
+          const gl = typeof w.gateLevels === 'number' ? w.gateLevels : (w.gateLevels?.[g] ?? 1)
+          const gate = buildBuilding('gate', { width: 13, depth: 7, height: h, lanterns: true, gateLevels: gl, tile: w.gateTile })
+          add(`gate-${index}-${g}`, gate.rotate(rot), gx, y, gz, { clear: h + 10 + gl * 4, entrance: 'both', rot })
         }
         const corner = buildBuilding('pavilion', { width: 5 })
         for (const [sx, sz] of [

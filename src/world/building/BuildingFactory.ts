@@ -38,6 +38,8 @@ export interface BuildingParams {
   piles?: boolean
   /** 塔式：楼阁式（默认）/ 雷峰式（敦实、朱壁、下两层同宽）/ 保俶式（细长实心砖塔，叠涩小檐，无木檐） */
   style?: 'leifeng' | 'spire'
+  /** 城门：城楼层数（缺省 1，为殿式城楼；2 以上为砖砌关楼 / 箭楼，见 passTower） */
+  gateLevels?: number
 }
 
 export const stairs = (id: number, f: Direction, top = false): PackedState => packState({ id, facing: f, half: top ? 'top' : 'bottom' })
@@ -421,9 +423,46 @@ export function gate(p: BuildingParams = {}): VoxelStructure {
   /* 垛口 */
   for (const x of range(x0, x1))
     for (const z of [z0, z1]) if ((x - x0) % 2 === 0) b.set(x, h, z, S(B.CITY_BRICK))
-  /* 城楼 */
-  const lou = hall({ width: w - 4, depth: d - 2, height: 4, terrace: 1, tile: p.tile ?? 'gray', lanterns: p.lanterns })
-  b.s.merge(lou, 0, h - 1, 0)
+  /* 城楼：一层殿式；关城、要隘用两三层砖砌关楼 */
+  const lou =
+    (p.gateLevels ?? 1) >= 2
+      ? passTower({ width: w - 2, depth: d - 2, levels: p.gateLevels, tile: p.tile ?? 'gray', lanterns: p.lanterns })
+      : hall({ width: w - 4, depth: d - 2, height: 4, terrace: 1, tile: p.tile ?? 'gray', lanterns: p.lanterns })
+  b.s.merge(lou, 0, (p.gateLevels ?? 1) >= 2 ? h : h - 1, 0)
+  return b.build()
+}
+
+/**
+ * 关楼 / 箭楼（天下第一关、嘉峪关楼、雁门关楼一类）：砖砌楼身，每层一圈密排的小箭窗（两格一孔，黑洞洞的），
+ * 楼身逐层收进一格；复檐歇山顶（每层一圈腰檐，最上歇山），檐角起翘。正面朝南（+Z），底层前后各开一门。
+ * width / depth 为底层楼身（不含檐）；levels 为层数（默认 2）。
+ */
+export function passTower(p: BuildingParams = {}): VoxelStructure {
+  const W = (p.width ?? 11) | 1
+  const D = (p.depth ?? 7) | 1
+  const floors = Math.max(1, p.levels ?? 2)
+  const FH = 4
+  const b = new StructureBuilder('pass-tower')
+  for (let f = 0; f < floors; f++) {
+    const bb = bounds(W - 2 * f, D - 2 * f)
+    const y0 = f * FH
+    b.walls(bb.x0, y0, bb.z0, bb.x1, y0 + FH - 1, bb.z1, (x, y, z) => {
+      const corner = (x === bb.x0 || x === bb.x1) && (z === bb.z0 || z === bb.z1)
+      if (corner) return S(B.CITY_BRICK)
+      // 箭窗：腰线一排，两格一孔；山面（东西）也开
+      if (y === y0 + 2) {
+        const onFront = z === bb.z0 || z === bb.z1
+        if (onFront ? (x - bb.x0) % 2 === 0 : (z - bb.z0) % 2 === 0) return 0
+      }
+      return S(y === y0 + FH - 1 ? B.DARK_PLANKS : B.CITY_BRICK)
+    })
+    b.box(bb.x0 + 1, y0 - 1, bb.z0 + 1, bb.x1 - 1, y0 - 1, bb.z1 - 1, S(f === 0 ? B.PAVING : B.DARK_PLANKS))
+    if (f === 0) for (const z of [bb.z0, bb.z1]) b.set(0, y0, z, 0).set(0, y0 + 1, z, 0)
+  }
+  // 灯：底层门两侧
+  if (p.lanterns) for (const x of [-2, 2]) b.set(x, 2, Math.floor(D / 2) + 1, S(B.LANTERN))
+  const roof = buildRoof({ width: W + 4, depth: D + 4, type: floors >= 2 ? 'fuyan' : 'xieshan', floorCount: floors, tile: p.tile ?? 'gray', upturn: true })
+  b.s.merge(roof, 0, FH, 0)
   return b.build()
 }
 

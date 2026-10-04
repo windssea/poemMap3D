@@ -57,6 +57,9 @@ export interface CityWallSpec {
   hd: number
   height?: number
   gates: ('n' | 's' | 'e' | 'w')[]
+  /** 城楼：层数（2 以上为砖砌关楼）、瓦色；可按门单独指定层数 */
+  gateLevels?: number | Partial<Record<'n' | 's' | 'e' | 'w', number>>
+  gateTile?: 'gray' | 'yellow' | 'green'
 }
 
 export interface TreeSpec {
@@ -92,6 +95,8 @@ export interface LandmarkDefinition {
   terrainModifier?: readonly TerrainOp[]
   structures: readonly StructureSpec[]
   walls?: readonly CityWallSpec[]
+  /** 长城接线：关城与长城相接的几段墙（局部坐标折线），由长城系统按长城的做法砌（敌台、垛口） */
+  greatWall?: readonly (readonly XZ[])[]
   biomeOverride?: { biome: BiomeId; radius: number }
   vegetationProfile?: VegetationProfile
   trees?: readonly TreeSpec[]

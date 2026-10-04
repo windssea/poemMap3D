@@ -39,7 +39,7 @@ export class WorldContext {
     this.landmarks = new LandmarkRegistry(init.anchors, base)
     this.terrain = new TerrainManager(this.macro, this.rivers, this.lakes, this.landmarks.modifiers, this.seed)
     this.landmarks.resolve(this.terrain)
-    this.greatWall = new GreatWallSystem(this.terrain, this.landmarks.occupancy)
+    this.greatWall = new GreatWallSystem(this.terrain, this.landmarks.occupancy, this.landmarks)
     this.trees = new TreePlacementSystem(
       (x, z) => this.terrain.sample(x, z),
       this.landmarks.occupancy,

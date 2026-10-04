@@ -1216,4 +1216,101 @@ const YUEYAQUAN: LandmarkDefinition = {
   ],
 }
 
-export const CITY_CATALOG: readonly LandmarkDefinition[] = [HUANGHELOU, YUEYANGLOU, TENGWANGGE, GUANQUELOU, DUOJINGLOU, JINLING, LUOYANG, CHENGDU, SUZHOU, HUANGZHOU, YANGZHOU, BIANJING, SHANYIN, MIZHOU, CHUZHOU, XIANGYANG, JUNSHAN, PENGCHENG, HUIZHOU, BAIDICHENG, TAISHAN, JIANMEN, FENGQIAO, ZHONGNAN, WANGCHUAN, LANTING, TIANMU, EMEI, HUASHAN, HUANGSHAN, LONGMEN, YUEYAQUAN]
+/* ================= 长城关隘 ================= */
+
+/**
+ * 山海关（天下第一关）：明长城东端的关城。方城四门，东门是「天下第一关」——门上两层砖砌箭楼，密排箭窗；
+ * 城中十字街、钟鼓楼；长城从西北来，到关城为止，由城墙接上；关城以南一段墙直伸入海，海边老龙头澄海楼。
+ */
+const SHANHAIGUAN: LandmarkDefinition = {
+  id: 'shanhaiguan',
+  name: '山海关',
+  coordinate: { lng: 119.78, lat: 40.0 },
+  radius: 44,
+  major: true,
+  poetryPlaceId: 'shanhaiguan',
+  terrainModifier: [
+    { t: 'flatten', x: 0, z: 0, r: 20, rz: 16, square: true, blend: 8 },
+    { t: 'pave', x0: -2, z0: -15, x1: 2, z1: 15 },
+    { t: 'pave', x0: -19, z0: -2, x1: 19, z1: 2 },
+  ],
+  walls: [{ x: 0, z: 0, hw: 18, hd: 14, height: 9, gates: ['n', 's', 'e', 'w'], gateLevels: { e: 2 } }],
+  // 长城：西来的大墙在关城西南的海边收头（老龙头），由一段墙北上接关城西南角；关城东北角再起一段墙北上角山
+  greatWall: [
+    [[-19, 16], [-21, 22], [-23, 28]],
+    [[19, -16], [24, -28], [30, -42], [34, -52]],
+  ],
+  structures: [
+    { b: 'bellTower', x: 0, z: 0, p: { width: 9 } },
+    { b: 'hall', x: -9, z: -8, rot: 1, p: { width: 9, depth: 5, tile: 'gray', terrace: 1, lanterns: true } },
+    { b: 'house', x: 9, z: -8, p: { seed: 601, lanterns: true } },
+    { b: 'house', x: -9, z: 8, p: { seed: 602 } },
+    { b: 'house', x: 9, z: 8, rot: 2, p: { seed: 603 } },
+    { b: 'shop', x: 9, z: -4, rot: 2, p: { seed: 604 } },
+    { b: 'shop', x: -9, z: 4, p: { seed: 605 } },
+    // 老龙头澄海楼：长城入海处
+    { b: 'passTower', x: -27, z: 25, p: { levels: 2, width: 9, depth: 7, lanterns: true } },
+  ],
+  vegetationProfile: { weights: { broadleaf: 2, pine: 2, willow: 1 }, density: 0.5 },
+  shots: [
+    { id: 'hero', name: '天下第一关', yaw: -1.9, pitch: 0.2, distance: 60, offset: [18, 12, 0] },
+    { id: 'context', name: '关城', yaw: 2.4, pitch: 0.55, distance: 130 },
+  ],
+}
+
+/**
+ * 嘉峪关：明长城西端，戈壁上的关城。内城方正，东西两门各起三层关楼（光化楼、柔远楼）；外围一圈罗城，
+ * 西门（嘉峪关门）也起三层关楼；城中关帝庙、戏台。长城自东南来到关城为止。
+ */
+const JIAYUGUAN: LandmarkDefinition = {
+  id: 'jiayuguan',
+  name: '嘉峪关',
+  coordinate: { lng: 98.25, lat: 39.8 },
+  radius: 40,
+  major: true,
+  poetryPlaceId: 'jiayuguan',
+  terrainModifier: [{ t: 'flatten', x: 0, z: 0, r: 22, rz: 18, square: true, blend: 8 }],
+  walls: [
+    { x: 0, z: 0, hw: 12, hd: 10, height: 10, gates: ['e', 'w'], gateLevels: 3 },
+    { x: -3, z: 0, hw: 19, hd: 15, height: 8, gates: ['e', 'w'], gateLevels: { w: 3 } },
+  ],
+  // 长城：东南来的大墙接罗城东南角；罗城西北、西南两角各起一段墙，北上黑山、南下讨赖河
+  greatWall: [
+    [[34, 18], [24, 16], [17, 16]],
+    [[-23, -16], [-26, -30], [-30, -48]],
+    [[-23, 16], [-26, 32], [-28, 48]],
+  ],
+  structures: [
+    { b: 'hall', x: 0, z: -4, p: { width: 9, depth: 5, tile: 'green', terrace: 1, lanterns: true } },
+    { b: 'pavilion', x: 0, z: 5, rot: 2, p: { width: 5, tile: 'gray' } },
+  ],
+  biomeOverride: { biome: BiomeId.Gobi, radius: 40 },
+  vegetationProfile: { weights: {}, density: 0 },
+  shots: [
+    { id: 'hero', name: '嘉峪关楼', yaw: -1.4, pitch: 0.22, distance: 70, offset: [-22, 14, 0] },
+    { id: 'context', name: '关城', yaw: 0.6, pitch: 0.6, distance: 120 },
+  ],
+}
+
+/**
+ * 雁门关：内长城上的要隘，夹在两山之间。关城跨在墙上，南北两门各起两层关楼；城中一殿（李牧祠）。
+ * 李贺《雁门太守行》：「黑云压城城欲摧，甲光向日金鳞开」。
+ */
+const YANMENGUAN: LandmarkDefinition = {
+  id: 'yanmenguan',
+  name: '雁门关',
+  coordinate: { lng: 112.86, lat: 39.17 },
+  radius: 36,
+  major: true,
+  poetryPlaceId: 'p064',
+  terrainModifier: [{ t: 'flatten', x: 0, z: 0, r: 14, rz: 12, square: true, blend: 8 }],
+  walls: [{ x: 0, z: 0, hw: 11, hd: 9, height: 9, gates: ['n', 's'], gateLevels: 2 }],
+  structures: [{ b: 'hall', x: 0, z: 0, rot: 1, p: { width: 9, depth: 5, tile: 'gray', terrace: 1, lanterns: true } }],
+  vegetationProfile: { weights: { pine: 3, broadleaf: 1 }, density: 0.5 },
+  shots: [
+    { id: 'hero', name: '关楼', yaw: 0.3, pitch: 0.2, distance: 60, offset: [0, 12, 9] },
+    { id: 'context', name: '雁门', yaw: 0.9, pitch: 0.5, distance: 120 },
+  ],
+}
+
+export const CITY_CATALOG: readonly LandmarkDefinition[] = [HUANGHELOU, YUEYANGLOU, TENGWANGGE, GUANQUELOU, DUOJINGLOU, JINLING, LUOYANG, CHENGDU, SUZHOU, HUANGZHOU, YANGZHOU, BIANJING, SHANYIN, MIZHOU, CHUZHOU, XIANGYANG, JUNSHAN, PENGCHENG, HUIZHOU, BAIDICHENG, TAISHAN, JIANMEN, FENGQIAO, ZHONGNAN, WANGCHUAN, LANTING, TIANMU, EMEI, HUASHAN, HUANGSHAN, LONGMEN, YUEYAQUAN, SHANHAIGUAN, JIAYUGUAN, YANMENGUAN]
