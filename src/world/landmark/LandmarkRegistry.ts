@@ -456,6 +456,17 @@ export class LandmarkRegistry {
               col.height = Math.max(col.height, level + hh, col.height + hh * 0.25)
               break
             }
+            case 'spire': {
+              const dist = Math.hypot(dx - op.x, dz - op.z)
+              if (dist >= op.r || wet()) break
+              // 柱身：中段几乎直立、近底收成一圈陡坡；柱顶不平，按噪声参差起伏；四周按噪声进退，不是正圆
+              const warp = 1 + 0.3 * fbm(n, col.x / 6 + 70, col.z / 6, 2)
+              const dd = Math.min(1, (dist / op.r) * warp)
+              const f = dd < 0.55 ? 1 - 0.25 * dd : 0.86 * Math.pow(Math.max(0, (1 - dd) / 0.45), 1.6)
+              col.height += op.h * f * (0.85 + 0.3 * (0.5 + 0.5 * fbm(n, col.x / 4 + 9, col.z / 4 - 3, 2)))
+              core = true // 峰林是山体本身：不受临水退让封顶
+              break
+            }
             case 'ridge': {
               // 最近的一段：距离、沿脊线的位置（0…1）、在哪一侧
               let best = Infinity

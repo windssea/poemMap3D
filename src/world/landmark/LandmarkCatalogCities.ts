@@ -1087,4 +1087,49 @@ const HUASHAN: LandmarkDefinition = {
   ],
 }
 
-export const CITY_CATALOG: readonly LandmarkDefinition[] = [HUANGHELOU, YUEYANGLOU, TENGWANGGE, GUANQUELOU, DUOJINGLOU, JINLING, LUOYANG, CHENGDU, SUZHOU, HUANGZHOU, YANGZHOU, BIANJING, SHANYIN, MIZHOU, CHUZHOU, XIANGYANG, JUNSHAN, PENGCHENG, HUIZHOU, BAIDICHENG, TAISHAN, JIANMEN, FENGQIAO, ZHONGNAN, WANGCHUAN, LANTING, TIANMU, EMEI, HUASHAN]
+/**
+ * 黄山：「黄山四千仞，三十二莲峰。丹崖夹石柱，菡萏金芙蓉」。主峰按宏观地形实测海拔（1864 米），
+ * 四周叠起几根花岗岩石柱成峰林；峰顶一亭，峰南岩台上玉屏楼，楼前一棵定稿的迎客松（不是随机松），
+ * 一条石阶自南麓盘上。
+ */
+const HUANGSHAN: LandmarkDefinition = {
+  id: 'huangshan',
+  name: '黄山',
+  coordinate: { lng: 118.17, lat: 30.13 },
+  radius: 60,
+  major: true,
+  poetryPlaceId: 'huangshan',
+  levelMode: 'summit',
+  terrainModifier: [
+    // 峰林：主峰四周的花岗岩石柱，柱顶都低于主峰（天都在西、莲花在东，夹着玉屏楼的岩台）
+    { t: 'spire', x: -14, z: 6, r: 6, h: 26 },
+    { t: 'spire', x: 14, z: 4, r: 6, h: 28 },
+    { t: 'spire', x: -12, z: -12, r: 5, h: 22 },
+    { t: 'spire', x: 10, z: -16, r: 5, h: 20 },
+    { t: 'spire', x: -22, z: -2, r: 4, h: 18 },
+    { t: 'spire', x: 22, z: -6, r: 4, h: 16 },
+    { t: 'spire', x: -4, z: -24, r: 4, h: 14 },
+    { t: 'spire', x: 24, z: 14, r: 4, h: 14 },
+    // 光明顶：真峰尖只有一两格宽，亭子落上去要砌一根高石柱——削出一小块峰顶平台（只削两三格）
+    { t: 'flatten', x: 2, z: -2, r: 3.5, dy: -2, blend: 4 },
+    // 玉屏楼岩台：峰南半山
+    { t: 'flatten', x: 0, z: 16, r: 6, dy: -38, blend: 4 },
+    // 石阶：南麓盘上岩台，再上峰顶
+    { t: 'path', pts: [[4, 44], [-2, 36], [4, 28], [0, 22]], w: 1.1 },
+    { t: 'path', pts: [[0, 10], [3, 6], [1, 3]], w: 1.1 },
+  ],
+  structures: [
+    { b: 'pavilion', x: 2, z: -2, atLevel: true, dy: -2, p: { width: 5, tile: 'gray' } },
+    { b: 'hall', x: -2, z: 15, atLevel: true, dy: -38, p: { width: 7, depth: 5, tile: 'gray', terrace: 1, lanterns: true } },
+    { b: 'sculptedPine', x: 4, z: 18, atLevel: true, dy: -38 },
+  ],
+  vegetationProfile: { weights: { pine: 8, broadleaf: 0.5 }, density: 0.8 },
+  shots: [
+    // 松峰：岩台东南，迎客松在画面左缘，长枝伸向主峰
+    { id: 'hero', name: '迎客松', yaw: 0.25, pitch: 0.1, distance: 36, offset: [4, -31, 18] },
+    { id: 'peaks', name: '峰林', yaw: 0.2, pitch: 0.3, distance: 130, offset: [0, -20, 0] },
+    { id: 'summit', name: '光明顶', yaw: 2.6, pitch: 0.35, distance: 50, offset: [2, 0, -2] },
+  ],
+}
+
+export const CITY_CATALOG: readonly LandmarkDefinition[] = [HUANGHELOU, YUEYANGLOU, TENGWANGGE, GUANQUELOU, DUOJINGLOU, JINLING, LUOYANG, CHENGDU, SUZHOU, HUANGZHOU, YANGZHOU, BIANJING, SHANYIN, MIZHOU, CHUZHOU, XIANGYANG, JUNSHAN, PENGCHENG, HUIZHOU, BAIDICHENG, TAISHAN, JIANMEN, FENGQIAO, ZHONGNAN, WANGCHUAN, LANTING, TIANMU, EMEI, HUASHAN, HUANGSHAN]
