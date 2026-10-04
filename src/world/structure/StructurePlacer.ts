@@ -33,16 +33,21 @@ export interface StructurePlacement {
 export interface PreparedPlacement extends StructurePlacement {
   world: Bounds3
   blocks: StructureBlock[]
-  /** 底层轮廓（相对坐标） */
-  base: { x: number; z: number }[]
+  /** 底层轮廓（相对坐标）；y 为这一列最低方块的相对高度（城门券洞里铺地比墙身低一格，各列不同） */
+  base: { x: number; z: number; y: number }[]
   minY: number
 }
 
 export function preparePlacement(p: StructurePlacement): PreparedPlacement {
   const b = p.structure.bounds()
   const blocks = p.structure.blocks
-  const baseSet = new Map<number, { x: number; z: number }>()
-  for (const s of blocks) baseSet.set(((s.x + 512) << 10) | (s.z + 512), { x: s.x, z: s.z })
+  const baseSet = new Map<number, { x: number; z: number; y: number }>()
+  for (const s of blocks) {
+    const k = ((s.x + 512) << 10) | (s.z + 512)
+    const c = baseSet.get(k)
+    if (!c) baseSet.set(k, { x: s.x, z: s.z, y: s.y })
+    else if (s.y < c.y) c.y = s.y
+  }
   return {
     ...p,
     blocks,
@@ -61,13 +66,18 @@ export const intersectsVolume = (p: PreparedPlacement, v: VoxelVolume): boolean 
  */
 export function placeStructure(vol: VoxelVolume, p: PreparedPlacement, reg: BlockRegistry = Blocks): number {
   let written = 0
+  // 清空与地基按每一列自己的落地高度算：按整座的最低点算，最低点以上、本列最低块以下那一格地面被清掉、地基又从更低处起砌，
+  // 城门墙身、牌坊柱脚下就悬出一道空缝。只有贴地的列（最低块离整座最低点不超过一格）这样算；
+  // 檐口、挑台这些悬在半空的列，地基仍按整座最低点——否则地基会从檐口一路砌到地面，檐下立起一排石柱
+  const foot = (cy: number) => (cy - p.minY <= 1 ? cy : p.minY)
   if (p.clearHeight) {
     const top = p.y + p.minY + p.clearHeight
     for (const c of p.base) {
       const x = p.x + c.x
       const z = p.z + c.z
       if (!vol.containsColumn(x, z)) continue
-      for (let y = p.y + p.minY; y <= top; y++) vol.set(x, y, z, 0)
+      // 悬空列只从自己最低块往上清：檐口下的地面、邻接的城墙不动（门楼檐口压在城墙端头上，从地面清起会把墙头削掉）
+      for (let y = p.y + c.y; y <= top; y++) vol.set(x, y, z, 0)
     }
   }
   if (p.foundation) {
@@ -75,7 +85,7 @@ export function placeStructure(vol: VoxelVolume, p: PreparedPlacement, reg: Bloc
       const x = p.x + c.x
       const z = p.z + c.z
       if (!vol.containsColumn(x, z)) continue
-      for (let y = p.y + p.minY - 1; y > 0; y--) {
+      for (let y = p.y + foot(c.y) - 1; y > 0; y--) {
         const id = vol.get(x, y, z) & 255
         if (id && !reg.replaceable[id] && !reg.liquid[id]) break
         vol.set(x, y, z, p.foundation)

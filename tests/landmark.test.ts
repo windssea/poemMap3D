@@ -168,3 +168,39 @@ describe('主体语义与机位视廊', () => {
     expect(bad, `${bad.length} 处：` + bad.slice(0, 8).join('；')).toEqual([])
   }, 120000)
 })
+
+describe('建筑不悬空', () => {
+  it('城门、牌坊、城墙每一列最低方块下面都是实地（地基接到地面，不留空缝）', async () => {
+    const { testWorld } = await import('./helpers')
+    const { CHUNK_SIZE } = await import('../src/world/coordinate/constants')
+    const { Blocks } = await import('../src/world/block/Blocks')
+    const w = testWorld()
+    const vols = new Map<string, import('../src/world/voxel/VoxelVolume').VoxelVolume>()
+    const id = (x: number, y: number, z: number) => {
+      const k = `${Math.floor(x / CHUNK_SIZE)},${Math.floor(z / CHUNK_SIZE)}`
+      let v = vols.get(k)
+      if (!v) {
+        v = w.chunks.generateVolume(Math.floor(x / CHUNK_SIZE), Math.floor(z / CHUNK_SIZE), 1, false).volume
+        vols.set(k, v)
+      }
+      return v.get(x, y, z) & 255
+    }
+    const bad: string[] = []
+    for (const lm of w.landmarks.landmarks) {
+      if (lm.def.id.startsWith('place-')) continue
+      for (const p of lm.placements) {
+        if (!/^(gate-|wall-)|-archway-|-gate-/.test(p.id) || !p.foundation) continue
+        let gaps = 0
+        for (const c of p.base) {
+          if (c.y - p.minY > 1) continue // 檐口等悬空列不要求
+          const x = p.x + c.x
+          const z = p.z + c.z
+          const below = id(x, p.y + c.y - 1, z)
+          if (!below || Blocks.replaceable[below]) gaps++
+        }
+        if (gaps) bad.push(`${lm.def.name} ${p.id} ${gaps} 列`)
+      }
+    }
+    expect(bad, bad.slice(0, 10).join('；')).toEqual([])
+  }, 300000)
+})

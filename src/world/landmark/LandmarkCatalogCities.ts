@@ -1325,15 +1325,16 @@ const JIAYUGUAN: LandmarkDefinition = {
   radius: 40,
   major: true,
   poetryPlaceId: 'jiayuguan',
-  terrainModifier: [{ t: 'flatten', x: 0, z: 0, r: 22, rz: 18, square: true, blend: 8 }],
+  terrainModifier: [{ t: 'flatten', x: 0, z: 0, r: 25, rz: 19, square: true, blend: 8 }],
+  // 罗城与内城的城门隔开十格：靠太近两座门楼叠在一起，后放的门楼清空时把前一座的墙削掉
   walls: [
     { x: 0, z: 0, hw: 12, hd: 10, height: 10, gates: ['e', 'w'], gateLevels: 3 },
-    { x: -3, z: 0, hw: 19, hd: 15, height: 8, gates: ['e', 'w'], gateLevels: { w: 3 } },
+    { x: 0, z: 0, hw: 22, hd: 16, height: 8, gates: ['e', 'w'], gateLevels: { w: 3 } },
   ],
   // 长城：东南来的大墙自己伸到关城为止；罗城西北、西南两角各起一段墙，北上黑山、南下讨赖河
   greatWall: [
-    [[-23, -16], [-26, -30], [-30, -48]],
-    [[-23, 16], [-26, 32], [-28, 48]],
+    [[-23, -17], [-26, -30], [-30, -48]],
+    [[-23, 17], [-26, 32], [-28, 48]],
   ],
   structures: [
     { b: 'hall', x: 0, z: -4, p: { width: 9, depth: 5, tile: 'green', terrace: 1, lanterns: true } },
@@ -1342,7 +1343,7 @@ const JIAYUGUAN: LandmarkDefinition = {
   biomeOverride: { biome: BiomeId.Gobi, radius: 40 },
   vegetationProfile: { weights: {}, density: 0 },
   shots: [
-    { id: 'hero', name: '嘉峪关楼', yaw: -1.4, pitch: 0.22, distance: 70, offset: [-22, 14, 0] },
+    { id: 'hero', name: '嘉峪关楼', yaw: -1.4, pitch: 0.22, distance: 70, offset: [-24, 14, 0] },
     { id: 'context', name: '关城', yaw: 0.6, pitch: 0.6, distance: 120 },
   ],
 }
