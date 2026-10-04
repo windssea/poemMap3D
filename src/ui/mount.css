@@ -537,6 +537,11 @@
   text-indent: 2em;
   text-align: justify;
 }
+.ba p.rel {
+  font-size: 16px;
+  color: var(--ink2);
+  text-indent: 0;
+}
 .ba .nt {
   margin: 0 0 0 22px;
   font-size: 17px;

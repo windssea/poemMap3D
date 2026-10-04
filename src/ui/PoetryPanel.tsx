@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useApp } from '../app/AppStore'
-import { isMasterpiece, type Poem } from '../features/poetry/types'
+import { isMasterpiece, type Poem, relationHeading } from '../features/poetry/types'
 import { cnum } from './cnum'
 import { useServices } from './ServicesContext'
 
@@ -252,8 +252,9 @@ function HandScroll({ open }: { open: boolean }) {
                   )}
                   {q.origin && (
                     <>
-                      <div className="bt">写于{summary.place.name}</div>
+                      <div className="bt">{relationHeading(q.relation, summary.place.name)}</div>
                       <p>{q.origin}</p>
+                      {q.relationNote && <p className="rel">{q.relationNote}</p>}
                     </>
                   )}
                   {q.story && (

@@ -23,6 +23,29 @@ export interface Poem {
   yearApprox?: boolean
   /** 名句：起句下标、名气（1–5，≥4 为名篇）、句数 */
   fame?: { line: number; score: number; count: number }
+  /**
+   * 诗与地点的关系（缺省为写作地）：written 写于此地；depicted 写此地（不一定在此写成）；
+   * visited 途经此地时所作；motif 意象关联——诗不写于此、也不专写此地，借此地的景致呈现诗意（图上是空间压缩）
+   */
+  relation?: PoemPlaceRelation
+  /** 关系说明（意象关联、空间压缩时交代清楚） */
+  relationNote?: string
+}
+
+export type PoemPlaceRelation = 'written' | 'depicted' | 'visited' | 'motif'
+
+/** 诗卷上「出处」一节的标题 */
+export function relationHeading(rel: PoemPlaceRelation | undefined, place: string): string {
+  switch (rel) {
+    case 'depicted':
+      return `诗写${place}`
+    case 'visited':
+      return `途经${place}`
+    case 'motif':
+      return `以${place}写意`
+    default:
+      return `写于${place}`
+  }
 }
 
 export interface Place {
