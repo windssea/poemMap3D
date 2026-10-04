@@ -112,4 +112,18 @@ describe('地点不落水', () => {
     }
     expect(bad, bad.join('、')).toEqual([])
   }, 60000)
+
+  it('手工地标的每一座建筑都建了出来（落水、跨不过的桥不会被悄悄跳过）', async () => {
+    const { testWorld } = await import('./helpers')
+    const w = testWorld()
+    const miss: string[] = []
+    for (const lm of w.landmarks.landmarks) {
+      if (lm.def.id.startsWith('place-')) continue
+      const ids = new Set(lm.placements.map((p) => p.id))
+      lm.def.structures.forEach((s, i) => {
+        if (s.b !== 'lamp' && !ids.has(`${lm.def.id}-${s.b}-${i}`)) miss.push(`${lm.def.name} ${s.b}(${s.x},${s.z})`)
+      })
+    }
+    expect(miss, miss.join('、')).toEqual([])
+  }, 60000)
 })

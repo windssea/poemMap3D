@@ -235,7 +235,8 @@ const LUOYANG: LandmarkDefinition = {
   terrainModifier: [
     { t: 'flatten', x: 0, z: 0, r: 34, rz: 26, square: true, blend: 6 },
     { t: 'pave', x0: -2, z0: -21, x1: 2, z1: 30 },
-    { t: 'flatten', x: 40, z: -36, r: 14, blend: 5 },
+    // 白马寺在洛水北岸（原台地压在河上，寺殿落水没建出来）
+    { t: 'flatten', x: 40, z: -47, r: 10, blend: 5 },
   ],
   walls: [{ x: 0, z: 0, hw: 30, hd: 22, height: 8, gates: ['n', 's', 'e', 'w'] }],
   allowRivers: ['luo'],
@@ -250,7 +251,7 @@ const LUOYANG: LandmarkDefinition = {
     ...[8, 12, 16, 20, 24].map((x, i) => ({ b: 'stall' as const, x, z: 14, p: { seed: 60 + i } })),
     ...lamps([-4, 4], [-4, 2, 26]),
     { b: 'brickPagoda', x: 40, z: -42, p: { levels: 9, width: 7 } },
-    { b: 'hall', x: 40, z: -28, p: { width: 9, depth: 5, tile: 'gray', terrace: 1 } },
+    { b: 'hall', x: 40, z: -52, p: { width: 9, depth: 5, tile: 'gray', terrace: 1 } },
   ],
   trees: [
     { type: 'peach', pts: [[6, 3], [26, 3]], n: 5 },
@@ -472,7 +473,7 @@ const YANGZHOU: LandmarkDefinition = {
     { b: 'shop', x: 6, z: -16, rot: 1, p: { seed: 304 } },
     { b: 'shop', x: 6, z: -6, rot: 1, p: { seed: 305 } },
     { b: 'courtyard', x: 30, z: 12, p: { width: 11, seed: 306 } },
-    ...[16, 16, 16].map((x, i) => ({ b: 'stall' as const, x, z: 10 + i * 4, p: { seed: 310 + i } })),
+    ...[16, 16].map((x, i) => ({ b: 'stall' as const, x, z: 10 + i * 4, p: { seed: 310 + i } })),
     ...lamps([10, 16], [-20, -10, 0]),
   ],
   trees: [
@@ -552,7 +553,7 @@ const SHANYIN: LandmarkDefinition = {
   structures: [
     ...houseRow([-24, -14, 16, 26], -5, 0, 501),
     ...houseRow([-24, -14, 16, 26], 9, 2, 511),
-    { b: 'bridge', x: 6, z: 2, rot: 1, atLevel: true, p: { length: 7 } },
+    { b: 'bridge', x: 14, z: 2, rot: 1, atLevel: true, p: { length: 7 } },
     { b: 'bridge', x: -6, z: 2, rot: 1, atLevel: true, p: { length: 7 } },
     { b: 'waterPavilion', x: -16, z: -9, rot: 2, atLevel: true, overWater: true, p: { width: 7, depth: 5 } },
     { b: 'corridor', x: -16, z: -22, p: { length: 11 } },
@@ -856,7 +857,7 @@ const FENGQIAO: LandmarkDefinition = {
     { b: 'gate', x: 8, z: 4, rot: 1, p: { width: 9, depth: 3, height: 5 } },
     { b: 'hall', x: -4, z: 4, rot: 3, p: { width: 11, depth: 7, tile: 'gray', terrace: 2, lanterns: true } },
     { b: 'bellTower', x: -2, z: -10, p: { width: 7 } },
-    { b: 'pagoda', x: -10, z: 18, p: { levels: 5, width: 7 } },
+    { b: 'pagoda', x: -12, z: 10, p: { levels: 5, width: 7 } },
   ],
   trees: [{ type: 'broadleaf', pts: [[-20, -12], [-22, 2], [-20, 12]], n: 3 }],
   // 定稿机位：夜泊（河东岸低看桥在前、寺在后）、全景、寺门（自东看山门）

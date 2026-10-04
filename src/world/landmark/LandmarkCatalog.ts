@@ -92,7 +92,8 @@ const LUSHAN: LandmarkDefinition = {
   poetryPlaceId: 'lushan',
   waterfront: true,
   terrainModifier: [
-    { t: 'flatten', x: 30, z: 34, r: 16, blend: 10 },
+    // 东林寺在庐山西北麓（原放在东南山脚，已落进湖里、整座寺没建出来）
+    { t: 'flatten', x: -42, z: 10, r: 12, blend: 8 },
     // 主峰：一条东西走向的不对称山脊——南面（瀑布、寺、草堂一侧）是陡崖，北坡缓而有冲沟；
     // 西段一道较低的支脊。不再是几座圆丘叠出的馒头山
     { t: 'ridge', pts: [[-22, -30], [-4, -24], [10, -22], [30, -30]], h: 46, w: 30, cliff: 9, cliffSide: 1 },
@@ -105,8 +106,8 @@ const LUSHAN: LandmarkDefinition = {
   structures: [
     { b: 'pavilion', x: 6, z: -22, p: { width: 5 } },
     { b: 'pavilion', x: -28, z: -10, p: { width: 5 } },
-    { b: 'hall', x: 30, z: 32, p: { width: 13, depth: 9, terrace: 2, lanterns: true } },
-    { b: 'pagoda', x: 44, z: 22, p: { levels: 5, width: 7 } },
+    { b: 'hall', x: -44, z: 6, p: { width: 13, depth: 9, terrace: 2, lanterns: true } },
+    { b: 'pagoda', x: -33, z: 14, p: { levels: 5, width: 7 } },
     { b: 'hut', x: -12, z: 42, p: { width: 5, depth: 5 } },
   ],
   // 三叠泉：落差 34 格、宽 5 格，从自砌的陡崖上分三叠落进潭里
