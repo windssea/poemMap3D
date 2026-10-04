@@ -16,6 +16,9 @@ import { WorldConfig, yToMeters } from '../WorldConfig'
 import { type TerrainColumn, type TerrainModifier, type TerrainSample, WaterKind } from './TerrainSample'
 
 /** 地域地貌判定：在该点与四周 20 格处看宏观类型的占比 */
+/** 含沙的江河：水面泛黄（黄河） */
+const SILTY = new Set(['yellow'])
+
 const KIND_TAPS: readonly (readonly [number, number])[] = [
   [0, 0],
   [20, 0],
@@ -80,7 +83,7 @@ export class TerrainManager {
     const M = this.macro
     const relief = M.relief(x, z)
     let h = M.height(x, z)
-    const col: TerrainColumn = { x, z, height: h, waterY: -1, waterKind: WaterKind.None, waterDist: 1e9, biomeOverride: -1, landmark: -1, paved: false }
+    const col: TerrainColumn = { x, z, height: h, waterY: -1, waterKind: WaterKind.None, waterDist: 1e9, biomeOverride: -1, landmark: -1, paved: false, silt: false }
     if (!M.inBounds(x, z)) {
       col.height = SEA_LEVEL - 12
       col.waterY = SEA_LEVEL
@@ -167,6 +170,7 @@ export class TerrainManager {
           col.height = Math.min(col.height, bed)
           col.waterY = col.waterY >= 0 ? Math.max(col.waterY, L) : L
           if (col.waterKind !== WaterKind.Sea) col.waterKind = WaterKind.River
+          col.silt = SILTY.has(this.rivers.rivers[rv.river].def.id)
         }
         col.waterDist = 0
       } else if (col.waterKind !== WaterKind.Sea || col.waterY < 0) {
@@ -215,6 +219,7 @@ export class TerrainManager {
         col.waterY = L
         col.waterKind = WaterKind.Lake
         col.waterDist = 0
+        col.silt = false
       } else if (rr < 1.45 && col.waterKind === WaterKind.River && col.waterY >= 0 && col.height < col.waterY) {
         // 贴湖而过（或入湖前一段）的江河：水面与湖面齐平——否则沿岸一高一低，湖面的侧壁像一道水墙立在河上、把河里的船罩住
         col.waterY = L
@@ -476,6 +481,7 @@ export class TerrainManager {
       waterDistance: inWater ? 0 : c.waterDist,
       landmark: c.landmark,
       paved: c.paved,
+      silt: inWater && !!c.silt,
     }
   }
 

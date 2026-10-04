@@ -3,6 +3,8 @@ import { smoothstep } from '../../utils/math'
 import { BiomeId } from './BiomeId'
 
 export const ZONE_COUNT = ShanshuiZones.length
+/** 体素体 tint 的最高位：该列是含沙浑水（黄河），水面着色用；草叶分区只取低 7 位 */
+export const SILT_BIT = 128
 const Z = Object.fromEntries(ShanshuiZones.map((z, i) => [z.key, i])) as Record<ShanshuiZoneKey, number>
 export const zoneIndex = (k: ShanshuiZoneKey): number => Z[k]
 

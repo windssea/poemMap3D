@@ -21,6 +21,8 @@ export interface TerrainColumn {
   landmark: number
   /** 是否为地标铺装地面（不长草木） */
   paved: boolean
+  /** 含沙的浑水（黄河） */
+  silt?: boolean
 }
 
 export interface TerrainSample {
@@ -40,6 +42,8 @@ export interface TerrainSample {
   waterDistance: number
   landmark: number
   paved: boolean
+  /** 含沙的浑水（黄河）：水面泛黄 */
+  silt: boolean
   /** 农田：0 无，1 麦田，2 水田，3 休耕地 */
   field: number
   /** 岸型（临江河湖处）：0 非岸，1 草岸，2 浅滩，3 岩岸，4 湿地 */

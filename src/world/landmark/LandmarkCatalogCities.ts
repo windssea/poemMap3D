@@ -97,7 +97,7 @@ const TENGWANGGE: LandmarkDefinition = {
   terrainModifier: [{ t: 'flatten', x: -6, z: 0, r: 26, blend: 6 }],
   structures: [
     // 横向展开：面宽 17、进深 9，三层不收进深之外的面宽太多，连同南北两殿成一字阶梯轮廓
-    { b: 'grandTower', x: 0, z: 0, rot: 3, p: { levels: 3, width: 17, depth: 9, tile: 'green', top: 'xieshan', terrace: 5, shrink: 2, floorH: [5, 4, 4] } },
+    { b: 'grandTower', x: 0, z: 0, rot: 3, p: { levels: 3, width: 17, depth: 9, tile: 'green', top: 'xieshan', terrace: 3, baseStep: 3, shrink: 2, floorH: [5, 4, 4] } },
     { b: 'hall', x: -7, z: -18, rot: 3, p: { width: 9, depth: 7, tile: 'green', terrace: 3, lanterns: true } },
     // 南殿：楼南有一道支流斜穿（x −10…0），放在原位会压在溪上被跳过；挪到溪西岸的陆地，隔溪与楼相望
     { b: 'hall', x: -22, z: 19, rot: 3, p: { width: 9, depth: 7, tile: 'green', terrace: 3, lanterns: true } },

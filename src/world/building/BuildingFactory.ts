@@ -30,6 +30,8 @@ export interface BuildingParams {
   shrink?: number
   floorH?: readonly number[]
   eave?: number
+  /** 名楼下层台基高（两段退台）；0 为单层台基 */
+  baseStep?: number
   /** 园墙：是否开月洞门（默认开） */
   gate?: boolean
   /** 游廊：立在水上（木桩入水、木板铺地），水廊 */
@@ -728,6 +730,21 @@ export function grandTower(p: BuildingParams = {}): VoxelStructure {
     /* 回廊四角挂灯（悬在斗拱下） */
     if (p.lanterns ?? true) for (const [x, z] of [[gb.x0 - 1, gb.z0 - 1], [gb.x1 + 1, gb.z0 - 1], [gb.x0 - 1, gb.z1 + 1], [gb.x1 + 1, gb.z1 + 1]] as const) b.set(x, y + fh - 1, z, S(B.LANTERN))
     y += fh + 3
+  }
+  /* 下层台基（滕王阁一类的两段退台）：外扩 8 格、高 baseStep 的一层宽台，四面踏道，主台坐在它上面——
+     不是一整块垂直的石箱 */
+  if (p.baseStep) {
+    const outer = new StructureBuilder('grand-tower-base')
+    const ob = bounds(W + (cross ? 14 : 10) + 8, D + (cross ? 14 : 10) + 8)
+    platform(outer, ob.x0, ob.x1, ob.z0, ob.z1, p.baseStep, B.STONE_BRICK, B.STONE_BRICK_STAIRS, true)
+    for (const x of range(ob.x0, ob.x1))
+      for (const z of range(ob.z0, ob.z1)) {
+        if (x !== ob.x0 && x !== ob.x1 && z !== ob.z0 && z !== ob.z1) continue
+        if ((z === ob.z0 || z === ob.z1) && Math.abs(x) <= 1) continue
+        outer.set(x, p.baseStep, z, S(B.MARBLE_FENCE))
+      }
+    outer.s.merge(b.build(), 0, p.baseStep, 0)
+    return outer.build()
   }
   return b.build()
 }

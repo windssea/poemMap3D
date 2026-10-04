@@ -4,7 +4,7 @@ import { B, Blocks } from '../block/Blocks'
 import { stateAxis, stateFacing, stateHalf, stateVariant } from '../block/BlockState'
 import { textureIndex } from '../block/BlockTextures'
 import { Axis, DIRECTION_VECTORS, rotateXZ } from '../block/Direction'
-import { ZONE_COUNT } from '../biome/TintZone'
+import { SILT_BIT, ZONE_COUNT } from '../biome/TintZone'
 import { buildTintTable } from '../biome/BiomeTints'
 import { hash3i } from '../../utils/math'
 import { skyBlocking, volumeBlockLight, volumeSkyLight } from '../light/VolumeSkyLight'
@@ -233,7 +233,7 @@ export function meshVolume(vol: VoxelVolume, opts: MesherOptions = {}): MeshResu
 
   const flagsFor = (id: number): number =>
     (T.tintClass[id] & VertexFlag.TintMask) | (T.emissive[id] ? VertexFlag.Emissive : 0) | (T.warm[id] ? VertexFlag.Warm : 0) | ((MATERIAL_OF[id] ?? 0) << 6)
-  const tintFor = (tile: number, biome: number): number => T.tint[tile * ZONE_COUNT + biome]
+  const tintFor = (tile: number, biome: number): number => T.tint[tile * ZONE_COUNT + (biome & ~SILT_BIT)]
 
   /** 按面轴取贴图（原木等横放时，端面换到侧面） */
   const tileFor = (id: number, state: number, axis: number, sign: number): number => {
@@ -305,6 +305,8 @@ export function meshVolume(vol: VoxelVolume, opts: MesherOptions = {}): MeshResu
               if (reg.occludes[nb & 255]) continue
               let depth = 0
               while (depth < 7 && reg.liquid[at(pos[0], pos[1] - depth - 1, pos[2]) & 255]) depth++
+              // 含沙浑水占 depth 字段的第 4 位：不同水色不合并
+              if (vol.tint[pos[2] * sx + pos[0]] & SILT_BIT) depth |= 8
               const key = (BlockRenderLayer.Translucent << 29) | (TintClass.Water << 21) | (depth << 16) | (255 << 8) | T.top[id]
               mask[n] = key + 1
               continue
@@ -378,7 +380,7 @@ export function meshVolume(vol: VoxelVolume, opts: MesherOptions = {}): MeshResu
               aoOut[c] = (aoKey >> (src * 2)) & 3
               skyOut[c] = (k2 >>> (src * 8)) & 255
             }
-            const rgb = water ? biome * 36 * 65536 : tintFor(tile, biome)
+            const rgb = water ? (biome & 7) * 36 * 65536 + (biome & 8 ? 255 : 0) : tintFor(tile, biome)
             buffers[layer].quad(corners, nrm[0], nrm[1], nrm[2], uvs, tile, aoOut, rgb, flags, skyOut)
             quads++
             i += w
@@ -605,7 +607,7 @@ export function meshVolume(vol: VoxelVolume, opts: MesherOptions = {}): MeshResu
             const topH = full ? 16 : 14
             let depth = 0
             while (depth < 7 && reg.liquid[at(x, y - depth - 1, z) & 255]) depth++
-            const rgb = depth * 36 * 65536 + (falling ? 255 * 256 : 0)
+            const rgb = depth * 36 * 65536 + (falling ? 255 * 256 : 0) + (vol.tint[z * sx + x] & SILT_BIT ? 255 : 0)
             const extra = falling ? VertexFlag.Falling : 0
             let skip = 1 << 2 // 顶面：静水走贪心合并
             if (falling && !reg.liquid[above & 255] && !reg.occludes[above & 255]) skip = 0

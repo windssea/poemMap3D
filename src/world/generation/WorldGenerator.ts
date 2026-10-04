@@ -1,3 +1,4 @@
+import { SILT_BIT } from '../biome/TintZone'
 import { B } from '../block/Blocks'
 import { S } from '../block/BlockState'
 import type { Chunk } from '../chunk/Chunk'
@@ -63,7 +64,7 @@ export class ChunkGenerator {
     for (let lz = 0; lz < vol.sz; lz++)
       for (let lx = 0; lx < vol.sx; lx++) {
         const s = region.samples[lz * vol.sx + lx]
-        vol.tint[lz * vol.sx + lx] = s.tintZone
+        vol.tint[lz * vol.sx + lx] = s.tintZone | (s.silt ? SILT_BIT : 0)
         vol.biome[lz * vol.sx + lx] = s.biome
         const base = lx + lz * vol.sx
         const stride = vol.sx * vol.sz

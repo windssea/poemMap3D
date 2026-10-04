@@ -1,3 +1,4 @@
+import { SILT_BIT } from '../biome/TintZone'
 import { B } from '../block/Blocks'
 import { S } from '../block/BlockState'
 import { CHUNK_SIZE, WORLD_HEIGHT } from '../coordinate/constants'
@@ -36,7 +37,7 @@ export function generateCoarseRegion(terrain: TerrainManager, landmarks: Landmar
     for (let i = 0; i < W; i++) {
       const s = samples[j * W + i]
       const col = j * W + i
-      vol.tint[col] = s.tintZone
+      vol.tint[col] = s.tintZone | (s.silt ? SILT_BIT : 0)
       vol.biome[col] = s.biome
       /* 顶高先轻度平滑再量化：每 4 格只取一个点，方块级的高频起伏（14 格的凸起、52 格的细节噪声）混叠成参差的脊线，
          量化成 4 格一级后就是远处一道道乱阶梯。取 (4·自己 + 四邻) / 8（参考页远景环同法），与自己差至多半格远景单位，

@@ -502,6 +502,9 @@ export class MaterialLibrary {
           vec3 col = mix(uWaterShallow, uWaterMid, smoothstep(0.0, 0.35, depth));
           col = mix(col, uWaterDeep, smoothstep(0.35, 1.0, depth));
           col *= mix(1.05, 1.0, smoothstep(0.05, 0.45, depth));
+          // 黄河含沙：本色换成黄土浑黄，深处略暗、不见青绿（倒影与高光照旧）
+          bool silt = vTint.b > 0.5;
+          if (silt) col = mix(vec3(0.50, 0.32, 0.12), vec3(0.34, 0.20, 0.07), smoothstep(0.0, 1.0, depth));
           // 两层像素水纹：方向、尺度、速度各异，按 1/8 格取整（远景 2 格），世界坐标取样，相邻区块与远近各级同一相位
           vec2 q = floor(vWorld.xz * ${overview ? '0.5' : '8.0'}) / ${overview ? '0.5' : '8.0'};
           float camDist = distance(vWorld, cameraPosition);
@@ -529,7 +532,7 @@ export class MaterialLibrary {
           vec3 rd = reflect(-v, n);
           rd.y = abs(rd.y);
           float fres = pow(1.0 - max(dot(n, v), 0.0), 3.0);
-          float reflK = falling ? 0.0 : clamp(0.1 + 0.6 * fres, 0.0, 0.7) * (1.0 - 0.7 * uIce * clim);
+          float reflK = falling ? 0.0 : clamp(0.1 + 0.6 * fres, 0.0, 0.7) * (1.0 - 0.7 * uIce * clim) * (silt ? 0.55 : 1.0);
           col = mix(col, skyBase(rd), reflK);
           float spec = pow(max(dot(reflect(-uSunDir, n), v), 0.0), 80.0);
           col += uSunColor * spec * 0.58 * (1.0 - uNight) * (1.0 - 0.85 * uWet) * (0.3 + 0.7 * hiK);
