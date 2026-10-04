@@ -104,6 +104,11 @@ export interface LandmarkDefinition {
   /** 定稿机位：第一个是主景（点地名飞到这里），其余可在界面里切换。注视点 = 地标中心 + offset（x 东、y 相对基准地面上一格、z 南） */
   shots?: readonly LandmarkShot[]
   poetryPlaceId: string
+  /**
+   * 视觉主体：structures 里哪一项、是什么类型（名楼、名松、石窟、关楼）。缺省按建筑等级选最高的一座；
+   * 自然或雕刻主景（黄山迎客松、龙门大龛）要显式写，主楼视廊、取景朝向都跟它走
+   */
+  hero?: { structure: number; kind: 'building' | 'tree' | 'carving' | 'pass' }
   /** 水面上的小舟、瀑布等特写元素 */
   waterfall?: { x: number; z: number; top: number; width: number; dir: 'n' | 's' | 'e' | 'w' }
   /** 允许穿城而过的江河（如洛水贯都）：避让时不算它，城墙在水上留水门 */

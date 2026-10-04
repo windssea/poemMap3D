@@ -1100,6 +1100,7 @@ const HUANGSHAN: LandmarkDefinition = {
   radius: 60,
   major: true,
   poetryPlaceId: 'huangshan',
+  hero: { structure: 3, kind: 'tree' }, // 玉屏楼前迎客松
   levelMode: 'summit',
   terrainModifier: [
     // 峰林：主峰四周的花岗岩石柱，柱顶都低于主峰（天都在西、莲花在东，夹着玉屏楼的岩台）
@@ -1150,6 +1151,7 @@ const LONGMEN: LandmarkDefinition = {
   radius: 44,
   major: true,
   poetryPlaceId: 'longmen',
+  hero: { structure: 0, kind: 'carving' }, // 奉先寺大龛
   terrainModifier: [
     // 河谷底：伊水与两岸窄滩；先削出谷，再起两山
     { t: 'flatten', x: 0, z: 0, r: 12, rz: 46, square: true, blend: 3, shave: true },

@@ -856,7 +856,7 @@ export class LandmarkRegistry {
 
       /* 主楼视廊：名楼正面朝外张开的扇形，先于显式种植登记——楼前不论自然林还是目录里的柳，一棵乔木都不种 */
       const hi = heroIndex(def)
-      if (def.major && !def.walls?.length && heroIsLandmark(def)) {
+      if (def.major && (def.hero || !def.walls?.length) && heroIsLandmark(def)) {
         const hs = def.structures[hi]
         const fy = heroFrontYaw(def)
         this.occupancy.markFan(Math.round(cx + hs.x), Math.round(cz + hs.z), Math.atan2(Math.cos(fy), Math.sin(fy)), 0.4, def.radius * 1.3, Occupancy.HeroView)
@@ -896,6 +896,12 @@ export class LandmarkRegistry {
       /* 视线通道：从地标中心朝取景方向张开的扇形，不栽成熟乔木。没有定稿机位的按主楼正面（自动取景也偏好正面） */
       const sightYaw = def.cameraPreset || def.shots?.length ? lm.camera.yaw : heroFrontYaw(def)
       this.occupancy.markFan(cx, cz, Math.atan2(Math.cos(sightYaw), Math.sin(sightYaw)), 0.32, def.radius * 0.95, Occupancy.Sightline)
+      // 每个定稿机位各一条视廊：从取景目标朝镜头张开（俯拍不怕树挡，跳过）；视廊里只许零星小树留作框景
+      for (const s of def.shots ?? []) {
+        if (s.pitch > 0.75) continue
+        const [ox, , oz] = s.offset ?? [0, 0, 0]
+        this.occupancy.markFan(Math.round(cx + ox), Math.round(cz + oz), Math.atan2(Math.cos(s.yaw), Math.sin(s.yaw)), 0.22, Math.min(s.distance * 0.8, def.radius * 1.2), Occupancy.Sightline)
+      }
       this.occupancy.markCircle(cx, cz, def.radius, Occupancy.Landmark)
 
       for (const p of lm.placements) {

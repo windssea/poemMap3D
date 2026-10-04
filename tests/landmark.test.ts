@@ -127,3 +127,44 @@ describe('地点不落水', () => {
     expect(miss, miss.join('、')).toEqual([])
   }, 60000)
 })
+
+describe('主体语义与机位视廊', () => {
+  it('自然、雕刻主景按显式主体：黄山是迎客松、龙门是石窟大龛；显式主体下标都有效', async () => {
+    const { heroIndex, heroKind } = await import('../src/world/landmark/LandmarkHero')
+    const { LANDMARK_CATALOG } = await import('../src/world/landmark/LandmarkCatalog')
+    const hs = LANDMARK_CATALOG.find((d) => d.id === 'huangshan')!
+    const lmg = LANDMARK_CATALOG.find((d) => d.id === 'longmen')!
+    expect(hs.structures[heroIndex(hs)].b).toBe('sculptedPine')
+    expect(heroKind(hs)).toBe('tree')
+    expect(lmg.structures[heroIndex(lmg)].b).toBe('grottoFacade')
+    expect(heroKind(lmg)).toBe('carving')
+    for (const d of LANDMARK_CATALOG) if (d.hero) expect(d.structures[d.hero.structure], `${d.name} hero 下标`).toBeTruthy()
+  })
+
+  it('每个定稿平视机位的近段视廊里没有高大的自然树', async () => {
+    const { testWorld } = await import('./helpers')
+    const w = testWorld()
+    const bad: string[] = []
+    for (const lm of w.landmarks.landmarks) {
+      for (const s of lm.def.shots ?? []) {
+        if (s.pitch > 0.75) continue
+        const [ox, , oz] = s.offset ?? [0, 0, 0]
+        const tx = lm.x + ox
+        const tz = lm.z + oz
+        const len = Math.min(s.distance * 0.8, lm.def.radius * 1.2)
+        const dx = Math.sin(s.yaw)
+        const dz = Math.cos(s.yaw)
+        const R = Math.ceil(len) + 1
+        for (const t of w.trees.collect(tx - R, tz - R, tx + R, tz + R)) {
+          const vx = t.x - tx
+          const vz = t.z - tz
+          const along = vx * dx + vz * dz
+          const across = Math.abs(vx * dz - vz * dx)
+          // 中线附近（夹角一半以内）、离目标 4 格以外的高树
+          if (along > 4 && along < len - 2 && across < along * Math.tan(0.11) && t.height >= 10) bad.push(`${lm.def.name}·${s.name} 树 (${t.x},${t.z}) 高 ${t.height}`)
+        }
+      }
+    }
+    expect(bad, `${bad.length} 处：` + bad.slice(0, 8).join('；')).toEqual([])
+  }, 120000)
+})

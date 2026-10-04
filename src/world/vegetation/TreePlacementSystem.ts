@@ -167,7 +167,8 @@ export class TreePlacementSystem {
       scale = 'garden'
     }
     if (occ & Occupancy.Sightline) {
-      if (scale !== 'garden' || rnd.chance(0.5)) return null
+      // 竹丛按 garden 尺度却有十来格高、一片密实：视廊里不留，框景只留小树
+      if (type === 'bamboo' || scale !== 'garden' || rnd.chance(0.5)) return null
     }
     if (profile?.gardenScale && scale === 'grand') scale = 'mature'
     return { x, z, y: s.surfaceY + 1, type, variant, scale, spacing: def.minSpacing, priority: hash2i(cx, cz, this.seed + 37) }
