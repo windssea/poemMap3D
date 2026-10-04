@@ -19,7 +19,8 @@ export class PoetryNavigationService {
 
   selectPlace(placeId: string | null, fly = true): void {
     if (!placeId) {
-      this.store.set({ selectedPlaceId: null, selectedPoemId: null, panelState: 'none' })
+      // 清空选择：地点、诗、诗卷、该地的机位一并清掉（视角预设与地点无关，留着）
+      this.store.set({ selectedPlaceId: null, selectedPoemId: null, selectedShotId: null, panelState: 'none' })
       return
     }
     // 换了地点：旧地点的机位作废（飞过去的话由聚焦重新落到新地点的第一个机位）；与换地点同一次更新，地址历史里旧地点那一条保留原机位
@@ -52,6 +53,6 @@ export class PoetryNavigationService {
     const s = this.store.get()
     const many = (s.selectedPlaceId && this.places.get(s.selectedPlaceId)?.poemIds.length) || 0
     if (s.panelState === 'poem' && many > 1) this.store.set({ panelState: 'place', selectedPoemId: null })
-    else this.store.set({ panelState: 'none', selectedPlaceId: null })
+    else this.store.set({ panelState: 'none', selectedPlaceId: null, selectedPoemId: null, selectedShotId: null })
   }
 }

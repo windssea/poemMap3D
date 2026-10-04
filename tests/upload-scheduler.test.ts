@@ -5,7 +5,7 @@ import { drainUploads } from '../src/world/chunk/UploadScheduler'
 function run(queues: number[][], costs: Record<number, number>, opts: { budgetMs?: number; cap?: number; starve?: number; valid?: (u: number) => boolean } = {}) {
   let t = 0
   const done: number[] = []
-  const s = { queues, starve: 0 }
+  const s: { queues: number[][]; ages?: number[] } = { queues }
   const frame = () =>
     drainUploads(s, {
       budgetMs: opts.budgetMs ?? 5,
@@ -17,7 +17,7 @@ function run(queues: number[][], costs: Record<number, number>, opts: { budgetMs
         t += costs[u] ?? 1
         done.push(u)
       },
-    })
+    }).done
   return { frame, done, s }
 }
 
@@ -55,5 +55,23 @@ describe('GPU 上传排程', () => {
     r.frame()
     expect(r.done).toEqual([1, 3])
     expect(r.s.queues[0]).toEqual([])
+  })
+
+  it('最末一级也不饿死：近景、远景每帧都在补充，远景片仍在规定帧数内得到服务', () => {
+    const near: number[] = []
+    const far: number[] = []
+    const region = [9000]
+    let id = 0
+    const r = run([near, far, region], {}, { starve: 8 })
+    // 每次上传 6ms、预算 5ms：每帧只够传一个近景
+    const costs = new Proxy({}, { get: () => 6 }) as Record<number, number>
+    const r2 = run(r.s.queues, costs, { starve: 8 })
+    for (let f = 0; f < 30; f++) {
+      near.push(++id, ++id)
+      far.push(1000 + ++id)
+      r2.frame()
+    }
+    expect(r2.done).toContain(9000)
+    expect(r2.done.indexOf(9000)).toBeLessThan(30)
   })
 })

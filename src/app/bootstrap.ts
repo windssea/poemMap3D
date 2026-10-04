@@ -1,3 +1,4 @@
+import { VIEW_PRESETS } from '../engine/camera/CameraPresetRepository'
 import { type DeepLinkState, encodeDeepLink, parseDeepLink, sameView } from './DeepLink'
 import { Engine } from '../engine/core/Engine'
 import { ISOLATION, PHASE0 } from '../engine/rendering/LightingDebug'
@@ -114,30 +115,36 @@ export async function bootstrap(container: HTMLElement): Promise<AppServices> {
   let applying = false
   const linkOf = (): DeepLinkState => {
     const s = store.get()
-    return { place: s.selectedPlaceId, poem: s.selectedPoemId, shot: s.selectedShotId, season: s.season, weather: s.weather, time: s.time }
+    return { place: s.selectedPlaceId, poem: s.selectedPoemId, shot: s.selectedShotId, view: s.activeView, season: s.season, weather: s.weather, time: s.time }
   }
-  const applyLink = (l: DeepLinkState): void => {
+  /**
+   * 一次还原（一个导航事务，期间不写地址）：先时令天气（与地点无关，没有地点也照样还原），再诗卷（地点、诗），
+   * 最后镜头——视角预设 > 地点机位 > 首页（home 为真时，没有地点也没有预设就飞回首页：后退到首页那一条）
+   */
+  const applyLink = (l: DeepLinkState, home: boolean): void => {
     applying = true
     try {
-      const poem = l.poem ? poetry.get(l.poem) : undefined
-      const place = poem?.placeId ?? (l.place && places.get(l.place) ? l.place : null)
-      if (!place) {
-        navigation.selectPlace(null)
-        return
-      }
-      if (poem) navigation.selectPoem(poem.id, false)
-      else navigation.selectPlace(place, false)
-      if (l.shot && facade.placeShots(place).some((s) => s.id === l.shot)) facade.focusShot(place, l.shot)
-      else facade.focusLandmark(place)
       if (l.season && l.season !== store.get().season) facade.setSeason(l.season)
       if (l.weather && l.weather !== store.get().weather) facade.setWeather(l.weather)
       if (l.time && l.time !== store.get().time) facade.setTime(l.time)
+      const poem = l.poem ? poetry.get(l.poem) : undefined
+      const place = poem?.placeId ?? (l.place && places.get(l.place) ? l.place : null)
+      if (poem) navigation.selectPoem(poem.id, false)
+      else navigation.selectPlace(place, false)
+      const view = l.view && VIEW_PRESETS.some((v) => v.key === l.view) ? l.view : null
+      if (view) facade.flyToView(view)
+      else if (place && l.shot && facade.placeShots(place).some((s) => s.id === l.shot)) facade.focusShot(place, l.shot)
+      else if (place) facade.focusLandmark(place)
+      else if (home) {
+        store.set({ activeView: null, selectedShotId: null })
+        void engine.flyToView('home')
+      }
     } finally {
       applying = false
     }
   }
   const startLink = parseDeepLink(location.search)
-  if (startLink.place || startLink.poem) applyLink(startLink)
+  if (startLink.place || startLink.poem || startLink.view) applyLink(startLink, false)
   let lastLink = linkOf()
   {
     const url = encodeDeepLink(lastLink, location.search)
@@ -155,7 +162,7 @@ export async function bootstrap(container: HTMLElement): Promise<AppServices> {
     lastLink = cur
   })
   window.addEventListener('popstate', () => {
-    applyLink(parseDeepLink(location.search))
+    applyLink(parseDeepLink(location.search), true)
     lastLink = linkOf()
     // 还原时丢掉的（已不存在的诗、机位）从地址里拿掉，地址与画面一致
     const url = encodeDeepLink(lastLink, location.search)
@@ -194,6 +201,6 @@ export async function bootstrap(container: HTMLElement): Promise<AppServices> {
     }
   }
   /* 调试入口（验收截图 tools/shoot.mjs 依赖它）：只在开发服务器或地址栏带 ?debug 时挂到 window */
-  if (import.meta.env.DEV || store.get().debug.chunks) (window as unknown as { __shanhe?: unknown }).__shanhe = { engine, facade, store, sound }
+  if (import.meta.env.DEV || store.get().debug.chunks) (window as unknown as { __shanhe?: unknown }).__shanhe = { engine, facade, store, sound, navigation }
   return { store, facade, poetry, places, aggregator, search, navigation, tour, trails, director, resources: res, majorPlaces: major, sound }
 }

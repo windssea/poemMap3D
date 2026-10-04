@@ -86,7 +86,7 @@ export class ChunkManager {
     [2, []],
     [4, []],
   ])
-  private readonly upState = { queues: [...this.upq.values()], starve: 0 }
+  private readonly upState: { queues: { rec: ChunkRecord; layers: MeshLayerData[] }[][]; ages?: number[] } = { queues: [...this.upq.values()] }
   /** 每帧上传的时间预算（毫秒）：至少传一个，之后超时就停 */
   uploadBudgetMs = 5
   private readonly dirty = new Set<number>()

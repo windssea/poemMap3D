@@ -513,7 +513,8 @@ export class MaterialLibrary {
           float w = (sin(q.x * 1.7 + uTime * 1.3) * sin(q.y * 1.3 - uTime * 1.1) + 0.6 * sin((q.x + q.y) * 0.9 + uTime * 0.7)) * hiK;
           float w2 = sin(dot(q, vec2(0.8, -0.6)) * 2.6 - uTime * 1.7) * sin(dot(q, vec2(0.6, 0.8)) * 1.9 + uTime * 1.2) * hiK;
           col *= 1.0 + 0.05 * w + 0.03 * w2;
-          vec3 n = normalize(vWNormal + vec3(0.06 * w + 0.045 * w2, 0.0, 0.05 * sin(q.y + uTime) - 0.04 * w2));
+          // 法线扰动全部随距离衰减（含 z 向那一项低频起伏：此前没乘 hiK，远处河面高光仍会闪）
+          vec3 n = normalize(vWNormal + vec3(0.06 * w + 0.045 * w2, 0.0, 0.05 * sin(q.y + uTime) * hiK - 0.04 * w2));
           vec3 v = normalize(cameraPosition - vWorld);
           // 雨：水面压暗、褪色（天色由环境管理器罩上雨色，倒影随之变灰）
           col = mix(col, vec3(dot(col, vec3(0.3, 0.59, 0.11))), 0.35 * uWet) * (1.0 - 0.22 * uWet);

@@ -7,6 +7,7 @@ import type { ResolvedLandmark } from '../../world/landmark/LandmarkRegistry'
 import { Occupancy } from '../../world/structure/OccupancyMap'
 import { WaterKind } from '../../world/terrain/TerrainSample'
 import { BiomeId } from '../../world/biome/BiomeId'
+import { segmentClear, standable } from './Pasture'
 import { Random } from '../../utils/math'
 import {
   birdBodyGeometry,
@@ -87,6 +88,8 @@ const ROBES: Record<FigureKind, readonly string[]> = {
 }
 const KIND = Object.fromEntries(FIGURE_KINDS.map((k, i) => [k, i])) as Record<FigureKind, number>
 const AKIND = Object.fromEntries(ANIMAL_KINDS.map((k, i) => [k, i])) as Record<AnimalKind, number>
+/** 体型净空：牛马四周一格也要是空地（不贴着墙、岸），羊猪鸡只看脚下 */
+const MARGIN: Record<AnimalKind, number> = { cattle: 1, buffalo: 1, horse: 1, sheep: 0, pig: 0, chicken: 0 }
 
 interface Smoke {
   x: number
@@ -235,13 +238,18 @@ export class LifeSystem {
     const kinds = Object.keys(BOAT_LAMPS) as Boat['kind'][]
     this.lampCoreGeo = Object.fromEntries(kinds.map((k) => [k, lampGeometry(BOAT_LAMPS[k], 0.02)])) as Record<Boat['kind'], THREE.BufferGeometry>
     this.lampHaloGeo = Object.fromEntries(kinds.map((k) => [k, lampGeometry(BOAT_LAMPS[k], k === 'ship' ? 0.6 : k === 'passenger' ? 0.25 : 0.4)])) as Record<Boat['kind'], THREE.BufferGeometry>
-    for (const im of [...this.bodies, ...this.heads, this.legs, this.carts, ...this.animalMeshes, this.smoke, this.birdBody, this.birdWing]) {
+    for (const im of this.instanced()) {
       im.count = 0
       im.frustumCulled = false
       im.castShadow = im !== this.smoke
       this.group.add(im)
     }
     for (const bm of this.bodies) bm.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(MAX_PEOPLE * 3), 3)
+  }
+
+  /** 本系统拥有的全部实例网格（构造登记、释放共用这一份） */
+  private instanced(): THREE.InstancedMesh[] {
+    return [...this.bodies, ...this.heads, this.legs, this.carts, ...this.animalMeshes, this.smoke, this.birdBody, this.birdWing]
   }
 
   /** 选中 / 飞往一处地方：市井围着它布置（null 则按镜头焦点自动找最近的地标） */
@@ -531,9 +539,19 @@ export class LifeSystem {
         u -= wgt
       }
       const [x, z] = this.rnd.pick(open)
-      // 羊、鸡成群：同一处放几只
+      const m = MARGIN[kind]
+      if (!standable(this.pasture, x, z, m)) continue
+      // 羊、鸡成群：同一处放几只；偏开的位置要能站、且从群中心直线走得到，不行就落在群中心格里
       const flock = kind === 'sheep' ? 3 : kind === 'chicken' ? 3 : 1
-      for (let j = 0; j < flock && this.animals.length < MAX_ANIMALS - 1; j++) this.animals.push(this.animal(AKIND[kind], x + this.rnd.range(-1.5, 1.5), z + this.rnd.range(-1.5, 1.5)))
+      for (let j = 0; j < flock && this.animals.length < MAX_ANIMALS - 1; j++) {
+        let ax = x + 0.5 + this.rnd.range(-1.5, 1.5)
+        let az = z + 0.5 + this.rnd.range(-1.5, 1.5)
+        if (!standable(this.pasture, ax, az, m) || !segmentClear(this.pasture, x + 0.5, z + 0.5, ax, az, m)) {
+          ax = x + 0.5
+          az = z + 0.5
+        }
+        this.animals.push(this.animal(AKIND[kind], ax, az))
+      }
     }
   }
 
@@ -556,14 +574,15 @@ export class LifeSystem {
 
   private stepAnimals(dt: number, time: number, near: boolean, night: number): void {
     const counts = ANIMAL_KINDS.map(() => 0)
+    const resting = night >= 0.6
     if (near)
       for (const an of this.animals) {
-        // 夜里歇着不动
-        if (night < 0.6) this.wander(an, dt)
-        const moving = an.graze <= 0
+        // 夜里歇着：不走、也不播走路的起伏（只是停下 wander，身子却照样一颠一颠）
+        if (!resting) this.wander(an, dt)
+        const moving = !resting && an.graze <= 0
         const bob = moving ? Math.abs(Math.sin(time * 6 + an.phase)) * 0.04 : 0
         // 吃草时低头（整体前俯一点），鸡啄食点头更快
-        const peck = !moving ? (ANIMAL_KINDS[an.kind] === 'chicken' ? Math.max(0, Math.sin(time * 5 + an.phase)) * 0.5 : 0.08) : 0
+        const peck = resting ? 0 : !moving ? (ANIMAL_KINDS[an.kind] === 'chicken' ? Math.max(0, Math.sin(time * 5 + an.phase)) * 0.5 : 0.08) : 0
         this.q.setFromEuler(this.e.set(0, -an.a, -peck, 'YXZ'))
         this.m.compose(this.v.set(an.x, an.y + bob, an.z), this.q, this.s.set(1, 1, 1))
         this.animalMeshes[an.kind].setMatrixAt(counts[an.kind]++, this.m)
@@ -578,13 +597,15 @@ export class LifeSystem {
     if (an.graze > 0) {
       an.graze -= dt
       if (an.graze <= 0) {
-        // 吃完一口，往附近随便挪几格
-        for (let k = 0; k < 6; k++) {
-          const tx = Math.floor(an.x + this.rnd.range(-4, 4))
-          const tz = Math.floor(an.z + this.rnd.range(-4, 4))
-          if (this.pasture.has(tx * 65536 + tz)) {
-            an.tx = tx + 0.5
-            an.tz = tz + 0.5
+        // 吃完一口，往附近挪几格：目标能站、整段直线沿途也都能站、不跨陡坎（两头合法、中间夹着水塘墙角的不走）
+        const m = MARGIN[ANIMAL_KINDS[an.kind]]
+        const h = (x: number, z: number) => Math.floor(this.ctx.terrain.column(x, z).height)
+        for (let k = 0; k < 8; k++) {
+          const tx = Math.floor(an.x + this.rnd.range(-4, 4)) + 0.5
+          const tz = Math.floor(an.z + this.rnd.range(-4, 4)) + 0.5
+          if (standable(this.pasture, tx, tz, m) && segmentClear(this.pasture, an.x, an.z, tx, tz, m, h)) {
+            an.tx = tx
+            an.tz = tz
             break
           }
         }
@@ -985,7 +1006,11 @@ export class LifeSystem {
     for (const g of [...Object.values(this.boatGeo), ...Object.values(this.lampCoreGeo), ...Object.values(this.lampHaloGeo)]) g.dispose()
     this.lampCore.dispose()
     this.lampHalo.dispose()
-    for (const im of [...this.bodies, ...this.heads, this.legs, this.smoke, this.birdBody, this.birdWing]) im.geometry.dispose()
+    // 与构造时 group 里加入的实例网格同一份清单：新增的独轮车、牲畜不会漏
+    for (const im of this.instanced()) {
+      im.geometry.dispose()
+      im.dispose()
+    }
     this.mat.dispose()
     this.smokeMat.dispose()
   }
