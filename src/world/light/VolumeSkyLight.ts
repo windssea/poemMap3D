@@ -86,7 +86,9 @@ export const BLOCK_LIGHT_REACH = 13
  *
  * 体内的源直接从方块数据里找；体外的源（邻区块里离边界不远的灯笼）由 external 给出（世界坐标 x, y, z, 光级 四个一组，
  * 来自地标建筑的摆放表，与邻区块看到的是同一份），按曼哈顿距离注入到体块最外一圈，再在体内带遮挡地传播——
- * 两侧区块都这样算，边界两边接得上，夜里不会在区块边上起一道明暗缝。体外的遮挡看不见，按通透处理。
+ * 两侧区块都这样算，边界两边接得上，夜里不会在区块边上起一道明暗缝。
+ * 有 vol.lightHalo（体外一圈的地形与建筑遮挡）时，体外灯光在外扩范围里按真实遮挡漫开——墙后不漏光、门洞照得进；
+ * 没有时退回旧近似：体外的遮挡看不见，按通透处理。
  * 没有任何光源时返回 null。
  */
 export function volumeBlockLight(vol: VoxelVolume, reg: BlockRegistry, yLo: number, yHi: number, external?: Int32Array | null): Uint8Array | null {
@@ -106,7 +108,62 @@ export function volumeBlockLight(vol: VoxelVolume, reg: BlockRegistry, yLo: numb
         const e = emissionLevel(data[i] & 255)
         if (e > 0) seed(i, e)
       }
-  if (external)
+  const halo = vol.lightHalo
+  if (external && halo) {
+    /* 有体外遮挡：在外扩的一圈里按真实遮挡（体内用体块数据、体外用 halo）先把体外灯光漫开，再取体块里的结果做种子 */
+    const H = halo
+    const HL = new Uint8Array(H.solid.length)
+    const hq = new Queue()
+    const hIdx = (x: number, y: number, z: number) => ((y - H.y0) * H.sz + (z - H.z0)) * H.sx + (x - H.x0)
+    const blockedAt = (x: number, y: number, z: number): boolean => {
+      const lx = x - ox
+      const lz = z - oz
+      const ly = y - oy
+      if (lx >= 0 && lz >= 0 && lx < sx && lz < sz && ly >= 0 && ly < vol.sy) return blocks[data[(ly * sz + lz) * sx + lx] & 255] === 1
+      return H.solid[hIdx(x, y, z)] === 1
+    }
+    for (let k = 0; k < external.length; k += 4) {
+      const x = external[k]
+      const y = external[k + 1]
+      const z = external[k + 2]
+      if (x < H.x0 || z < H.z0 || y < H.y0 || x >= H.x0 + H.sx || z >= H.z0 + H.sz || y >= H.y0 + H.sy) continue
+      const i = hIdx(x, y, z)
+      if (external[k + 3] > HL[i]) {
+        HL[i] = external[k + 3]
+        hq.push(i)
+      }
+    }
+    const plane = H.sx * H.sz
+    for (let qi = 0; qi < hq.n; qi++) {
+      const i = hq.a[qi]
+      const nv = HL[i] - 1
+      if (nv <= 0) continue
+      const hx = i % H.sx
+      const t = (i - hx) / H.sx
+      const hz = t % H.sz
+      const hy = (t - hz) / H.sz
+      const visit = (j: number, x: number, y: number, z: number) => {
+        if (HL[j] >= nv || blockedAt(x, y, z)) return
+        HL[j] = nv
+        hq.push(j)
+      }
+      const X = hx + H.x0
+      const Y = hy + H.y0
+      const Z = hz + H.z0
+      if (hx > 0) visit(i - 1, X - 1, Y, Z)
+      if (hx < H.sx - 1) visit(i + 1, X + 1, Y, Z)
+      if (hz > 0) visit(i - H.sx, X, Y, Z - 1)
+      if (hz < H.sz - 1) visit(i + H.sx, X, Y, Z + 1)
+      if (hy > 0) visit(i - plane, X, Y - 1, Z)
+      if (hy < H.sy - 1) visit(i + plane, X, Y + 1, Z)
+    }
+    for (let y = Math.max(yLo, H.y0 - oy); y <= Math.min(yHi, H.y0 + H.sy - 1 - oy); y++)
+      for (let z = 0; z < sz; z++)
+        for (let x = 0; x < sx; x++) {
+          const v = HL[hIdx(x + ox, y + oy, z + oz)]
+          if (v > 0) seed((y * sz + z) * sx + x, v)
+        }
+  } else if (external)
     for (let k = 0; k < external.length; k += 4) {
       const ex = external[k] - ox
       const ey = external[k + 1] - oy

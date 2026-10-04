@@ -6,6 +6,17 @@ import { WORLD_HEIGHT } from '../coordinate/constants'
  * 区块生成时直接生成「区块 + 外边一圈」，mesher 不必再向邻居区块要数据，
  * 且由于生成是世界坐标的纯函数，外边与邻居区块的内部完全一致。
  */
+/** 体块外扩一圈的挡光格（世界坐标 x0..x0+sx-1、y0..y0+sy-1、z0..z0+sz-1；下标 ((y - y0) * sz + (z - z0)) * sx + (x - x0)） */
+export interface LightHalo {
+  x0: number
+  y0: number
+  z0: number
+  sx: number
+  sy: number
+  sz: number
+  solid: Uint8Array
+}
+
 export class VoxelVolume {
   readonly sx: number
   readonly sy: number
@@ -21,6 +32,11 @@ export class VoxelVolume {
   readonly biome: Uint8Array
   /** 体外附近的发光方块（世界坐标 x, y, z, 光级 四个一组），算方块光时从体块边上注入；没有为 null */
   emitters: Int32Array | null = null
+  /**
+   * 体外遮挡（方块光用）：体块四周外扩一圈里哪些格挡光——地形（地表以下）与附近建筑的实心方块。
+   * 体外的灯光按这份遮挡绕墙、穿门洞照进来，而不是当作通透直接注入体块边上（墙后漏光）。没有体外灯时为 null
+   */
+  lightHalo: LightHalo | null = null
 
   constructor(ox: number, oy: number, oz: number, sx: number, sy: number, sz: number, data?: Uint16Array, tint?: Uint8Array) {
     this.ox = ox

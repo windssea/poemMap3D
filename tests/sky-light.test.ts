@@ -104,3 +104,91 @@ describe('方块光（灯笼、格窗）', () => {
     expect(at(b, Lb, 17, 6, 8)).toBe(at(a, La, 16, 6, 8) - 1)
   })
 })
+
+/**
+ * 体外遮挡：同一个场景，一份「整块算」（灯与墙都在体内，精确）做参照；另一份只取东边区块，灯在体外、墙在体外或跨边界，
+ * 通过 lightHalo 带上体外遮挡。体块里每一格两边应完全一致。
+ */
+describe('方块光：体外遮挡（跨区块不漏光）', () => {
+  type Scene = (x: number, y: number, z: number) => boolean
+  const LAMP: [number, number, number] = [13, 6, 8]
+  const build = (vol: VoxelVolume, solid: Scene) => {
+    for (let z = vol.oz; z < vol.oz + vol.sz; z++)
+      for (let x = vol.ox; x < vol.ox + vol.sx; x++) for (let y = 0; y < 20; y++) if (solid(x, y, z)) vol.set(x, y, z, S(B.STONE))
+  }
+  const reference = (solid: Scene) => {
+    const v = new VoxelVolume(-20, 0, -30, 70, 32, 70)
+    build(v, solid)
+    v.set(LAMP[0], LAMP[1], LAMP[2], S(B.LANTERN))
+    return { v, L: volumeBlockLight(v, Blocks, 0, 31)! }
+  }
+  const cropped = (solid: Scene) => {
+    const b = VoxelVolume.forChunk(1, 0)
+    b.data.fill(0)
+    build(b, solid)
+    b.emitters = Int32Array.from([LAMP[0], LAMP[1], LAMP[2], 13])
+    const R = 13
+    const x0 = b.ox - R
+    const z0 = b.oz - R
+    const y0 = LAMP[1] - 13
+    const sx = b.sx + 2 * R
+    const sz = b.sz + 2 * R
+    const sy = 27
+    const solidArr = new Uint8Array(sx * sy * sz)
+    for (let y = 0; y < sy; y++) for (let z = 0; z < sz; z++) for (let x = 0; x < sx; x++) if (y + y0 >= 0 && solid(x + x0, y + y0, z + z0)) solidArr[(y * sz + z) * sx + x] = 1
+    b.lightHalo = { x0, y0: Math.max(0, y0), z0, sx, sy, sz, solid: solidArr }
+    if (y0 < 0) {
+      // 世界底以下不建 halo 格：截掉负的那几层
+      const cut = -y0
+      b.lightHalo = { x0, y0: 0, z0, sx, sy: sy - cut, sz, solid: solidArr.slice(cut * sx * sz) }
+    }
+    return { b, L: volumeBlockLight(b, Blocks, 0, 31, b.emitters) }
+  }
+  const ground: Scene = (_x, y) => y <= 4
+  const compare = (solid: Scene) => {
+    const r = reference(solid)
+    const c = cropped(solid)
+    const diff: string[] = []
+    for (let y = 5; y <= 14; y++)
+      for (let z = c.b.oz; z < c.b.oz + c.b.sz; z++)
+        for (let x = c.b.ox; x < c.b.ox + c.b.sx; x++) {
+          const want = r.L[idx(r.v, x, y, z)]
+          const got = c.L ? c.L[idx(c.b, x, y, z)] : 0
+          if (want !== got) diff.push(`(${x},${y},${z}) 应 ${want} 得 ${got}`)
+        }
+    return { r, c, diff }
+  }
+
+  it('墙在灯所在的区块（体外）：墙后不漏光，与整块算一致', () => {
+    const wall: Scene = (x, y, z) => ground(x, y, z) || (x === 14 && y < 20)
+    const { r, c, diff } = compare(wall)
+    expect(diff.slice(0, 5)).toEqual([])
+    expect(r.L[idx(r.v, 16, 6, 8)]).toBe(0)
+    expect(c.L ? c.L[idx(c.b, 16, 6, 8)] : 0).toBe(0)
+  })
+
+  it('墙跨区块边界：与整块算一致', () => {
+    const wall: Scene = (x, y, z) => ground(x, y, z) || ((x === 15 || x === 16) && y < 20 && z !== 30)
+    expect(compare(wall).diff.slice(0, 5)).toEqual([])
+  })
+
+  it('墙上开门洞：光从门洞照进来，强弱与整块算一致', () => {
+    const wall: Scene = (x, y, z) => ground(x, y, z) || (x === 14 && y < 20 && !(z === 8 && y >= 5 && y <= 6))
+    const { c, diff } = compare(wall)
+    expect(diff.slice(0, 5)).toEqual([])
+    expect(c.L![idx(c.b, 15, 6, 8)]).toBeGreaterThan(0)
+  })
+
+  it('同一世界格，不同裁剪（相邻两区块）光级相同', () => {
+    const wall: Scene = (x, y, z) => ground(x, y, z) || (x === 20 && y < 9 && z >= 2 && z <= 14)
+    const r = reference(wall)
+    const c = cropped(wall)
+    for (const [x, y, z] of [
+      [16, 6, 8],
+      [21, 6, 8],
+      [21, 10, 8],
+      [18, 6, 15],
+    ])
+      expect(c.L![idx(c.b, x, y, z)], `(${x},${y},${z})`).toBe(r.L[idx(r.v, x, y, z)])
+  })
+})

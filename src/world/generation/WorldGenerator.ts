@@ -1,16 +1,16 @@
 import { SILT_BIT } from '../biome/TintZone'
-import { B } from '../block/Blocks'
+import { B, Blocks } from '../block/Blocks'
 import { S } from '../block/BlockState'
 import type { Chunk } from '../chunk/Chunk'
 import type { GreatWallSystem } from '../landmark/GreatWallSystem'
 import type { LandmarkRegistry } from '../landmark/LandmarkRegistry'
-import { BLOCK_LIGHT_REACH, emissionLevel } from '../light/VolumeSkyLight'
+import { BLOCK_LIGHT_REACH, emissionLevel, skyBlocking } from '../light/VolumeSkyLight'
 import { type PreparedPlacement, placeStructure, PlaceMode, preparePlacement } from '../structure/StructurePlacer'
 import type { TerrainManager } from '../terrain/TerrainManager'
 import { decorateGround } from '../vegetation/GroundDecoration'
 import type { TreeInstance, TreePlacementSystem } from '../vegetation/TreePlacementSystem'
 import { MAX_TREE_RADIUS } from '../vegetation/TreeRegistry'
-import { VoxelVolume } from '../voxel/VoxelVolume'
+import { type LightHalo, VoxelVolume } from '../voxel/VoxelVolume'
 import { World } from '../World'
 import { WorldConfig } from '../WorldConfig'
 
@@ -43,7 +43,34 @@ function emittersOf(p: PreparedPlacement): number[] {
   return e
 }
 
+/** 每处建筑里挡光方块的相对坐标（x, y, z 三个一组），按摆放缓存：体外遮挡只看这些 */
+const blockerCache = new WeakMap<PreparedPlacement, Int16Array>()
+function blockersOf(p: PreparedPlacement, blocks: Uint8Array): Int16Array {
+  let e = blockerCache.get(p)
+  if (!e) {
+    const out: number[] = []
+    for (const b of p.blocks) if (blocks[b.state & 255]) out.push(b.x, b.y, b.z)
+    e = Int16Array.from(out)
+    blockerCache.set(p, e)
+  }
+  return e
+}
+
 export class ChunkGenerator {
+  /** 体外遮挡用的地面高度：相邻区块的外扩圈大片重叠，按列缓存（满了整个清空） */
+  private readonly ground = new Map<number, number>()
+
+  private groundAt(x: number, z: number): number {
+    const k = ((x + 32768) << 16) | (z + 32768)
+    let h = this.ground.get(k)
+    if (h === undefined) {
+      if (this.ground.size > 200000) this.ground.clear()
+      h = Math.floor(this.terrain.column(x, z).height)
+      this.ground.set(k, h)
+    }
+    return h
+  }
+
   constructor(
     private readonly terrain: TerrainManager,
     private readonly landmarks: LandmarkRegistry,
@@ -114,6 +141,7 @@ export class ChunkGenerator {
         }
       }
       vol.emitters = ext.length ? Int32Array.from(ext) : null
+      if (ext.length) vol.lightHalo = this.lightHalo(vol, ext)
     }
 
     /* 树：树根在外扩范围内的都要考虑（树冠可能伸进来） */
@@ -133,6 +161,47 @@ export class ChunkGenerator {
     /* 地被 */
     if (decorate) decorateGround(vol, region, this.landmarks.occupancy, this.seed)
     return { volume: vol, trees: treeCount, structures: placements.length }
+  }
+
+  /**
+   * 体外遮挡：体块外扩 BLOCK_LIGHT_REACH 一圈、灯的高度上下各一个光程里，地形（地表以下）与附近建筑的挡光方块。
+   * 只在体外有灯时算（城镇、园林的区块），树、长城等不计（灯光照不到那么远）
+   */
+  private lightHalo(vol: VoxelVolume, ext: number[]): LightHalo {
+    const R = BLOCK_LIGHT_REACH
+    let yMin = Infinity
+    let yMax = -Infinity
+    for (let k = 0; k < ext.length; k += 4) {
+      yMin = Math.min(yMin, ext[k + 1] - ext[k + 3])
+      yMax = Math.max(yMax, ext[k + 1] + ext[k + 3])
+    }
+    const x0 = vol.ox - R
+    const z0 = vol.oz - R
+    const sx = vol.sx + 2 * R
+    const sz = vol.sz + 2 * R
+    const y0 = Math.max(vol.oy, yMin)
+    const sy = Math.max(1, Math.min(vol.oy + vol.sy - 1, yMax) - y0 + 1)
+    const solid = new Uint8Array(sx * sy * sz)
+    const blocks = skyBlocking(Blocks)
+    for (let z = 0; z < sz; z++)
+      for (let x = 0; x < sx; x++) {
+        const lx = x0 + x - vol.ox
+        const lz = z0 + z - vol.oz
+        if (lx >= 0 && lz >= 0 && lx < vol.sx && lz < vol.sz) continue // 体内用体块自己的数据
+        const top = Math.min(y0 + sy - 1, this.groundAt(x0 + x, z0 + z))
+        for (let y = y0; y <= top; y++) solid[((y - y0) * sz + z) * sx + x] = 1
+      }
+    for (const p of this.landmarks.placementsNear(x0, z0, x0 + sx - 1, z0 + sz - 1)) {
+      const occ = blockersOf(p, blocks)
+      for (let k = 0; k < occ.length; k += 3) {
+        const x = p.x + occ[k] - x0
+        const y = p.y + occ[k + 1] - y0
+        const z = p.z + occ[k + 2] - z0
+        if (x < 0 || z < 0 || y < 0 || x >= sx || z >= sz || y >= sy) continue
+        solid[(y * sz + z) * sx + x] = 1
+      }
+    }
+    return { x0, y0, z0, sx, sy, sz, solid }
   }
 
   generate(cx: number, cz: number): ChunkGenerationResult {
