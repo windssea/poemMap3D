@@ -43,8 +43,8 @@ const HANGZHOU: LandmarkDefinition = {
     { t: 'pave', x0: 20, z0: -23, x1: 56, z1: -21 },
   ],
   structures: [
-    { b: 'pagoda', x: -26, z: 40, p: { levels: 5, width: 7 } },
-    { b: 'pagoda', x: -16, z: -44, p: { levels: 7, width: 5 } },
+    { b: 'pagoda', x: -26, z: 45, p: { levels: 5, width: 9, style: 'leifeng' } },
+    { b: 'pagoda', x: -16, z: -44, p: { levels: 7, style: 'spire' } },
     { b: 'pavilion', x: -8, z: 8, p: { width: 5, lanterns: true } },
     { b: 'pavilion', x: 12, z: -21, p: { width: 5 } },
     { b: 'bridge', x: -29, z: -12, rot: 1, atLevel: true, p: { length: 9 } },
@@ -71,6 +71,13 @@ const HANGZHOU: LandmarkDefinition = {
   biomeOverride: { biome: BiomeId.Garden, radius: 52 },
   vegetationProfile: { weights: { willow: 2.5, peach: 2, bamboo: 1.5, broadleaf: 1.5, pine: 2 }, density: 1.1, gardenScale: true },
   cameraPreset: { yaw: 0.55, pitch: 0.62, distance: 125 },
+  // 子场景：苏堤上南望雷峰（与北山保俶一胖一瘦）、湖心望湖东城、三潭小岛的湖心亭
+  shots: [
+    { id: 'hero', name: '全湖', yaw: 0.55, pitch: 0.62, distance: 125 },
+    { id: 'causeway', name: '堤上望塔', yaw: 3.12, pitch: 0.07, distance: 88, offset: [-26, 18, 42] },
+    { id: 'city', name: '湖面望城', yaw: -1.32, pitch: 0.1, distance: 56, offset: [30, 6, -22] },
+    { id: 'island', name: '岛亭', yaw: 0.6, pitch: 0.3, distance: 26, offset: [-8, 3, 8] },
+  ],
 }
 
 /** 庐山：群峰、香炉峰瀑布与潭；山巅亭、山脚东林寺与塔、白居易草堂 */

@@ -36,6 +36,8 @@ export interface BuildingParams {
   gate?: boolean
   /** 游廊：立在水上（木桩入水、木板铺地），水廊 */
   piles?: boolean
+  /** 塔式：楼阁式（默认）/ 雷峰式（敦实、朱壁、下两层同宽）/ 保俶式（细长实心砖塔，叠涩小檐，无木檐） */
+  style?: 'leifeng' | 'spire'
 }
 
 export const stairs = (id: number, f: Direction, top = false): PackedState => packState({ id, facing: f, half: top ? 'top' : 'bottom' })
@@ -261,21 +263,25 @@ export function pavilion(p: BuildingParams = {}): VoxelStructure {
 
 /* ================= 木塔（楼阁式） ================= */
 export function pagoda(p: BuildingParams = {}): VoxelStructure {
+  if (p.style === 'spire') return spirePagoda(p)
+  const leifeng = p.style === 'leifeng'
   const levels = p.levels ?? 5
   const base = p.width ?? 7
   const b = new StructureBuilder('pagoda')
   const { x0, x1, z0, z1 } = bounds(base + 2, base + 2)
-  b.box(x0, 0, z0, x1, 0, z1, S(B.STONE_BRICK))
-  let y = 1
+  if (leifeng) platform(b, x0 - 2, x1 + 2, z0 - 2, z1 + 2, 2, B.STONE_BRICK, B.STONE_BRICK_STAIRS, true)
+  else b.box(x0, 0, z0, x1, 0, z1, S(B.STONE_BRICK))
+  let y = leifeng ? 2 : 1
   for (let i = 0; i < levels; i++) {
-    const w = Math.max(3, base - 2 * Math.floor(i / 2))
+    // 雷峰式：下三层同宽、往上才收，塔身矮壮；首层更高
+    const w = Math.max(3, base - 2 * Math.floor(i / (leifeng ? 3 : 2)))
     const bb = bounds(w, w)
-    const sh = 3
+    const sh = leifeng && i === 0 ? 4 : 3
     b.walls(bb.x0, y, bb.z0, bb.x1, y + sh - 1, bb.z1, (x, yy, z) => {
       const corner = (x === bb.x0 || x === bb.x1) && (z === bb.z0 || z === bb.z1)
       if (corner) return post(B.PILLAR)
-      if (yy === y + 1 && (x === 0 || z === 0)) return packState({ id: B.LATTICE_WINDOW, facing: x === 0 ? Direction.South : Direction.East })
-      return S(B.PLASTER)
+      if (yy === y + sh - 2 && (x === 0 || z === 0)) return packState({ id: B.LATTICE_WINDOW, facing: x === 0 ? Direction.South : Direction.East })
+      return S(leifeng ? B.LACQUER : B.PLASTER)
     })
     if (i === 0) b.set(0, y, bb.z1, 0).set(0, y + 1, bb.z1, 0)
     b.box(bb.x0, y + sh, bb.z0, bb.x1, y + sh, bb.z1, S(B.DARK_PLANKS))
@@ -283,11 +289,49 @@ export function pagoda(p: BuildingParams = {}): VoxelStructure {
     b.s.merge(buildRoof({ width: w + 4, depth: w + 4, type: 'taiyan', tile: p.tile ?? 'gray' }), 0, y + sh + 1, 0)
     y += sh + 2
   }
-  const topW = Math.max(3, base - 2 * Math.floor((levels - 1) / 2))
+  const topW = Math.max(3, base - 2 * Math.floor((levels - 1) / (leifeng ? 3 : 2)))
   b.s.merge(buildRoof({ width: topW + 2, depth: topW + 2, type: 'cuanjian', tile: p.tile ?? 'gray', upturn: false }), 0, y, 0)
   let top = y
   while (b.s.has(0, top, 0)) top++
   for (let k = 0; k < 3; k++) b.set(0, top + k, 0, S(k === 2 ? B.FINIAL : B.GOLD))
+  return b.build()
+}
+
+/**
+ * 保俶式细塔：实心砖身、平面抹角近八角，七级叠涩小檐、不出木檐，通高约为底宽的六倍；
+ * 塔刹一根细铁杆。远看是北山上一枚针，与南屏雷峰的敦实楼阁式一瘦一胖。
+ */
+function spirePagoda(p: BuildingParams): VoxelStructure {
+  const levels = p.levels ?? 7
+  const b = new StructureBuilder('spire-pagoda')
+  const oct = (r: number, f: (x: number, z: number, edge: boolean) => void) => {
+    for (let x = -r; x <= r; x++)
+      for (let z = -r; z <= r; z++) {
+        if (r >= 2 && Math.abs(x) === r && Math.abs(z) === r) continue
+        f(x, z, Math.abs(x) === r || Math.abs(z) === r || (r >= 2 && Math.abs(x) + Math.abs(z) === 2 * r - 1))
+      }
+  }
+  oct(3, (x, z) => b.set(x, 0, z, S(B.STONE_BRICK)))
+  oct(2, (x, z) => b.set(x, 1, z, S(B.STONE_BRICK)))
+  let y = 2
+  for (let i = 0; i < levels; i++) {
+    const r = i < 2 ? 2 : 1
+    const sh = i === 0 ? 4 : 3
+    for (let yy = y; yy < y + sh; yy++)
+      oct(r, (x, z) => b.set(x, yy, z, S((x * 3 + z * 5 + yy) % 7 === 0 ? B.COBBLE : B.STONE_BRICK)))
+    // 首层一面券门（虚掩），其上各层只在正面留一个小龛
+    if (i === 0) b.set(0, y, r, 0).set(0, y + 1, r, 0)
+    else b.set(0, y + 1, r, 0)
+    oct(r + 1, (x, z, edge) => {
+      if (edge) b.set(x, y + sh, z, S(B.STONE_BRICK_SLAB))
+      else b.set(x, y + sh, z, S(B.STONE_BRICK))
+    })
+    y += sh + 1
+  }
+  b.set(0, y, 0, S(B.STONE_BRICK_SLAB))
+  for (let k = 1; k <= 3; k++) b.set(0, y + k, 0, post(B.DARK_POST))
+  b.set(0, y + 4, 0, S(B.GOLD))
+  b.set(0, y + 5, 0, S(B.FINIAL))
   return b.build()
 }
 
