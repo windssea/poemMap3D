@@ -819,9 +819,22 @@ const JIANMEN: LandmarkDefinition = {
   major: true,
   poetryPlaceId: 'p095',
   terrainModifier: [
-    { t: 'ridge', pts: [[-80, 4], [-46, -2], [-6, 0]], h: 38, w: 24, cliff: 6, cliffSide: -1, squareEnds: true },
-    { t: 'ridge', pts: [[6, 0], [24, -3], [36, 2]], h: 36, w: 20, cliff: 6, cliffSide: -1, squareEnds: true },
-    { t: 'flatten', x: 0, z: 0, r: 5, rz: 9, square: true, blend: 3 },
+    // 大剑山：两道山脊在关口断开，北面绝壁分级退让；脊线不再是一道平顶墙——脊上起一串剑锋（石峰），高低错落
+    { t: 'ridge', pts: [[-84, 6], [-58, -4], [-32, 2], [-12, -1]], h: 28, w: 28, cliff: 9, cliffSide: -1, squareEnds: true },
+    { t: 'ridge', pts: [[12, -1], [30, -5], [48, 3]], h: 26, w: 24, cliff: 9, cliffSide: -1, squareEnds: true },
+    // 南面再起一道低些的余脉，层次往后退
+    { t: 'ridge', pts: [[-70, 26], [-40, 22], [-18, 28]], h: 14, w: 16, cliff: 4, cliffSide: -1 },
+    { t: 'ridge', pts: [[20, 28], [44, 22], [60, 30]], h: 12, w: 14, cliff: 4, cliffSide: -1 },
+    { t: 'spire', x: -16, z: -2, r: 5, h: 14 },
+    { t: 'spire', x: -27, z: 1, r: 4, h: 10 },
+    { t: 'spire', x: -40, z: -1, r: 5, h: 13 },
+    { t: 'spire', x: -54, z: -3, r: 4, h: 9 },
+    { t: 'spire', x: -68, z: 2, r: 4, h: 11 },
+    { t: 'spire', x: 16, z: -3, r: 5, h: 15 },
+    { t: 'spire', x: 27, z: -4, r: 4, h: 10 },
+    { t: 'spire', x: 39, z: -1, r: 4, h: 12 },
+    // 关口：谷底平台宽 20，两侧按高差放出一道 V 形斜坡（削，不留切出来的直壁），关楼不被夹在窄缝里
+    { t: 'flatten', x: 0, z: 0, r: 8, rz: 16, square: true, blend: 12, shave: true },
     // 蜀道：自北穿关南下
     { t: 'path', pts: [[2, -60], [-2, -30], [0, -10], [0, 12], [3, 34], [-1, 60]], w: 1.5 },
   ],
@@ -829,6 +842,9 @@ const JIANMEN: LandmarkDefinition = {
     // 关楼：城门洞（路穿门而过），门上一座重檐楼
     { b: 'gate', x: 0, z: 0, rot: 2, atLevel: true, p: { width: 11, depth: 7, height: 8 } },
     { b: 'pavilion', x: 0, z: 0, atLevel: true, dy: 8, p: { width: 7, double: true, tile: 'gray', lanterns: true } },
+    // 关墙：自关门两侧接到两边山坡上，关口仍是一道「门」
+    { b: 'wall', x: 6, z: -1, atLevel: true, p: { length: 10, height: 8 } },
+    { b: 'wall', x: -15, z: -1, atLevel: true, p: { length: 10, height: 8 } },
     { b: 'archway', x: 1, z: 30, p: { tile: 'gray' } },
   ],
   vegetationProfile: { weights: { pine: 6, broadleaf: 1.5 }, density: 1.1 },
@@ -1115,22 +1131,23 @@ const HUANGSHAN: LandmarkDefinition = {
     // 光明顶：真峰尖只有一两格宽，亭子落上去要砌一根高石柱——削出一小块峰顶平台（只削两三格）
     { t: 'flatten', x: 2, z: -2, r: 3.5, dy: -2, blend: 4 },
     // 玉屏楼岩台：峰南半山
-    { t: 'flatten', x: 0, z: 16, r: 6, dy: -38, blend: 4 },
+    { t: 'flatten', x: 2, z: 16, r: 9, dy: -38, blend: 4 },
     // 石阶：南麓盘上岩台，再上峰顶
     { t: 'path', pts: [[4, 44], [-2, 36], [4, 28], [0, 22]], w: 1.1 },
     { t: 'path', pts: [[0, 10], [3, 6], [1, 3]], w: 1.1 },
   ],
   structures: [
     { b: 'pavilion', x: 2, z: -2, atLevel: true, dy: -2, p: { width: 5, tile: 'gray' } },
-    // 峰顶亭旁一棵迎客松：长枝伸出峰顶，从远处看峰尖上一抹松影
-    { b: 'sculptedPine', x: -3, z: 2 },
-    { b: 'hall', x: -2, z: 15, atLevel: true, dy: -38, p: { width: 7, depth: 5, tile: 'gray', terrace: 1, lanterns: true } },
-    { b: 'sculptedPine', x: 4, z: 18, atLevel: true, dy: -38 },
+    // 峰顶西缘一棵迎客松：长枝背着亭子朝西伸出峰外（rot 2），不压亭子
+    { b: 'sculptedPine', x: -5, z: 3, rot: 2 },
+    // 玉屏楼在岩台西半，迎客松在东头崖边、长枝朝东伸出岩台，与楼隔开不相压
+    { b: 'hall', x: -4, z: 15, atLevel: true, dy: -38, p: { width: 7, depth: 5, tile: 'gray', terrace: 1, lanterns: true } },
+    { b: 'sculptedPine', x: 8, z: 18, atLevel: true, dy: -38 },
   ],
   vegetationProfile: { weights: { pine: 8, broadleaf: 0.5 }, density: 0.8 },
   shots: [
     // 松峰：岩台东南，迎客松在画面左缘，长枝伸向主峰
-    { id: 'hero', name: '迎客松', yaw: 0.25, pitch: 0.1, distance: 36, offset: [4, -31, 18] },
+    { id: 'hero', name: '迎客松', yaw: 0.25, pitch: 0.1, distance: 38, offset: [6, -31, 18] },
     { id: 'peaks', name: '峰林', yaw: 0.2, pitch: 0.3, distance: 130, offset: [0, -20, 0] },
     { id: 'summit', name: '光明顶', yaw: 2.6, pitch: 0.35, distance: 50, offset: [2, 0, -2] },
   ],
@@ -1217,6 +1234,39 @@ const YUEYAQUAN: LandmarkDefinition = {
     { id: 'hero', name: '月牙', yaw: 0.15, pitch: 0.95, distance: 76, offset: [0, 2, -4] },
     { id: 'shore', name: '泉岸', yaw: 1.3, pitch: 0.2, distance: 26, offset: [0, 3, -6] },
     { id: 'dunes', name: '鸣沙山', yaw: -2.6, pitch: 0.28, distance: 120, offset: [0, 10, 10] },
+  ],
+}
+
+/**
+ * 秦州（天水）：杜甫弃官西行客居之地。「戍鼓断人行，边秋一雁声」——渭水支流南岸台地上一座边城，
+ * 方城南北两门，北门起戍楼；城中鼓楼、几户人家；城东南一间草堂（杜甫寓居）。原先的自动聚落落在河湾低处、半截泡在水里。
+ */
+const QINZHOU: LandmarkDefinition = {
+  id: 'qinzhou',
+  name: '秦州',
+  coordinate: { lng: 105.72, lat: 34.58 },
+  offset: [-5, 21],
+  // 城坐在台地上，比南面河滩高出一截
+  levelDy: 5,
+  radius: 26,
+  poetryPlaceId: 'p062',
+  terrainModifier: [
+    { t: 'flatten', x: 0, z: 0, r: 13, rz: 10, square: true, blend: 12 },
+    { t: 'pave', x0: -1, z0: -9, x1: 1, z1: 9 },
+  ],
+  walls: [{ x: 0, z: 0, hw: 12, hd: 9, height: 6, gates: ['n', 's'], gateLevels: { n: 2 } }],
+  structures: [
+    { b: 'bellTower', x: 0, z: 0, p: { width: 7 } },
+    { b: 'house', x: -7, z: -4, rot: 3, p: { seed: 701, lanterns: true } },
+    { b: 'house', x: 7, z: -4, rot: 1, p: { seed: 702 } },
+    { b: 'house', x: -7, z: 5, rot: 3, p: { seed: 703 } },
+    { b: 'shop', x: 7, z: 5, rot: 1, p: { seed: 704 } },
+    { b: 'hut', x: 19, z: 13, p: { width: 5, depth: 5 } },
+  ],
+  vegetationProfile: { weights: { broadleaf: 2, willow: 1, pine: 1 }, density: 0.6 },
+  shots: [
+    { id: 'hero', name: '边城', yaw: 0.5, pitch: 0.45, distance: 70 },
+    { id: 'night', name: '戍楼', yaw: 3.0, pitch: 0.2, distance: 40, offset: [0, 6, -9] },
   ],
 }
 
@@ -1317,4 +1367,4 @@ const YANMENGUAN: LandmarkDefinition = {
   ],
 }
 
-export const CITY_CATALOG: readonly LandmarkDefinition[] = [HUANGHELOU, YUEYANGLOU, TENGWANGGE, GUANQUELOU, DUOJINGLOU, JINLING, LUOYANG, CHENGDU, SUZHOU, HUANGZHOU, YANGZHOU, BIANJING, SHANYIN, MIZHOU, CHUZHOU, XIANGYANG, JUNSHAN, PENGCHENG, HUIZHOU, BAIDICHENG, TAISHAN, JIANMEN, FENGQIAO, ZHONGNAN, WANGCHUAN, LANTING, TIANMU, EMEI, HUASHAN, HUANGSHAN, LONGMEN, YUEYAQUAN, SHANHAIGUAN, JIAYUGUAN, YANMENGUAN]
+export const CITY_CATALOG: readonly LandmarkDefinition[] = [HUANGHELOU, YUEYANGLOU, TENGWANGGE, GUANQUELOU, DUOJINGLOU, JINLING, LUOYANG, CHENGDU, SUZHOU, HUANGZHOU, YANGZHOU, BIANJING, SHANYIN, MIZHOU, CHUZHOU, XIANGYANG, JUNSHAN, PENGCHENG, HUIZHOU, BAIDICHENG, TAISHAN, JIANMEN, FENGQIAO, ZHONGNAN, WANGCHUAN, LANTING, TIANMU, EMEI, HUASHAN, HUANGSHAN, LONGMEN, YUEYAQUAN, SHANHAIGUAN, JIAYUGUAN, YANMENGUAN, QINZHOU]
