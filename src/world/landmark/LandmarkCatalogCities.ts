@@ -329,6 +329,8 @@ const SUZHOU: LandmarkDefinition = {
     { id: 'hall', name: '远香堂', yaw: 0.1, pitch: 0.95, distance: 48, offset: [8, 0, 10] },
     { id: 'pond', name: '池北', yaw: 3.0, pitch: 0.95, distance: 50, offset: [8, 0, -4] },
     { id: 'peak', name: '后园', yaw: 0.4, pitch: 1.0, distance: 42, offset: [8, 0, -28] },
+    // 月洞门框景：池上北望，隔园墙的圆洞里框住后园花街与冠云峰
+    { id: 'moon', name: '月洞门', yaw: 0, pitch: 0.05, distance: 12, offset: [8, 2.5, -16] },
   ],
   terrainModifier: [
     { t: 'flatten', x: 0, z: 0, r: 40, blend: 6 },
@@ -366,7 +368,8 @@ const SUZHOU: LandmarkDefinition = {
     { b: 'stoneBoat', x: 15, z: -10, atLevel: true, overWater: true },
     { b: 'rockery', x: 17, z: 12, p: { seed: 5, height: 5 } },
 
-    /* ——— 后园：见山楼、冠云峰、书斋、双檐亭 ——— */
+    /* ——— 后园：一道粉墙与中部隔开，正中月洞门（框景）；见山楼、冠云峰、书斋、双檐亭 ——— */
+    { b: 'gardenWall', x: -4, z: -16, p: { length: 25, height: 6 } },
     { b: 'loft', x: 1, z: -34, p: { width: 7, depth: 5, seed: 121, lanterns: true } },
     { b: 'rockery', x: 14, z: -30, p: { seed: 15, height: 14 } },
     { b: 'gardenHall', x: 3, z: -21, p: { width: 7, depth: 5 } },
