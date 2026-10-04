@@ -1,3 +1,4 @@
+import { drainUploads } from './UploadScheduler'
 import * as THREE from 'three'
 import type { WorkerPool } from '../../engine/core/WorkerPool'
 import type { MaterialLibrary } from '../../engine/rendering/MaterialLibrary'
@@ -79,7 +80,15 @@ export class ChunkManager {
   readonly far = new Map<number, ChunkRecord>()
   /** 远景片（4×4 片键） */
   readonly regions = new Map<number, ChunkRecord>()
-  private readonly uploads: { rec: ChunkRecord; layers: MeshLayerData[] }[] = []
+  /** 待上传的网格：按层级分三条队列（近景 1、远景 2、远景片 4），各自先进先出，重建的插到本层队首 */
+  private readonly upq = new Map<ChunkTier, { rec: ChunkRecord; layers: MeshLayerData[] }[]>([
+    [1, []],
+    [2, []],
+    [4, []],
+  ])
+  private readonly upState = { queues: [...this.upq.values()], starve: 0 }
+  /** 每帧上传的时间预算（毫秒）：至少传一个，之后超时就停 */
+  uploadBudgetMs = 5
   private readonly dirty = new Set<number>()
   /** 显示状态变了、待刷新掩膜的区块 */
   private readonly touched: number[] = []
@@ -220,16 +229,16 @@ export class ChunkManager {
       this.visDirty = true
     }
 
-    /* 3. GPU 上传节流：近景优先，按时间预算，远景小块时间允许就多传 */
-    if (this.uploads.length) {
-      this.uploads.sort((a, b) => a.rec.tier - b.rec.tier)
-      const t0 = performance.now()
-      for (let i = 0; this.uploads.length && (i < this.uploadsPerFrame || performance.now() - t0 < 5); i++) {
-        const u = this.uploads.shift()!
-        if (this.mapOf(u.rec.tier).get(u.rec.key) !== u.rec) continue
-        this.install(u.rec, u.layers)
-      }
-    }
+    /* 3. GPU 上传节流：近景优先、时间优先（见 UploadScheduler）；条数上限为 uploadsPerFrame 的三倍 */
+    if (this.pendingUploads())
+      drainUploads(this.upState, {
+        budgetMs: this.uploadBudgetMs,
+        cap: this.uploadsPerFrame * 3,
+        starveFrames: 8,
+        now: () => performance.now(),
+        valid: (u) => this.mapOf(u.rec.tier).get(u.rec.key) === u.rec,
+        install: (u) => this.install(u.rec, u.layers),
+      })
 
     /* 4. 远景：在范围内且四个区块没被近景全盖住时显示；掩膜只刷新变了的区块 */
     if (this.visDirty) {
@@ -311,6 +320,12 @@ export class ChunkManager {
           this.want(this.regions, chunkKey(rx, rz), rx, rz, 4)
         }
     }
+  }
+
+  private pendingUploads(): number {
+    let n = 0
+    for (const q of this.upq.values()) n += q.length
+    return n
   }
 
   private mapOf(tier: ChunkTier): Map<number, ChunkRecord> {
@@ -422,7 +437,7 @@ export class ChunkManager {
           this.meshSum += r.stats.meshMs
           this.genCount++
         }
-        this.uploads.push({ rec, layers: r.layers })
+        this.upq.get(rec.tier)!.push({ rec, layers: r.layers })
       },
       () => undefined,
     )
@@ -439,7 +454,7 @@ export class ChunkManager {
     job.promise.then(
       (r) => {
         if (this.records.get(rec.key) !== rec) return
-        this.uploads.unshift({ rec, layers: r.layers })
+        this.upq.get(rec.tier)!.unshift({ rec, layers: r.layers })
       },
       () => undefined,
     )
@@ -571,7 +586,7 @@ export class ChunkManager {
   get settled(): boolean {
     for (const map of [this.records, this.far, this.regions])
       for (const r of map.values()) if (r.state === ChunkState.GENERATING || r.state === ChunkState.MESHING || r.state === ChunkState.REQUESTED) return false
-    return this.uploads.length === 0
+    return this.pendingUploads() === 0
   }
 
   stats(): ChunkManagerStats {
@@ -588,7 +603,7 @@ export class ChunkManager {
       regionTriangles: 0,
       avgGenMs: 0,
       avgMeshMs: 0,
-      uploadsPending: this.uploads.length,
+      uploadsPending: this.pendingUploads(),
     }
     for (const map of [this.records, this.far, this.regions])
       for (const r of map.values()) {
