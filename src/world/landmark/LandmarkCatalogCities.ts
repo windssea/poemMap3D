@@ -434,6 +434,12 @@ const HUANGZHOU: LandmarkDefinition = {
     { type: 'pine', variant: 2, pts: [[-34, 2], [-18, 18]], n: 3 },
   ],
   vegetationProfile: { weights: { broadleaf: 3, bamboo: 2, pine: 1 }, density: 0.8 },
+  // 主景从江上北望（江在西南斜过，赤壁临江）；赤壁舟行：江心仰看崖与崖上亭；雪堂坡田：城东东坡的草堂、竹与坡地
+  shots: [
+    { id: 'hero', name: '主景', yaw: 0.3, pitch: 0.5, distance: 130, offset: [-6, 0, 4] },
+    { id: 'chibi', name: '赤壁舟行', yaw: 0.25, pitch: 0.1, distance: 72, offset: [-26, 8, 6] },
+    { id: 'xuetang', name: '雪堂坡田', yaw: 0.15, pitch: 0.3, distance: 44, offset: [34, 4, -14] },
+  ],
 }
 
 /** 扬州：瘦西湖曲折如带，湖上石桥（桥自动跨水）、二十四桥、白塔、湖畔重檐亭；湖东城里楼阁酒肆；湖西北蜀冈上平山堂 */
@@ -453,9 +459,10 @@ const YANGZHOU: LandmarkDefinition = {
     { t: 'pave', x0: 12, z0: -24, x1: 14, z1: 20 },
   ],
   structures: [
-    { b: 'bridge', x: -14, z: 1, rot: 0, atLevel: true, span: true, p: { length: 9 } },
+    // 两座拱桥都跨在运河窄处（湖面、南边水面太宽，桥会立在水中而被跳过）
+    { b: 'bridge', x: -17, z: 8, rot: 0, atLevel: true, span: true, p: { length: 9 } },
     { b: 'pavilion', x: -4, z: -8, p: { width: 5, double: true, tile: 'green' } },
-    { b: 'bridge', x: -8, z: 22, rot: 1, atLevel: true, span: true, p: { length: 9 } },
+    { b: 'bridge', x: -13, z: -22, rot: 0, atLevel: true, span: true, p: { length: 9 } },
     { b: 'stupa', x: -26, z: -2 },
     { b: 'waterPavilion', x: -24, z: -18, rot: 1, atLevel: true, overWater: true, p: { width: 7, depth: 5 } },
     { b: 'hall', x: -40, z: -38, atLevel: true, dy: 9, p: { width: 9, depth: 5, tile: 'gray', terrace: 1, lanterns: true } },
@@ -475,6 +482,12 @@ const YANGZHOU: LandmarkDefinition = {
     { type: 'bamboo', pts: [[-46, -30], [-34, -30]], n: 2 },
   ],
   vegetationProfile: { weights: { willow: 4, broadleaf: 2, peach: 1 }, density: 0.8 },
+  // 桥水柳街：运河拱桥、两岸垂柳与东街市楼；二十四桥：瘦西湖上的桥（夜里切到夜色看灯）
+  shots: [
+    { id: 'hero', name: '主景', yaw: 0.5, pitch: 0.55, distance: 130 },
+    { id: 'canal', name: '桥水柳街', yaw: 1.0, pitch: 0.22, distance: 55, offset: [-4, 4, 14] },
+    { id: 'bridge', name: '二十四桥', yaw: 1.2, pitch: 0.2, distance: 34, offset: [-17, 3, 8] },
+  ],
 }
 
 /** 汴京：宣德门与御街、州桥跨汴河、大相国寺、樊楼（三层酒楼）、开宝寺铁塔；街市摊铺 */
