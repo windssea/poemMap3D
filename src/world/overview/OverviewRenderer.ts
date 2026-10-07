@@ -251,12 +251,14 @@ export class OverviewRenderer {
     const lines: [Vec2[] | null, string, number][] = [
       [this.ctx.rivers.line('yangtze'), OverviewTokens.inkRiver, 7],
       [this.ctx.rivers.line('yellow'), OverviewTokens.inkYellowRiver, 7],
-      [this.ctx.greatWall.points.map((p) => [p.x, p.z] as const), OverviewTokens.greatWall, 6],
+      ...wallStrokes(this.ctx.greatWall.points).map((pts) => [pts, OverviewTokens.greatWall, 6] as [Vec2[], string, number]),
     ]
+    const wallTotal = this.ctx.greatWall.points.length
     for (const [pts, color, width] of lines) {
       if (!pts || pts.length < 2) continue
-      const step = Math.max(1, Math.floor(pts.length / 600))
-      const sparse = pts.filter((_, i) => i % step === 0)
+      // 长城分成多笔：按全长统一抽稀（每笔按自己的长度抽，短笔会被抽得只剩一两点）
+      const step = Math.max(1, Math.floor((color === OverviewTokens.greatWall ? wallTotal : pts.length) / 600))
+      const sparse = pts.filter((_, i) => i % step === 0 || i === pts.length - 1)
       const pos: number[] = []
       const idx: number[] = []
       for (let i = 0; i < sparse.length; i++) {
@@ -339,3 +341,30 @@ export class OverviewRenderer {
   }
 }
 
+/**
+ * 长城墨线按段分笔：城墙点来自外长城、内长城和各关隘自带的连墙（剑门关两翼、雁门关……），
+ * 全部连成一笔会在一段的末尾直接拉到下一段的开头，在地图上横穿出几道长直线。
+ * 按所属的线分组、按序号排，序号断开或相距太远（关城、河口留的缺口）就另起一笔
+ */
+export function wallStrokes(points: readonly { x: number; z: number; line: number; seq: number }[]): Vec2[][] {
+  const byLine = new Map<number, { x: number; z: number; seq: number }[]>()
+  for (const p of points) {
+    let a = byLine.get(p.line)
+    if (!a) byLine.set(p.line, (a = []))
+    a.push(p)
+  }
+  const out: Vec2[][] = []
+  for (const a of byLine.values()) {
+    a.sort((p, q) => p.seq - q.seq)
+    let cur: Vec2[] = []
+    for (let i = 0; i < a.length; i++) {
+      if (i > 0 && (a[i].seq - a[i - 1].seq > 6 || Math.hypot(a[i].x - a[i - 1].x, a[i].z - a[i - 1].z) > 24)) {
+        if (cur.length > 1) out.push(cur)
+        cur = []
+      }
+      cur.push([a[i].x, a[i].z])
+    }
+    if (cur.length > 1) out.push(cur)
+  }
+  return out
+}

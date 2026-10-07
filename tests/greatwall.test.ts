@@ -176,4 +176,20 @@ describe('长城拓扑', () => {
       }
     expect(bad, `${bad.length} 处：` + bad.slice(0, 8).join('；')).toEqual([])
   }, 300000)
+
+  it('全图墨线按段分笔，不在一段末尾直接拉到另一段开头（外长城、内长城、剑门关连墙）', async () => {
+    const { wallStrokes } = await import('../src/world/overview/OverviewRenderer')
+    const w = testWorld()
+    const strokes = wallStrokes(w.greatWall.points)
+    const long: string[] = []
+    for (const st of strokes)
+      for (let i = 1; i < st.length; i++) {
+        const d = Math.hypot(st[i][0] - st[i - 1][0], st[i][1] - st[i - 1][1])
+        if (d > 24) long.push(`(${st[i - 1][0]},${st[i - 1][1]})→(${st[i][0]},${st[i][1]}) ${d.toFixed(0)}`)
+      }
+    expect(strokes.length).toBeGreaterThan(2)
+    expect(long).toEqual([])
+    // 墨线覆盖全部城墙点（分笔不丢段）
+    expect(strokes.reduce((n, s) => n + s.length, 0)).toBeGreaterThan(w.greatWall.points.length * 0.98)
+  }, 300000)
 })
