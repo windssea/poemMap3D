@@ -21,3 +21,22 @@ describe('诗与地点的关系', () => {
     expect(relationHeading(undefined, '兰亭')).toBe('写于兰亭')
   })
 })
+
+describe('诗词文本', () => {
+  it('不含控制字符与扩展区生僻字（扩展区的字几乎没有字体收录，会显示成方块）', () => {
+    const data = JSON.parse(fs.readFileSync('public/data/poems.json', 'utf8')) as { poems: { id: string }[] }
+    const bad: string[] = []
+    // 逐个字符串值检查（JSON.stringify 会把控制字符转义成 \u0001 这样的 ASCII，查不出来）
+    const walk = (v: unknown, id: string): void => {
+      if (typeof v === 'string') {
+        for (const ch of v) {
+          const c = ch.codePointAt(0) ?? 0
+          if (c > 0xffff || (c < 0x20 && ch !== '\n')) bad.push(`${id} U+${c.toString(16)}`)
+        }
+      } else if (Array.isArray(v)) for (const x of v) walk(x, id)
+      else if (v && typeof v === 'object') for (const x of Object.values(v)) walk(x, id)
+    }
+    for (const p of data.poems) walk(p, p.id)
+    expect(bad).toEqual([])
+  })
+})
