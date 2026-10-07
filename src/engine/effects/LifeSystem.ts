@@ -169,6 +169,11 @@ interface Boat {
   /** 被迫掉头的时刻（卡在两头都放不下的地方会来回掉头，三秒内三次就撤掉） */
   flips?: number[]
   dead?: boolean
+  /** 湖船被挡后转向的剩余时间与方向：转满这段才重新前行，不在「挡住→退一点→又能走→又挡住」之间每帧来回抽动 */
+  turnT?: number
+  turnDir?: number
+  /** 河船船尾朝前对齐河道的剩余时间：不在正常转向与倒着对齐之间每帧来回切换 */
+  sternT?: number
   x: number
   z: number
   y: number
@@ -1032,10 +1037,20 @@ export class LifeSystem {
         while (da < -Math.PI) da += Math.PI * 2
         // 船身首尾对称：顺着河道（船头朝前或船尾朝前）放得下，转向中途的斜角却会扫进岸里。
         // 先试正常转向；转不过去（窄河掉头）就贴着河道轴线倒着走（船尾在前），到河面宽处再转过来
+        // 正常转向要整段扫过的角度都放得下才开始（否则转一点、卡住、倒回去，每帧来回抖）；倒着对齐之后至少保持两秒
         const k = Math.min(1, dt * 2)
         const na = b.a + da * k
-        if (this.hullClear(b.kind, b.x, b.z, na, true)) b.a = na
+        if (b.sternT && b.sternT > 0) b.sternT -= dt
+        const sweepClear = () => {
+          for (let q = 1; q <= 6; q++) if (!this.hullClear(b.kind, b.x, b.z, b.a + (da * q) / 6, true)) return false
+          return true
+        }
+        if (Math.abs(da) <= Math.PI / 2) {
+          // 顺着河道的小幅修正（过弯）：车道是按河道朝向挑的、朝向本身放得下；中间角度扫到岸就直接取河道朝向
+          b.a = this.hullClear(b.kind, b.x, b.z, na, true) || !this.hullClear(b.kind, b.x, b.z, heading, true) ? na : heading
+        } else if (!(b.sternT && b.sternT > 0) && sweepClear() && this.hullClear(b.kind, b.x, b.z, na, true)) b.a = na
         else {
+          if (!(b.sternT && b.sternT > 0)) b.sternT = 2
           let db = da + (da > 0 ? -Math.PI : Math.PI) // 朝相反方向（船尾朝前）对齐河道
           while (db > Math.PI) db -= Math.PI * 2
           while (db < -Math.PI) db += Math.PI * 2
@@ -1054,23 +1069,38 @@ export class LifeSystem {
         const okAhead = sea
           ? this.deepSea(ax, az)
           : this.lakeAt(ax, az) && clear(ax, az) && clear(ax - Math.sin(b.a) * side, az + Math.cos(b.a) * side) && clear(ax + Math.sin(b.a) * side, az - Math.cos(b.a) * side) && this.hullClear(b.kind, nx, nz, b.a)
-        if (okAhead) {
+        if (b.turnT && b.turnT > 0) b.turnT -= dt
+        if (okAhead && !(b.turnT && b.turnT > 0)) {
           b.x = nx
           b.z = nz
         } else {
-          // 掉头：转过去之后整条船身仍在水里、不碰墙才转（原地打转会把船尾甩进园墙、岸上）；转不动就往回倒一点
-          const na = b.a + (b.kind === 'ship' ? 0.6 : 1.0) * dt * 4
-          if (sea || this.hullClear(b.kind, b.x, b.z, na)) b.a = na
+          // 掉头：转过去之后整条船身仍在水里、不碰墙才转（原地打转会把船尾甩进园墙、岸上）；转不动就往回倒一点。
+          // 一旦被挡就朝一个方向转满半秒再前行，方向也不来回换
+          if (!(b.turnT && b.turnT > 0)) {
+            b.turnT = 0.5
+            b.turnDir = undefined
+          }
+          const step = (b.kind === 'ship' ? 0.6 : 1.0) * dt * 4
+          if (sea) b.a += step
           else {
-            const bx = b.x - Math.cos(b.a) * b.speed * dt
-            const bz = b.z - Math.sin(b.a) * b.speed * dt
-            if (this.hullClear(b.kind, bx, bz, b.a)) {
-              b.x = bx
-              b.z = bz
+            let turned = false
+            for (const sgn of b.turnDir ? [b.turnDir, -b.turnDir] : [1, -1]) {
+              const na = b.a + sgn * step
+              if (this.hullClear(b.kind, b.x, b.z, na)) {
+                b.a = na
+                b.turnDir = sgn
+                turned = true
+                break
+              }
             }
-            const nb = b.a - (na - b.a)
-            if (this.hullClear(b.kind, b.x, b.z, na)) b.a = na
-            else if (this.hullClear(b.kind, b.x, b.z, nb)) b.a = nb // 一侧转不动就往另一侧转
+            if (!turned) {
+              const bx = b.x - Math.cos(b.a) * b.speed * dt
+              const bz = b.z - Math.sin(b.a) * b.speed * dt
+              if (this.hullClear(b.kind, bx, bz, b.a)) {
+                b.x = bx
+                b.z = bz
+              }
+            }
           }
         }
         if (b.kind === 'fishing') {

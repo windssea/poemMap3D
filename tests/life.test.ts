@@ -159,4 +159,44 @@ describe('江河行船', () => {
     }
     expect(rates).toEqual([])
   }, 300000)
+
+  it('苏州一带的船不来回抖动（被挡转向、窄河掉头不在两种动作之间每帧切换）', async () => {
+    const THREE = await import('three')
+    const { testWorld } = await import('./helpers')
+    const { LifeSystem } = await import('../src/engine/effects/LifeSystem')
+    const w = testWorld()
+    const life = new LifeSystem(w) as any
+    const lm = w.landmarks.landmarks.find((l) => l.def.id === 'suzhou')!
+    life.populateWater(new THREE.Vector3(lm.x - 40, lm.level, lm.z))
+    type P = { x: number; z: number; a: number }
+    const hist = new Map<object, P[]>()
+    const dt = 1 / 60
+    for (let f = 0; f < 60 * 20; f++) {
+      life.stepBoats(dt, f * dt)
+      for (const b of life.boats as (P & object)[]) {
+        const h = hist.get(b) ?? []
+        h.push({ x: b.x, z: b.z, a: b.a })
+        hist.set(b, h)
+      }
+    }
+    const bad: string[] = []
+    for (const [b, h] of hist) {
+      if ((b as { dead?: boolean }).dead) continue
+      // 朝向变化、沿船头方向的位移，正负号翻转的次数
+      let flips = 0
+      let pda = 0
+      let pm = 0
+      for (let i = 1; i < h.length; i++) {
+        const da = h[i].a - h[i - 1].a
+        const m = (h[i].x - h[i - 1].x) * Math.cos(h[i].a) + (h[i].z - h[i - 1].z) * Math.sin(h[i].a)
+        if (Math.abs(da) > 1e-4 && Math.abs(pda) > 1e-4 && Math.sign(da) !== Math.sign(pda)) flips++
+        if (Math.abs(m) > 1e-4 && Math.abs(pm) > 1e-4 && Math.sign(m) !== Math.sign(pm)) flips++
+        if (Math.abs(da) > 1e-4) pda = da
+        if (Math.abs(m) > 1e-4) pm = m
+      }
+      if (flips > 12) bad.push(`${(b as { kind: string }).kind} (${h[0].x.toFixed(0)},${h[0].z.toFixed(0)}) ${flips}`)
+    }
+    expect(hist.size).toBeGreaterThan(5)
+    expect(bad).toEqual([])
+  }, 300000)
 })
