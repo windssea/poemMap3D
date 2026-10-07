@@ -102,3 +102,33 @@ describe('各地标的市井配置', () => {
     expect(lt.people.has('scholar')).toBe(true)
   }, 120000)
 })
+
+describe('湖上行船', () => {
+  it('苏州、杭州、洞庭一带湖船 90 秒里整条船身始终在水上、不压园墙建筑', async () => {
+    const THREE = await import('three')
+    const { testWorld } = await import('./helpers')
+    const { LifeSystem } = await import('../src/engine/effects/LifeSystem')
+    const w = testWorld()
+    const life = new LifeSystem(w) as any
+    const bad: string[] = []
+    let n = 0
+    for (const id of ['suzhou', 'hangzhou', 'yueyanglou']) {
+      const lm = w.landmarks.landmarks.find((l) => l.def.id === id)!
+      life.populateWater(new THREE.Vector3(lm.x, lm.level, lm.z))
+      const boats = (life.boats as { river: number; path?: unknown; kind: string; x: number; z: number; a: number }[]).filter((b) => b.river < 0 && !b.path && b.kind !== 'ship' && b.kind !== 'seaFisher')
+      n += boats.length
+      for (const b of boats) if (!life.hullClear(b.kind, b.x, b.z, b.a)) bad.push(`${id} 出生 ${b.kind} (${b.x.toFixed(0)},${b.z.toFixed(0)})`)
+      for (let f = 0; f < 900; f++) {
+        life.stepBoats(0.1, f * 0.1)
+        for (const b of boats)
+          if (!life.hullClear(b.kind, b.x, b.z, b.a)) {
+            bad.push(`${id} 第${f}帧 ${b.kind} (${b.x.toFixed(0)},${b.z.toFixed(0)})`)
+            break
+          }
+        if (bad.length) break
+      }
+    }
+    expect(n).toBeGreaterThan(3)
+    expect(bad, bad.slice(0, 5).join('；')).toEqual([])
+  }, 180000)
+})

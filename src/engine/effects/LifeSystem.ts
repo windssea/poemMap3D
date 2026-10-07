@@ -849,9 +849,10 @@ export class LifeSystem {
         const v = Math.sin(a) * rz * f
         const x = cx + u * cos - v * sin
         const z = cz + u * sin + v * cos
-        if (!this.lakeAt(x, z)) continue
+        const a0 = rnd.range(0, 6.28)
+        if (!this.hullClear(kind, x, z, a0)) continue
         const c = this.ctx.terrain.column(Math.floor(x), Math.floor(z))
-        this.addBoat(kind, { river: -1, s: 0, dir: 1, lane: 0, x, z, y: y ?? c.waterY + 1, a: rnd.range(0, 6.28), speed: kind === 'fishing' ? rnd.range(0.3, 0.7) : 0.9 })
+        this.addBoat(kind, { river: -1, s: 0, dir: 1, lane: 0, x, z, y: y ?? c.waterY + 1, a: a0, speed: kind === 'fishing' ? rnd.range(0.3, 0.7) : 0.9 })
         lake++
         return true
       }
@@ -998,15 +999,33 @@ export class LifeSystem {
         // 湖上的船不贴着建筑走（园墙、水榭、码头）：船头前方与左右两舷都不能落进建筑占地
         const clear = (x: number, z: number) => !this.ctx.landmarks.occupancy.has(Math.floor(x), Math.floor(z), Occupancy.Building | Occupancy.Buffer)
         const side = b.kind === 'passenger' || b.kind === 'cargo' ? 2.5 : 1.5
-        const okAhead =
-          b.kind === 'ship' || b.kind === 'seaFisher'
-            ? this.deepSea(ax, az)
-            : this.lakeAt(ax, az) && clear(ax, az) && clear(ax - Math.sin(b.a) * side, az + Math.cos(b.a) * side) && clear(ax + Math.sin(b.a) * side, az - Math.cos(b.a) * side)
+        const sea = b.kind === 'ship' || b.kind === 'seaFisher'
+        const okAhead = sea
+          ? this.deepSea(ax, az)
+          : this.lakeAt(ax, az) && clear(ax, az) && clear(ax - Math.sin(b.a) * side, az + Math.cos(b.a) * side) && clear(ax + Math.sin(b.a) * side, az - Math.cos(b.a) * side) && this.hullClear(b.kind, nx, nz, b.a)
         if (okAhead) {
           b.x = nx
           b.z = nz
-        } else b.a += (b.kind === 'ship' ? 0.6 : 1.0) * dt * 4
-        if (b.kind === 'fishing') b.a += Math.sin(time * 0.2 + b.phase) * dt * 0.2
+        } else {
+          // 掉头：转过去之后整条船身仍在水里、不碰墙才转（原地打转会把船尾甩进园墙、岸上）；转不动就往回倒一点
+          const na = b.a + (b.kind === 'ship' ? 0.6 : 1.0) * dt * 4
+          if (sea || this.hullClear(b.kind, b.x, b.z, na)) b.a = na
+          else {
+            const bx = b.x - Math.cos(b.a) * b.speed * dt
+            const bz = b.z - Math.sin(b.a) * b.speed * dt
+            if (this.hullClear(b.kind, bx, bz, b.a)) {
+              b.x = bx
+              b.z = bz
+            }
+            const nb = b.a - (na - b.a)
+            if (this.hullClear(b.kind, b.x, b.z, na)) b.a = na
+            else if (this.hullClear(b.kind, b.x, b.z, nb)) b.a = nb // 一侧转不动就往另一侧转
+          }
+        }
+        if (b.kind === 'fishing') {
+          const na = b.a + Math.sin(time * 0.2 + b.phase) * dt * 0.2
+          if (this.hullClear(b.kind, b.x, b.z, na)) b.a = na
+        }
       }
       if (b.kind !== 'ship' && b.kind !== 'seaFisher') this.floatOnWater(b, dt)
       const roll = Math.sin(time * 1.3 + b.phase) * (b.kind === 'ship' ? 0.025 : b.kind === 'cargo' ? 0.03 : 0.05)
@@ -1048,6 +1067,27 @@ export class LifeSystem {
       this.waterCache.set(key, v)
     }
     return v
+  }
+
+  /**
+   * 整条船身（船头、船腰、船尾，各带两舷）都在湖、塘水面上，也不压进建筑占地（园墙、水榭、码头）。
+   * 船身半长、半宽按船型：渔舟 2.6×0.8，客船、漕船 4×1.3
+   */
+  hullClear(kind: Boat['kind'], x: number, z: number, a: number): boolean {
+    const big = kind === 'passenger' || kind === 'cargo'
+    const L = big ? 4 : 2.6
+    const W = big ? 1.3 : 0.8
+    const cx = Math.cos(a)
+    const sz = Math.sin(a)
+    const occ = this.ctx.landmarks.occupancy
+    for (const u of [-L, -L / 2, 0, L / 2, L])
+      for (const v of [-W, 0, W]) {
+        const px = x + cx * u - sz * v
+        const pz = z + sz * u + cx * v
+        if (!this.lakeAt(px, pz)) return false
+        if (occ.has(Math.floor(px), Math.floor(pz), Occupancy.Building)) return false
+      }
+    return true
   }
 
   private lakeAt(x: number, z: number): boolean {
