@@ -196,30 +196,65 @@ export class Engine {
     return this.raycast.fromScreen(this.camera.camera, nx, ny)
   }
 
-  /** 局部水面倒影：镜头近到声明了倒影的地标（枫桥……）且不是轻画质时开 */
+  /** 倒影水面的取样缓存：注视点挪动不到 10 格、镜头距离变化不大就沿用 */
+  private reflPick: { x: number; z: number; d: number; area: { x: number; z: number; y: number; r: number } | null } | null = null
+
+  /**
+   * 水面倒影（衡、高画质，镜头近时）：自动选注视点附近的水——在以注视点为心、随镜头距离放大的范围里按格取样，
+   * 取「离注视点近、面积大」的那个水位作反射平面（一张反射图只能对一个平面；别的水位在着色器里渐回天光倒影）。
+   * 地标声明了 reflection 的（枫桥）优先用它的圆心与半径。范围里没有水就不渲反射图，不白花一遍场景渲染
+   */
   private updateReflection(focus: THREE.Vector3, distance: number): void {
     let area: { x: number; z: number; y: number; r: number } | null = null
-    if (this.quality.quality !== 'low' && distance < 280) {
-      for (const lm of this.world.ctx.landmarks.landmarks) {
-        const r = lm.def.reflection
-        if (!r) continue
-        const x = lm.x + r.x
-        const z = lm.z + r.z
-        if (Math.hypot(focus.x - x, focus.z - z) > r.r + 80) continue
-        // 水面高度：从圆心向外找最近的一格水（圆心可能落在岸上）
-        let wy = -1
-        for (let d = 0; d <= r.r && wy < 0; d += 2)
-          for (let k = 0; k < 16 && wy < 0; k++) {
-            const c = this.world.ctx.terrain.column(Math.round(x + Math.cos((k / 16) * Math.PI * 2) * d), Math.round(z + Math.sin((k / 16) * Math.PI * 2) * d))
-            if (c.waterY >= 0 && c.height < c.waterY) wy = c.waterY
-          }
-        if (wy < 0) continue
-        area = { x, z, y: wy + 14 / 16, r: r.r }
-        break
+    if (this.quality.quality !== 'low' && distance < 320) {
+      const c = this.reflPick
+      if (c && Math.hypot(c.x - focus.x, c.z - focus.z) < 10 && Math.abs(c.d - distance) < distance * 0.25) area = c.area
+      else {
+        area = this.pickReflection(focus, distance)
+        this.reflPick = { x: focus.x, z: focus.z, d: distance, area }
       }
     }
     this.reflection.setArea(area)
     this.reflection.update(this.renderer.renderer, this.scene.scene, this.camera.camera as THREE.PerspectiveCamera, !!area)
+  }
+
+  private pickReflection(focus: THREE.Vector3, distance: number): { x: number; z: number; y: number; r: number } | null {
+    const t = this.world.ctx.terrain
+    for (const lm of this.world.ctx.landmarks.landmarks) {
+      const r = lm.def.reflection
+      if (!r) continue
+      const x = lm.x + r.x
+      const z = lm.z + r.z
+      if (Math.hypot(focus.x - x, focus.z - z) > r.r + 60) continue
+      for (let d = 0; d <= r.r; d += 2)
+        for (let k = 0; k < 16; k++) {
+          const col = t.column(Math.round(x + Math.cos((k / 16) * Math.PI * 2) * d), Math.round(z + Math.sin((k / 16) * Math.PI * 2) * d))
+          if (col.waterY >= 0 && col.height < col.waterY) return { x, z, y: col.waterY + 14 / 16, r: r.r }
+        }
+    }
+    // 自动：范围半径随镜头距离（近看 40 格、远到 120 格），步长随之放大，取样不超过约 40×40
+    const R = Math.max(40, Math.min(120, distance * 0.9))
+    const step = Math.max(2, Math.round(R / 20))
+    const score = new Map<number, { w: number; sx: number; sz: number; n: number }>()
+    for (let dz = -R; dz <= R; dz += step)
+      for (let dx = -R; dx <= R; dx += step) {
+        const d = Math.hypot(dx, dz)
+        if (d > R) continue
+        const x = Math.round(focus.x + dx)
+        const z = Math.round(focus.z + dz)
+        const col = t.column(x, z)
+        if (!(col.waterY >= 0 && col.height < col.waterY)) continue
+        const e = score.get(col.waterY) ?? { w: 0, sx: 0, sz: 0, n: 0 }
+        e.w += 1 / (1 + d / 20) // 近处的水权重大
+        e.sx += x
+        e.sz += z
+        e.n++
+        score.set(col.waterY, e)
+      }
+    let best: [number, { w: number; sx: number; sz: number; n: number }] | null = null
+    for (const kv of score) if (!best || kv[1].w > best[1].w) best = kv
+    if (!best || best[1].n < 3) return null
+    return { x: focus.x, z: focus.z, y: best[0] + 14 / 16, r: R * 1.1 }
   }
 
   private tick(dt: number, time: number): void {
