@@ -416,6 +416,16 @@ export class LandmarkRegistry {
               const u = (ox * c + oz * s) / op.rx
               const v = (-ox * s + oz * c) / op.rz
               const rr = Math.hypot(u, v)
+              // 园中湖贴着天然江河（扬州：园湖水位 42、东边大运河 41）：两种水位并排，岸边立起一道水墙。
+              // 非临水名胜（临水的西湖、洞庭本就该与江河连成一片）：天然水面不改；离天然水两格半内留一道堤，不开湖
+              if (rr < 1 && !def.waterfront) {
+                const natural = col.waterKind === WaterKind.River || col.waterKind === WaterKind.Lake || col.waterKind === WaterKind.Sea
+                if (natural && wet() && col.waterY !== level) break
+                if (natural && !wet() && col.waterDist <= 2.5) {
+                  col.height = Math.max(col.height, level + 0.5)
+                  break
+                }
+              }
               if (rr < 1) {
                 col.waterY = level
                 col.height = Math.min(col.height, level - 1 - Math.round((op.depth ?? 3) * Math.sqrt(1 - rr)))

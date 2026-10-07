@@ -479,7 +479,8 @@ const YANGZHOU: LandmarkDefinition = {
     { b: 'shop', x: 6, z: -16, rot: 1, p: { seed: 304 } },
     { b: 'shop', x: 6, z: -6, rot: 1, p: { seed: 305 } },
     { b: 'courtyard', x: 30, z: 12, p: { width: 11, seed: 306 } },
-    ...[16, 16].map((x, i) => ({ b: 'stall' as const, x, z: 10 + i * 4, p: { seed: 310 + i } })),
+    // 街东摊位：放在南边码头水面以北的干地上（不靠落水后的自动挪位）
+    ...[-3, 3].map((z, i) => ({ b: 'stall' as const, x: 16, z, p: { seed: 310 + i } })),
     ...lamps([10, 16], [-20, -10, 0]),
   ],
   trees: [

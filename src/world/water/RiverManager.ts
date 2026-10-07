@@ -149,6 +149,65 @@ export class RiverManager {
           }
       }
     })
+    this.levelJunctions()
+  }
+
+  /**
+   * 交汇处水位对齐：没有实测水位的河（运河、小支流）水位取自沿途地面，到交汇处常与对方差一两格——
+   * 镇江一带江南运河 42、大运河尾 40、长江 41，三股水在交汇口一高一低一高，中间陷下一道水槽，侧面露出水墙。
+   * 这类河在交汇处取对方的水位，离交汇口越远越回到自己的水位（约 12 个采样、48 格内过渡），
+   * 落差留在河道中段（像一道船闸），不留在交汇口。高差过大的（山区）不动，那里本来就该是跌水
+   */
+  private levelJunctions(): void {
+    const R = 12
+    for (const A of this.rivers) {
+      if (A.def.levels) continue
+      const n = A.pts.length
+      const junction: { s: number; level: number }[] = []
+      for (let s = 0; s < n; s++) {
+        const [x, z] = A.pts[s]
+        const k = ((Math.floor(x / BUCKET) + 1024) << 11) | (Math.floor(z / BUCKET) + 1024)
+        for (const code of this.buckets.get(k) ?? []) {
+          const B = this.rivers[code >>> 16]
+          if (B === A) continue
+          const t = code & 0xffff
+          const [bx, bz] = B.pts[t]
+          if (Math.hypot(bx - x, bz - z) > A.halfWidth[s] + B.halfWidth[t] + 2) continue
+          if (Math.abs(B.level[t] - A.level[s]) > 4) continue
+          junction.push({ s, level: B.level[t] })
+          break
+        }
+      }
+      // 只管两头（汇入别的河的河口、从别的河分出的源头）：中途与别的河相交（大运河横穿海河、黄河、淮河）各自保持，
+      // 否则从每个交叉口往外抬水位，会把整条运河抬高
+      const ends = junction.filter((j) => j.s <= 3 || j.s >= n - 4)
+      junction.length = 0
+      for (const e of [ends.filter((j) => j.s <= 3), ends.filter((j) => j.s >= n - 4)]) {
+        if (!e.length) continue
+        // 取最靠端点的那一个（真正接上的地方）
+        junction.push(e.reduce((a, b) => (Math.min(a.s, n - 1 - a.s) <= Math.min(b.s, n - 1 - b.s) ? a : b)))
+      }
+      if (!junction.length) continue
+      const orig = Int16Array.from(A.level)
+      // 比对方低的一段：从交汇口往两头一路抬到对方水位，直到自己的水位不再低于它——整段齐平，没有台阶
+      // （大运河尾按沿途地面算到 40，比所汇入的长江 41 还低：此前在扬州城里留下一级 41→40 的水台阶）
+      const raised = new Uint8Array(n)
+      for (const j of junction)
+        for (const dir of [-1, 1])
+          for (let k = j.s; k >= 0 && k < n && orig[k] < j.level; k += dir) {
+            A.level[k] = Math.max(A.level[k], j.level)
+            raised[k] = 1
+          }
+      // 比对方高的：交汇口取对方水位，离开越远越回到自己的水位（落差留在河道中段）
+      for (let s = 0; s < n; s++) {
+        if (raised[s]) continue
+        let best: { s: number; level: number } | null = null
+        for (const j of junction) if (!best || Math.abs(j.s - s) < Math.abs(best.s - s)) best = j
+        const d = Math.abs(best!.s - s)
+        if (d > R || orig[s] <= best!.level) continue
+        A.level[s] = Math.round(lerp(best!.level, orig[s], smoothstep(R * 0.4, R, d)))
+      }
+    }
   }
 
   /** 最近的一条河（在 reach 范围内）；无则 null */
