@@ -39,4 +39,10 @@ describe('诗词文本', () => {
     for (const p of data.poems) walk(p, p.id)
     expect(bad).toEqual([])
   })
+
+  it('不用有规范简体的异体字（鴈→雁等；维基文库原文常带异体，繁简转换不改）', () => {
+    const VARIANTS = '鴈慙廻罇甞諠懽谿駇驩厓僊濛淩'
+    const text = fs.readFileSync('public/data/poems.json', 'utf8')
+    expect([...VARIANTS].filter((c) => text.includes(c))).toEqual([])
+  })
 })
