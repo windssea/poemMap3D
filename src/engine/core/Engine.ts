@@ -1,3 +1,4 @@
+import { WaterReflection } from '../rendering/WaterReflection'
 import * as THREE from 'three'
 import { AmbientBaker } from '../rendering/AmbientBaker'
 import type { PlaceAnchor } from '../../world/landmark/LandmarkDefinition'
@@ -57,6 +58,7 @@ export class Engine {
   readonly renderer: RendererManager
   readonly scene = new SceneManager()
   readonly shared = createSharedUniforms()
+  private readonly reflection = new WaterReflection(this.shared)
   readonly materials: MaterialLibrary
   readonly shadows: ShadowManager
   readonly trail = new TrailRenderer()
@@ -194,6 +196,32 @@ export class Engine {
     return this.raycast.fromScreen(this.camera.camera, nx, ny)
   }
 
+  /** 局部水面倒影：镜头近到声明了倒影的地标（枫桥……）且不是轻画质时开 */
+  private updateReflection(focus: THREE.Vector3, distance: number): void {
+    let area: { x: number; z: number; y: number; r: number } | null = null
+    if (this.quality.quality !== 'low' && distance < 280) {
+      for (const lm of this.world.ctx.landmarks.landmarks) {
+        const r = lm.def.reflection
+        if (!r) continue
+        const x = lm.x + r.x
+        const z = lm.z + r.z
+        if (Math.hypot(focus.x - x, focus.z - z) > r.r + 80) continue
+        // 水面高度：从圆心向外找最近的一格水（圆心可能落在岸上）
+        let wy = -1
+        for (let d = 0; d <= r.r && wy < 0; d += 2)
+          for (let k = 0; k < 16 && wy < 0; k++) {
+            const c = this.world.ctx.terrain.column(Math.round(x + Math.cos((k / 16) * Math.PI * 2) * d), Math.round(z + Math.sin((k / 16) * Math.PI * 2) * d))
+            if (c.waterY >= 0 && c.height < c.waterY) wy = c.waterY
+          }
+        if (wy < 0) continue
+        area = { x, z, y: wy + 14 / 16, r: r.r }
+        break
+      }
+    }
+    this.reflection.setArea(area)
+    this.reflection.update(this.renderer.renderer, this.scene.scene, this.camera.camera as THREE.PerspectiveCamera, !!area)
+  }
+
   private tick(dt: number, time: number): void {
     if (!this.ready) return
     this.camera.update(dt)
@@ -231,6 +259,7 @@ export class Engine {
       this.events.emit('hover', hit)
     }
     this.chunkDebug?.update(this.world.chunks)
+    this.updateReflection(pose.target, pose.distance)
     this.events.emit('frame', { dt, time, frame: this.loop.frame, camera: cam, focus: pose.target, distance: pose.distance })
   }
 
@@ -475,6 +504,7 @@ export class Engine {
     this.trail.clear()
     this.materials.dispose()
     this.pipeline.dispose()
+    this.reflection.dispose()
     this.baker.dispose()
     this.renderer.dispose()
     this.events.clear()

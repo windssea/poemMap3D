@@ -127,6 +127,8 @@ export interface LandmarkDefinition {
   hero?: { structure: number; kind: 'building' | 'tree' | 'carving' | 'pass' }
   /** 市井：这处的人群与牲畜（缺省按地标类型：有城墙的是城镇，园林、山寺、乡村各有默认） */
   life?: LifeProfile
+  /** 局部水面倒影（衡、高画质，镜头近时）：以 (x, z) 为圆心、半径 r 的一片水面映出桥、楼、船灯 */
+  reflection?: { x: number; z: number; r: number }
   /** 水面上的小舟、瀑布等特写元素 */
   waterfall?: { x: number; z: number; top: number; width: number; dir: 'n' | 's' | 'e' | 'w' }
   /** 允许穿城而过的江河（如洛水贯都）：避让时不算它，城墙在水上留水门 */

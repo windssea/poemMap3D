@@ -87,6 +87,12 @@ export function createSharedUniforms() {
     uMistNear: { value: 100 },
     /** 覆盖图整体淡出（近看时） */
     uOverviewFade: { value: 1 },
+    /** 局部水面倒影（WaterReflection）：开关、反射图、世界→贴图矩阵、水面高度、区域（x, z, 半径） */
+    uReflOn: { value: 0 },
+    uReflTex: { value: null as THREE.Texture | null },
+    uReflMat: { value: new THREE.Matrix4() },
+    uReflY: { value: 0 },
+    uReflArea: { value: new THREE.Vector3() },
   }
 }
 

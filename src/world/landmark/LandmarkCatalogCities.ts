@@ -877,6 +877,8 @@ const FENGQIAO: LandmarkDefinition = {
   poetryPlaceId: 'fengqiao',
   // 夜泊：岸上人稀，多是渔人、船家与寺里的老人，只在人家门前几只鸡
   life: { people: 0.5, mix: { fisher: 0.3, merchant: 0.15, elder: 0.2, scholar: 0.2, maiden: 0.15 }, animals: { chicken: 1 }, animalDensity: 0.3 },
+  // 局部倒影：桥下运河与南边水面映出枫桥、寺、船灯
+  reflection: { x: 12, z: 6, r: 28 },
   terrainModifier: [{ t: 'flatten', x: 2, z: 8, r: 16, blend: 6 }],
   structures: [
     // 运河在寺东自东北斜向南流过。枫桥：东西向跨河的石拱桥（沿自身轴线找水面居中跨过）

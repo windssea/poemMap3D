@@ -478,6 +478,7 @@ export class MaterialLibrary {
         uniform float uIce;
         uniform vec3 uIceColor;
         uniform float uFade;
+        ${!overview && tier === 'near' ? `uniform float uReflOn; uniform sampler2D uReflTex; uniform mat4 uReflMat; uniform float uReflY; uniform vec3 uReflArea;` : ''}
         ${overview || tier !== 'near' ? 'uniform sampler2D uChunkMask; uniform vec4 uChunkMaskRect;' : ''}
         varying vec3 vTint;
         varying float vFlags;
@@ -534,7 +535,21 @@ export class MaterialLibrary {
           rd.y = abs(rd.y);
           float fres = pow(1.0 - max(dot(n, v), 0.0), 3.0);
           float reflK = falling ? 0.0 : clamp(0.1 + 0.6 * fres, 0.0, 0.7) * (1.0 - 0.7 * uIce * clim) * (silt ? 0.55 : 1.0);
-          col = mix(col, skyBase(rd), reflK);
+          vec3 refl = skyBase(rd);
+          ${!overview && tier === 'near' ? `
+          // 局部倒影：主景水面取镜像渲染的反射图（桥、寺、岸树、船灯），区域外缘与别的水位渐回天光倒影；水纹把取样位置揉开一点
+          if (uReflOn > 0.5 && !falling) {
+            float ra = (1.0 - smoothstep(uReflArea.z * 0.75, uReflArea.z, distance(vWorld.xz, uReflArea.xy))) * (1.0 - smoothstep(0.2, 0.7, abs(vWorld.y - uReflY)));
+            if (ra > 0.001) {
+              vec4 pc = uReflMat * vec4(vWorld, 1.0);
+              vec2 ruv = pc.xy / pc.w + (n.xz - vWNormal.xz) * 0.04;
+              vec3 rs = texture2D(uReflTex, clamp(ruv, vec2(0.002), vec2(0.998))).rgb;
+              refl = mix(refl, rs, ra);
+              // 有景物可映时倒影更足（俯看也看得到桥影），仍随掠射角增强
+              reflK = mix(reflK, clamp(0.32 + 0.5 * fres, 0.0, 0.8) * (1.0 - 0.7 * uIce * clim), ra);
+            }
+          }` : ''}
+          col = mix(col, refl, reflK);
           float spec = pow(max(dot(reflect(-uSunDir, n), v), 0.0), 80.0);
           col += uSunColor * spec * 0.58 * (1.0 - uNight) * (1.0 - 0.85 * uWet) * (0.3 + 0.7 * hiK);
           // 雨点涟漪：每 2×2 格一个雨点格，各自的节拍与圆心，一圈一像素宽的环向外扩散、渐淡；同样按像素取整。远处淡去，不闪
@@ -572,6 +587,8 @@ export class MaterialLibrary {
     })
     for (const [k, v] of Object.entries(this.shared)) m.uniforms[k] = v
     m.uniforms.uFade = fade
+    // 局部倒影渲染时把水面藏起来（不反射自己）
+    m.userData.water = true
     m.userData.fade = fade
     return m
   }
