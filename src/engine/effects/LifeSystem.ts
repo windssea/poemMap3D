@@ -164,6 +164,11 @@ interface Boat {
   s: number
   dir: number
   lane: number
+  /** 实际横向偏移（贴不下就往中线收，缓缓挪） */
+  laneNow?: number
+  /** 被迫掉头的时刻（卡在两头都放不下的地方会来回掉头，三秒内三次就撤掉） */
+  flips?: number[]
+  dead?: boolean
   x: number
   z: number
   y: number
@@ -787,6 +792,11 @@ export class LifeSystem {
     let river = 0
     let lake = 0
     const riverBoat = (kind: Boat['kind'], ri: number, s: number, speed: number, lane: number) => {
+      // 出生处中线上要放得下整条船身（窄河段、桥洞下不放大船；放不下的大船换成渔舟再试）
+      if (!this.riverFits(kind, ri, s)) {
+        if (kind === 'fishing' || !this.riverFits('fishing', ri, s)) return
+        kind = 'fishing'
+      }
       this.addBoat(kind, { river: ri, s, dir: lane >= 0 ? 1 : -1, lane, x: 0, z: 0, y: 0, a: 0, speed })
       river++
     }
@@ -935,6 +945,10 @@ export class LifeSystem {
 
   private stepBoats(dt: number, time: number): void {
     const rivers = this.ctx.rivers.rivers
+    if (this.boats.some((b) => b.dead)) {
+      for (const b of this.boats) if (b.dead) this.group.remove(b.mesh)
+      this.boats = this.boats.filter((b) => !b.dead)
+    }
     for (const b of this.boats) {
       if (b.path) {
         /* 沿河渠折线：到头掉头 */
@@ -967,6 +981,7 @@ export class LifeSystem {
       } else if (b.river >= 0) {
         const r = rivers[b.river]
         const n = r.pts.length
+        const prevS = b.s
         b.s += (b.dir * b.speed * dt) / 4
         if (b.s <= 0 || b.s >= n - 1 || (this.waterCenter && Math.hypot(b.x - this.waterCenter.x, b.z - this.waterCenter.z) > 460)) {
           b.dir = -b.dir
@@ -981,15 +996,51 @@ export class LifeSystem {
         const tz = z1 - z0
         const tl = Math.hypot(tx, tz) || 1
         const hw = r.halfWidth[i] * 0.9
-        // 横向：垂直于河道，在河宽之内
-        b.x = x0 + tx * f + (-tz / tl) * b.lane * hw
-        b.z = z0 + tz * f + (tx / tl) * b.lane * hw
-        if (b.y <= 0) b.y = (f < 0.5 ? r.level[i] : r.level[i + 1]) + 1 // 初值；之后随脚下真实水面（floatOnWater）
         const heading = Math.atan2(tz, tx) + (b.dir < 0 ? Math.PI : 0)
+        // 横向：垂直于河道，在河宽之内。河道中线是折线、实际河岸随噪声进退，按标称河宽偏到一侧，宽船的船身会压进岸里：
+        // 整条船身（含两舷）都在水上的偏移里取最贴近原车道的那个，并缓缓挪过去，不跳
+        const cx0 = x0 + tx * f
+        const cz0 = z0 + tz * f
+        const nx = -tz / tl
+        const nz = tx / tl
+        let want = Number.NaN
+        for (const k of [1, 0.75, 0.5, 0.25, 0]) {
+          const l = b.lane * k
+          if (this.hullClear(b.kind, cx0 + nx * l * hw, cz0 + nz * l * hw, heading, true)) {
+            want = l
+            break
+          }
+        }
+        if (Number.isNaN(want)) {
+          // 中线上也放不下这条船（河道收窄、过桥洞）：掉头，不硬挤过去
+          b.s = prevS
+          b.dir = -b.dir
+          b.lane = -b.lane
+          b.flips = [...(b.flips ?? []).filter((t) => time - t < 3), time]
+          // 前后都放不下（卡在河口、两段窄河之间）：撤掉这条船，不在原地来回抽动
+          if (b.flips.length >= 3) b.dead = true
+          continue
+        }
+        const cur = b.laneNow ?? want
+        // 当前偏移已经压岸就立刻收到能放下的位置，否则缓缓挪
+        b.laneNow = this.hullClear(b.kind, cx0 + nx * cur * hw, cz0 + nz * cur * hw, heading, true) ? cur + (want - cur) * Math.min(1, dt * 1.5) : want
+        b.x = cx0 + nx * b.laneNow * hw
+        b.z = cz0 + nz * b.laneNow * hw
+        if (b.y <= 0) b.y = (f < 0.5 ? r.level[i] : r.level[i + 1]) + 1 // 初值；之后随脚下真实水面（floatOnWater）
         let da = heading - b.a
         while (da > Math.PI) da -= Math.PI * 2
         while (da < -Math.PI) da += Math.PI * 2
-        b.a += da * Math.min(1, dt * 2)
+        // 船身首尾对称：顺着河道（船头朝前或船尾朝前）放得下，转向中途的斜角却会扫进岸里。
+        // 先试正常转向；转不过去（窄河掉头）就贴着河道轴线倒着走（船尾在前），到河面宽处再转过来
+        const k = Math.min(1, dt * 2)
+        const na = b.a + da * k
+        if (this.hullClear(b.kind, b.x, b.z, na, true)) b.a = na
+        else {
+          let db = da + (da > 0 ? -Math.PI : Math.PI) // 朝相反方向（船尾朝前）对齐河道
+          while (db > Math.PI) db -= Math.PI * 2
+          while (db < -Math.PI) db += Math.PI * 2
+          b.a += db * k
+        }
       } else {
         const nx = b.x + Math.cos(b.a) * b.speed * dt
         const nz = b.z + Math.sin(b.a) * b.speed * dt
@@ -1073,7 +1124,7 @@ export class LifeSystem {
    * 整条船身（船头、船腰、船尾，各带两舷）都在湖、塘水面上，也不压进建筑占地（园墙、水榭、码头）。
    * 船身半长、半宽按船型：渔舟 2.6×0.8，客船、漕船 4×1.3
    */
-  hullClear(kind: Boat['kind'], x: number, z: number, a: number): boolean {
+  hullClear(kind: Boat['kind'], x: number, z: number, a: number, anyWater = false): boolean {
     const big = kind === 'passenger' || kind === 'cargo'
     const L = big ? 4 : 2.6
     const W = big ? 1.3 : 0.8
@@ -1084,10 +1135,26 @@ export class LifeSystem {
       for (const v of [-W, 0, W]) {
         const px = x + cx * u - sz * v
         const pz = z + sz * u + cx * v
-        if (!this.lakeAt(px, pz)) return false
+        if (!(anyWater ? this.waterAt(px, pz) : this.lakeAt(px, pz))) return false
         if (occ.has(Math.floor(px), Math.floor(pz), Occupancy.Building)) return false
       }
     return true
+  }
+
+  /** 江河第 ri 条在 s 处的中线上，整条船身都在水上 */
+  private riverFits(kind: Boat['kind'], ri: number, s: number): boolean {
+    const r = this.ctx.rivers.rivers[ri]
+    const i = Math.min(r.pts.length - 2, Math.max(0, Math.floor(s)))
+    const f = s - i
+    const [x0, z0] = r.pts[i]
+    const [x1, z1] = r.pts[i + 1]
+    return this.hullClear(kind, x0 + (x1 - x0) * f, z0 + (z1 - z0) * f, Math.atan2(z1 - z0, x1 - x0), true)
+  }
+
+  /** 任何水面（江河、湖、塘、海），水深至少一格 */
+  private waterAt(x: number, z: number): boolean {
+    const c = this.ctx.terrain.column(Math.floor(x), Math.floor(z))
+    return c.waterY >= c.height + 1
   }
 
   private lakeAt(x: number, z: number): boolean {

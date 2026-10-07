@@ -132,3 +132,31 @@ describe('湖上行船', () => {
     expect(bad, bad.slice(0, 5).join('；')).toEqual([])
   }, 180000)
 })
+
+describe('江河行船', () => {
+  it('苏州、枫桥、杭州、扬州、岳阳一带河船 60 秒里船身压岸的帧不到 1%（窄河掉头倒着走、卡死的撤掉）', async () => {
+    const THREE = await import('three')
+    const { testWorld } = await import('./helpers')
+    const { LifeSystem } = await import('../src/engine/effects/LifeSystem')
+    const w = testWorld()
+    const life = new LifeSystem(w) as any
+    const rates: string[] = []
+    for (const id of ['suzhou', 'fengqiao', 'hangzhou', 'yangzhou', 'yueyanglou']) {
+      const lm = w.landmarks.landmarks.find((l) => l.def.id === id)!
+      life.populateWater(new THREE.Vector3(lm.x, lm.level, lm.z))
+      let bad = 0
+      let n = 0
+      for (let f = 0; f < 600; f++) {
+        life.stepBoats(0.1, f * 0.1)
+        if (f < 30) continue
+        for (const b of (life.boats as { river: number; kind: string; x: number; z: number; a: number }[]).filter((q) => q.river >= 0)) {
+          n++
+          if (!life.hullClear(b.kind, b.x, b.z, b.a, true)) bad++
+        }
+      }
+      expect(n, id).toBeGreaterThan(1000)
+      if (bad / n >= 0.01) rates.push(`${id} ${((bad / n) * 100).toFixed(1)}%`)
+    }
+    expect(rates).toEqual([])
+  }, 300000)
+})
