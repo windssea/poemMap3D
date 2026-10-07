@@ -203,4 +203,25 @@ describe('建筑不悬空', () => {
     }
     expect(bad, bad.slice(0, 10).join('；')).toEqual([])
   }, 300000)
+
+  it('园湖、西湖与相邻天然江河不留一级水墙（扬州园湖贴大运河、西湖接钱塘江与江南运河）', () => {
+    const w = testWorld()
+    const bad: string[] = []
+    for (const id of ['yangzhou', 'hangzhou']) {
+      const l = w.landmarks.landmarks.find((l) => l.def.id === id)!
+      const r = l.def.radius
+      for (let z = l.z - r; z <= l.z + r; z++)
+        for (let x = l.x - r; x <= l.x + r; x++) {
+          const a = w.terrain.column(x, z)
+          if (!(a.waterY >= 0 && a.height < a.waterY)) continue
+          for (const [dx, dz] of [[1, 0], [0, 1]]) {
+            const b = w.terrain.column(x + dx, z + dz)
+            if (!(b.waterY >= 0 && b.height < b.waterY) || b.waterY === a.waterY) continue
+            const kinds = [a.waterKind, b.waterKind].sort().join()
+            if (kinds === '2,3') bad.push(`${id} (${x},${z}) ${a.waterY}/${b.waterY}`)
+          }
+        }
+    }
+    expect(bad, bad.slice(0, 10).join('；')).toEqual([])
+  }, 300000)
 })

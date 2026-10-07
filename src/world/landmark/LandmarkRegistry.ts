@@ -93,7 +93,7 @@ export class LandmarkRegistry {
       }
       this.landmarks.push(lm)
       this.byPlace.set(def.poetryPlaceId, lm)
-      this.modifiers.push(this.makeModifier(lm))
+      this.modifiers.push(this.makeModifier(lm, baseTerrain))
     })
     /* 太近而没有另建聚落的地点：借用最近的地标（点它也能飞过去、读到诗） */
     for (const a of anchors) {
@@ -344,9 +344,30 @@ export class LandmarkRegistry {
     return Math.floor(nearMacro ? clamp(hs[hs.length >> 1], m - 4, m + 4) : hs[hs.length >> 1])
   }
 
-  private makeModifier(lm: ResolvedLandmark): TerrainModifier {
+  /**
+   * 临水名胜的湖（西湖）与穿过它的天然江河连成一片：湖面原取台面水位 41，钱塘江、江南运河 40，
+   * 湖把穿过的那段河也刷成 41，河中间立起一级水墙。湖面改取所触江河的水位（只差一两格时；差得多是山中潭，不动）
+   */
+  private lakeLevel(t: TerrainManager, def: LandmarkDefinition, cx: number, cz: number, level: number, op: Extract<TerrainOp, { t: 'lake' }>): number {
+    if (!def.waterfront) return level
+    const c = Math.cos(op.rot ?? 0)
+    const s = Math.sin(op.rot ?? 0)
+    let y = level
+    for (let v = -1; v <= 1; v += 0.05)
+      for (let u = -1; u <= 1; u += 0.05) {
+        if (u * u + v * v >= 1) continue
+        const x = cx + op.x + op.rx * u * c - op.rz * v * s
+        const z = cz + op.z + op.rx * u * s + op.rz * v * c
+        const q = t.rivers.query(x, z)
+        if (q && q.dist <= q.halfWidth + 1 && q.level < y && q.level >= level - 2) y = q.level
+      }
+    return y
+  }
+
+  private makeModifier(lm: ResolvedLandmark, base: TerrainManager): TerrainModifier {
     const { def, x: cx, z: cz, level, index } = lm
     const ops: readonly TerrainOp[] = def.terrainModifier ?? [{ t: 'flatten', x: 0, z: 0, r: Math.max(6, def.radius * 0.4), blend: 8 }]
+    const lakeY = ops.map((op) => (op.t === 'lake' ? this.lakeLevel(base, def, cx, cz, level, op) : level))
     // 修改器范围：营造半径外再留足缓坡（高台、削山的过渡带随高差放宽）
     const R = def.radius + 40
     const bo = def.biomeOverride
@@ -375,7 +396,8 @@ export class LandmarkRegistry {
         let core = false
         /** 潭沿：此列地面至少这么高 */
         let rimFloor = -Infinity
-        for (const op of ops) {
+        for (let oi = 0; oi < ops.length; oi++) {
+          const op = ops[oi]
           switch (op.t) {
             case 'flatten': {
               const ox = dx - op.x
@@ -427,8 +449,8 @@ export class LandmarkRegistry {
                 }
               }
               if (rr < 1) {
-                col.waterY = level
-                col.height = Math.min(col.height, level - 1 - Math.round((op.depth ?? 3) * Math.sqrt(1 - rr)))
+                col.waterY = lakeY[oi]
+                col.height = Math.min(col.height, lakeY[oi] - 1 - Math.round((op.depth ?? 3) * Math.sqrt(1 - rr)))
                 col.waterKind = WaterKind.Lake
                 col.waterDist = 0
               } else if (rr < 1.8) {
@@ -610,8 +632,10 @@ export class LandmarkRegistry {
                 col.waterDist = 0
                 col.paved = false
               } else if (best < op.w + 3 && best - op.w < col.waterDist) {
+                // 紧贴天然江河的岸格仍记作天然水岸：否则后面的园湖看不出这里挨着大运河，照样开湖（扬州园湖 42 贴着运河 41 一格水墙）
+                const nearNatural = col.waterDist <= 2.5 && (col.waterKind === WaterKind.River || col.waterKind === WaterKind.Lake || col.waterKind === WaterKind.Sea)
                 col.waterDist = best - op.w
-                col.waterKind = WaterKind.Pond
+                if (!nearNatural) col.waterKind = WaterKind.Pond
               }
               break
             }
