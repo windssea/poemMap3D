@@ -199,4 +199,29 @@ describe('江河行船', () => {
     expect(hist.size).toBeGreaterThan(5)
     expect(bad).toEqual([])
   }, 300000)
+
+  it('苏州一带江南运河上的船来往于枫桥与湖南出口之间，不困在湖里（岸边凸嘴换到河宽另一侧绕过去）', async () => {
+    const THREE = await import('three')
+    const { testWorld } = await import('./helpers')
+    const { LifeSystem } = await import('../src/engine/effects/LifeSystem')
+    const w = testWorld()
+    const sz = w.landmarks.landmarks.find((l) => l.def.id === 'suzhou')!
+    const life = new LifeSystem(w) as any
+    life.populateWater(new THREE.Vector3(sz.x - 30, sz.level, sz.z + 20))
+    const ri = w.rivers.rivers.findIndex((r) => r.def.id === 'jiangnan-canal')
+    const boats = (life.boats as { river: number; s: number; dead?: boolean }[]).filter((b) => b.river === ri)
+    let lo = Infinity
+    let hi = -Infinity
+    for (let f = 0; f < 15 * 420; f++) {
+      life.stepBoats(1 / 15, f / 15)
+      for (const b of boats) {
+        lo = Math.min(lo, b.s)
+        hi = Math.max(hi, b.s)
+      }
+    }
+    expect(boats.length).toBeGreaterThan(1)
+    expect(boats.filter((b) => b.dead)).toEqual([])
+    expect(lo).toBeLessThan(13)
+    expect(hi).toBeGreaterThan(42)
+  }, 300000)
 })

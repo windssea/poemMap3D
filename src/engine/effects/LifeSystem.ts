@@ -157,6 +157,9 @@ interface Puff {
   drift: number
 }
 
+/** 河船可选的横向偏移（标称半宽的倍数） */
+const LANES = [-1, -0.75, -0.5, -0.25, 0, 0.25, 0.5, 0.75, 1]
+
 interface Boat {
   kind: 'fishing' | 'passenger' | 'cargo' | 'ship' | 'seaFisher'
   /** 江河：沿中心线走（river、s、方向、横向偏移）；湖海：直线漫游 */
@@ -172,6 +175,8 @@ interface Boat {
   /** 湖船被挡后转向的剩余时间与方向：转满这段才重新前行，不在「挡住→退一点→又能走→又挡住」之间每帧来回抽动 */
   turnT?: number
   turnDir?: number
+  /** 湖船进退转都不动的累计时间 */
+  wedged?: number
   /** 河船船尾朝前对齐河道的剩余时间：不在正常转向与倒着对齐之间每帧来回切换 */
   sternT?: number
   x: number
@@ -1009,8 +1014,8 @@ export class LifeSystem {
         const nx = -tz / tl
         const nz = tx / tl
         let want = Number.NaN
-        for (const k of [1, 0.75, 0.5, 0.25, 0]) {
-          const l = b.lane * k
+        // 放不下就换个偏移：离原车道越近越先试，整个河宽（两岸各到标称半宽）都可用——岸边一处凸嘴、弯道内侧的浅滩，绕过去就是，不必掉头
+        for (const l of [b.lane, ...LANES].sort((p, q) => Math.abs(p - b.lane) - Math.abs(q - b.lane))) {
           if (this.hullClear(b.kind, cx0 + nx * l * hw, cz0 + nz * l * hw, heading, true)) {
             want = l
             break
@@ -1083,24 +1088,29 @@ export class LifeSystem {
           const step = (b.kind === 'ship' ? 0.6 : 1.0) * dt * 4
           if (sea) b.a += step
           else {
-            let turned = false
-            for (const sgn of b.turnDir ? [b.turnDir, -b.turnDir] : [1, -1]) {
+            // 已定的转向转不动就先倒一点，倒也倒不动才换方向——不然卡在角落里左转一下、右转一下，原地来回摇
+            let moved = false
+            for (const sgn of b.turnDir ? [b.turnDir] : [1, -1]) {
               const na = b.a + sgn * step
               if (this.hullClear(b.kind, b.x, b.z, na)) {
                 b.a = na
                 b.turnDir = sgn
-                turned = true
+                moved = true
                 break
               }
             }
-            if (!turned) {
+            if (!moved) {
               const bx = b.x - Math.cos(b.a) * b.speed * dt
               const bz = b.z - Math.sin(b.a) * b.speed * dt
               if (this.hullClear(b.kind, bx, bz, b.a)) {
                 b.x = bx
                 b.z = bz
-              }
+                moved = true
+              } else if (b.turnDir) b.turnDir = -b.turnDir
             }
+            // 进退转都不动（楔在角落里）超过三秒：撤掉
+            b.wedged = moved ? 0 : (b.wedged ?? 0) + dt
+            if (b.wedged > 3) b.dead = true
           }
         }
         if (b.kind === 'fishing') {
