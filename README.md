@@ -37,6 +37,8 @@ npm run import-legacy  # 重新从 legacy/ 导出诗词、地点、足迹、巡�
 
 地址参数：`?lab=tree` 树木样板（TreeLab）；`?debug` 打开区块边界与地形取样；`?q=low|mid|high` 指定画质。
 
+书法字体：`public/fonts` 里是按实际用字切出的子集（马善政楷书，SIL OFL）。新增诗词、地点后运行 `python tools/build-fonts.py` 重切（需 `pip install fonttools brotli`），否则新字会退回系统楷体。
+
 分享地址：`?p=地点&poem=诗&shot=机位&shs=季节&shw=天气&shm=时辰`，如 `?p=fengqiao&poem=fengqiao-ye-bo&shm=night&shs=autumn` 直接打开「秋夜枫桥」。诗卷底栏的「分享」复制当前地址；选地点、选诗记入浏览器历史（前进后退可回），不存在的地点、诗、机位自动忽略。
 
 ## 架构
