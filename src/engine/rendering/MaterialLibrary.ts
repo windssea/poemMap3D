@@ -539,7 +539,9 @@ export class MaterialLibrary {
           ${!overview && tier === 'near' ? `
           // 局部倒影：主景水面取镜像渲染的反射图（桥、寺、岸树、船灯），区域外缘与别的水位渐回天光倒影；水纹把取样位置揉开一点
           if (uReflOn > 0.5 && !falling) {
-            float ra = (1.0 - smoothstep(uReflArea.z * 0.75, uReflArea.z, distance(vWorld.xz, uReflArea.xy))) * (1.0 - smoothstep(0.2, 0.7, abs(vWorld.y - uReflY)));
+            // 反射图是整张镜头画面的镜像：屏幕上凡是同一水位的水面都能取样，不按圆形区域淡出（区域边缘在河道上留下一道明暗接缝，像水面断开、镂空）；
+            // 只按水位挑：别的水位（跌水上下游）退回天光倒影
+            float ra = 1.0 - smoothstep(0.2, 0.7, abs(vWorld.y - uReflY));
             if (ra > 0.001) {
               vec4 pc = uReflMat * vec4(vWorld, 1.0);
               vec2 ruv = pc.xy / pc.w + (n.xz - vWNormal.xz) * 0.04;
