@@ -83,8 +83,8 @@ export interface EngineStats {
   overview: number
   worldTriangles: number
   overviewTriangles: number
-  /** 水面倒影：开没开、反射图尺寸、几帧一刷、每秒几张 */
-  reflection: { on: boolean; w: number; h: number; every: number; perSec: number }
+  /** 水面倒影：开没开、反射图尺寸、几帧一刷、移动中是否用小图、每秒几张 */
+  reflection: { on: boolean; w: number; h: number; every: number; small: boolean; perSec: number }
 }
 
 export class EngineFacadeImpl implements EngineFacade, TourPort, TrailPort {

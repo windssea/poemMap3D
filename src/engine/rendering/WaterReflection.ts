@@ -8,8 +8,9 @@ import type { SharedUniforms } from './SharedUniforms'
  *  - 只在衡、高画质、镜头离得够近时开；轻画质与远景仍只用天光倒影。
  *  - 渲倒影时把水面本身藏起来（不反射自己）、关掉阴影图更新（阴影不必再算一遍）。
  *  - 贴图按屏幕一半，最长边按画质封顶（衡 512、高 1024）。
- *  - 刷新节拍：镜头停着时每两帧一次（船在动，不能冻住）；镜头在飞、在拖、在缩放时每六帧一次——
- *    贴图矩阵是渲那一刻记下的，倒影仍钉在世界里不滑，只是视角略旧；停稳 0.2 秒立刻补渲一张。
+ *  - 一律每两帧刷新一次（船在动，不能冻住；隔得再久，镜头一动倒影就一跳一跳地追）。
+ *    镜头在飞、在拖、在缩放时改渲到长宽各减半的小图（像素约四分之一），移动中略糊、不卡；
+ *    停稳 0.2 秒立刻换回全尺寸补渲一张。
  */
 /** 镜头停下多久算停稳（毫秒） */
 const SETTLE_MS = 200
@@ -22,12 +23,16 @@ export interface ReflectionInfo {
   h: number
   /** 当前几帧刷新一次 */
   every: number
+  /** 镜头在动、正用半尺寸小图 */
+  small: boolean
   /** 近一秒渲了几张 */
   perSec: number
 }
 
 export class WaterReflection {
   private readonly rt: THREE.WebGLRenderTarget
+  /** 镜头移动时用的半尺寸反射图 */
+  private readonly rtSmall: THREE.WebGLRenderTarget
   private readonly cam = new THREE.PerspectiveCamera()
   private readonly plane = new THREE.Plane()
   private readonly clip = new THREE.Vector4()
@@ -47,11 +52,13 @@ export class WaterReflection {
   private wasMoving = false
   private readonly renderTimes: number[] = []
   /** 调试面板读：开没开、多大、几帧一刷、每秒几张 */
-  readonly info: ReflectionInfo = { on: false, w: 0, h: 0, every: 0, perSec: 0 }
+  readonly info: ReflectionInfo = { on: false, w: 0, h: 0, every: 2, small: false, perSec: 0 }
 
   constructor(private readonly shared: SharedUniforms) {
     this.rt = new THREE.WebGLRenderTarget(512, 512, { type: THREE.HalfFloatType, depthBuffer: true })
     this.rt.texture.generateMipmaps = false
+    this.rtSmall = new THREE.WebGLRenderTarget(256, 256, { type: THREE.HalfFloatType, depthBuffer: true })
+    this.rtSmall.texture.generateMipmaps = false
     shared.uReflTex.value = this.rt.texture
   }
 
@@ -74,24 +81,30 @@ export class WaterReflection {
       return
     }
     /* 镜头动没动：位置或朝向一变就记下时刻，停下 SETTLE_MS 才算停稳 */
-    if (camera.position.distanceToSquared(this.lastPos) > 1e-6 || 1 - Math.abs(camera.quaternion.dot(this.lastQuat)) > 1e-9) this.movedAt = now
+    // 第一次调用只记下镜头，不算「在动」
+    const first = this.lastPos.x === Infinity
+    if (!first && (camera.position.distanceToSquared(this.lastPos) > 1e-6 || 1 - Math.abs(camera.quaternion.dot(this.lastQuat)) > 1e-9)) this.movedAt = now
     this.lastPos.copy(camera.position)
     this.lastQuat.copy(camera.quaternion)
     const moving = now - this.movedAt < SETTLE_MS
     const settled = this.wasMoving && !moving
     this.wasMoving = moving
-    const every = moving ? 6 : 2
-    this.info.every = every
     this.info.on = true
-    // 刚开（还没有反射图）、刚停稳都立刻渲；其余按节拍
-    if (this.frame++ % every !== 0 && this.shared.uReflOn.value > 0 && !settled) return
+    this.info.small = moving
+    // 刚开（还没有反射图）、刚停稳都立刻渲；其余每两帧一次
+    if (this.frame++ % 2 !== 0 && this.shared.uReflOn.value > 0 && !settled) return
     const size = renderer.getDrawingBufferSize(this.size)
-    const w = Math.max(256, Math.min(maxSize, Math.round(size.x / 2)))
-    const h = Math.max(256, Math.min(maxSize, Math.round(size.y / 2)))
+    let w = Math.max(256, Math.min(maxSize, Math.round(size.x / 2)))
+    let h = Math.max(256, Math.min(maxSize, Math.round(size.y / 2)))
+    if (moving) {
+      w = Math.max(128, Math.round(w / 2))
+      h = Math.max(128, Math.round(h / 2))
+    }
+    const target = moving ? this.rtSmall : this.rt
     this.info.w = w
     this.info.h = h
     this.renderTimes.push(now)
-    if (this.rt.width !== w || this.rt.height !== h) this.rt.setSize(w, h)
+    if (target.width !== w || target.height !== h) target.setSize(w, h)
 
     /* 镜像相机（同 Reflector） */
     const P = this.target.set(a.x, a.y, a.z)
@@ -141,13 +154,14 @@ export class WaterReflection {
     const prevShadow = renderer.shadowMap.autoUpdate
     renderer.shadowMap.autoUpdate = false
     this.shared.uReflOn.value = 0
-    renderer.setRenderTarget(this.rt)
+    renderer.setRenderTarget(target)
     renderer.clear()
     renderer.render(scene, this.cam)
     renderer.setRenderTarget(prevTarget)
     renderer.shadowMap.autoUpdate = prevShadow
     for (const o of this.hidden) o.visible = true
 
+    this.shared.uReflTex.value = target.texture
     this.shared.uReflOn.value = 1
     this.shared.uReflY.value = a.y
     ;(this.shared.uReflArea.value as THREE.Vector3).set(a.x, a.z, a.r)
@@ -155,5 +169,6 @@ export class WaterReflection {
 
   dispose(): void {
     this.rt.dispose()
+    this.rtSmall.dispose()
   }
 }

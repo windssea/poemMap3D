@@ -39,23 +39,25 @@ function setup() {
 afterEach(() => vi.restoreAllMocks())
 
 describe('水面倒影刷新节拍', () => {
-  it('镜头停着每两帧一张，在动时每六帧一张', () => {
+  it('镜头停着、在动都每两帧一张（隔久了倒影会一跳一跳地追镜头）', () => {
     const { run } = setup()
     run(30, false)
     expect(run(60, false)).toBe(30)
-    expect(run(60, true)).toBeLessThanOrEqual(11)
-    expect(run(60, true)).toBeGreaterThanOrEqual(9)
+    expect(run(60, true)).toBe(30)
   })
 
-  it('停稳 0.2 秒立刻补渲一张，之后回到每两帧', () => {
+  it('镜头在动时渲半尺寸小图，停稳 0.2 秒立刻换回全尺寸补渲', () => {
     const { run, refl } = setup()
     run(60, true)
-    // 停下后 0.2 秒内仍按「在动」的节拍
+    expect(refl.info.small).toBe(true)
+    expect([refl.info.w, refl.info.h]).toEqual([512, 360])
+    // 停下后 0.2 秒内仍算在动
     run(12, false)
-    expect(refl.info.every).toBe(6)
-    // 刚越过 0.2 秒的那一帧必渲
+    expect(refl.info.small).toBe(true)
+    // 刚越过 0.2 秒的那一帧必渲，且是全尺寸
     expect(run(1, false)).toBe(1)
-    expect(refl.info.every).toBe(2)
+    expect(refl.info.small).toBe(false)
+    expect([refl.info.w, refl.info.h]).toEqual([1024, 720])
   })
 
   it('反射图最长边按画质封顶', () => {
