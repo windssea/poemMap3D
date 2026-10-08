@@ -1,6 +1,8 @@
 /* 山河诗卷 · 界面样式。颜色一律来自 theme.ts 写入的 CSS 变量。 */
 :root {
   --kai: 'KaiTi', 'STKaiti', 'Kaiti SC', 'Kaiti TC', '楷体', '楷体_GB2312', 'AR PL UKai CN', 'TW-Kai', serif;
+  /* 界面控件用字：楷体、宋体在十几像素时横笔细、发虚；按钮、搜索、设置用为屏幕小字调过的黑体（苹方、微软雅黑） */
+  --ui: 'PingFang SC', 'Microsoft YaHei UI', 'Microsoft YaHei', 'Noto Sans SC', 'Source Han Sans SC', 'Hiragino Sans GB', sans-serif;
   --brush: 'ShanheBrush', 'ShanheBrushPoems', var(--kai);
   --brush-poem: 'ShanheBrushPoems', 'ShanheBrush', var(--kai);
   --silk: rgb(var(--rgb-xuanzhi) / 0.9);
@@ -32,6 +34,14 @@ body,
 button {
   font: inherit;
   color: inherit;
+}
+/* 界面控件（标题与诗卷正文仍是书法、楷体） */
+.chrome,
+.tourbar,
+.sbar,
+.peek,
+.plist .xbtn {
+  font-family: var(--ui);
 }
 
 .world-canvas {
@@ -104,9 +114,9 @@ button {
 }
 .brand p {
   margin: 6px 0 0;
-  font-size: 12px;
-  letter-spacing: 2px;
-  color: var(--ink2);
+  font-size: 12.5px;
+  letter-spacing: 1px;
+  color: var(--ink);
   text-shadow: 0 0 8px rgb(var(--rgb-xuanzhi) / 0.95);
 }
 .night .brand h1,
@@ -141,7 +151,8 @@ button {
   color: var(--ink);
 }
 .search input::placeholder {
-  color: var(--ink3);
+  color: var(--ink2);
+  opacity: 0.75;
 }
 .results {
   margin-top: 6px;
@@ -169,8 +180,8 @@ button {
   font-size: 14px;
 }
 .results .s {
-  font-size: 12px;
-  color: var(--ink3);
+  font-size: 12.5px;
+  color: var(--ink2);
   margin-top: 2px;
 }
 .results .k {
@@ -230,10 +241,10 @@ button {
 }
 .dseg .lab {
   writing-mode: vertical-rl;
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1;
-  letter-spacing: 2px;
-  color: rgb(var(--rgb-zhe) / 0.85);
+  letter-spacing: 1px;
+  color: var(--c-zhe);
   margin-right: 5px;
 }
 .chip {
@@ -245,7 +256,7 @@ button {
   border-radius: 3px;
   cursor: pointer;
   font-size: 14px;
-  letter-spacing: 2px;
+  letter-spacing: 1px;
   color: var(--ink);
   transition:
     background 0.2s,
@@ -265,8 +276,8 @@ button {
 }
 .chip small {
   margin-left: 3px;
-  font-size: 10.5px;
-  color: var(--ink3);
+  font-size: 11px;
+  color: var(--ink2);
 }
 .ico {
   border: 0;
@@ -321,8 +332,8 @@ button {
   min-width: 0;
   padding: 0 9px 0 7px;
   gap: 4px;
-  font-size: 13.5px;
-  letter-spacing: 2px;
+  font-size: 14px;
+  letter-spacing: 1px;
   color: var(--ink);
 }
 .tool.row svg {
@@ -443,8 +454,8 @@ button {
 }
 .set-k {
   min-width: 40px;
-  font-size: 13px;
-  color: var(--ink2);
+  font-size: 13.5px;
+  color: var(--ink);
 }
 .set-v {
   display: flex;
@@ -453,8 +464,8 @@ button {
 }
 .set-note {
   margin: 2px 0 6px;
-  font-size: 11.5px;
-  color: var(--ink3);
+  font-size: 12px;
+  color: var(--ink2);
 }
 .set-acts {
   display: flex;

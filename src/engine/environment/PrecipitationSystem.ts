@@ -5,7 +5,7 @@ const MAX = 20000
 
 /**
  * 雨雪：以焦点为中心的一箱粒子，下落动画全在顶点着色器里；雨是细缓的斜线。
- * 雪是鹅毛大雪：大小两档，大片少而慢；整片雪随阵风缓缓吹移，每片又打着旋儿左右飘摆、边缘参差并慢慢翻转。
+ * 雪是大雪：大小两档，大片少而慢；整片雪随阵风缓缓吹移，每片又打着旋儿左右飘摆、边缘参差并慢慢翻转。
  */
 export class PrecipitationSystem {
   readonly points: THREE.Points
@@ -43,14 +43,15 @@ export class PrecipitationSystem {
         varying float vRot;
         varying float vSeed;
         void main() {
-          float snow = step(aSeed.w, uSnow);
-          // 雨只用四成五的粒子（约 9000，与从前一样密），雪全用上
+          // 雪用四成的粒子（约 8000）：看得出在下雪，又不遮景
+          float snow = step(aSeed.w, uSnow * 0.4);
+          // 雨只用四成五的粒子（约 9000，与从前一样密）
           float rain = step(aSeed.w, uRain * 0.45);
           vKind = snow;
           vA = max(snow, rain);
           vSeed = aSeed.x * 7.0 + aSeed.z * 13.0;
-          // 鹅毛大片约四成五：更大、更慢
-          float big = snow * step(0.55, aSeed.y);
+          // 大片约三成：略大、更慢
+          float big = snow * step(0.7, aSeed.y);
           vBig = big;
           float speed = snow > 0.5 ? (big > 0.5 ? 1.5 + aSeed.z * 1.1 : 2.4 + aSeed.z * 1.8) : 34.0 + aSeed.z * 14.0;
           // 风：雪整体随阵风缓缓吹移（几十秒一个来回），雨是固定的斜落
@@ -77,9 +78,9 @@ export class PrecipitationSystem {
           vec3 w = vec3(wx, wy, wz);
           vec4 mv = modelViewMatrix * vec4(w, 1.0);
           gl_Position = projectionMatrix * mv;
-          float size = snow > 0.5 ? (big > 0.5 ? 5.2 + aSeed.x * 4.0 : 2.0 + aSeed.y * 1.8) : 2.2;
+          float size = snow > 0.5 ? (big > 0.5 ? 3.0 + aSeed.x * 1.8 : 1.5 + aSeed.y * 1.3) : 2.2;
           // 贴着镜头的雪片也不至于糊满屏
-          gl_PointSize = vA * min(size * uPx * 220.0 / max(8.0, -mv.z), 56.0 * uPx);
+          gl_PointSize = vA * min(size * uPx * 220.0 / max(8.0, -mv.z), 24.0 * uPx);
         }`,
       fragmentShader: /* glsl */ `
         uniform vec3 uRainColor;
@@ -99,7 +100,7 @@ export class PrecipitationSystem {
             float edge = 0.4 + (0.05 * sin(ang * 3.0 + vSeed) + 0.035 * sin(ang * 5.0 + vSeed * 2.3)) * (0.5 + vBig);
             if (d > edge) discard;
             float soft = smoothstep(edge, edge * 0.3, d);
-            gl_FragColor = vec4(uSnowColor, soft * mix(0.72, 0.92, vBig));
+            gl_FragColor = vec4(uSnowColor, soft * mix(0.7, 0.85, vBig));
           } else {
             if (abs(q.x) > 0.05) discard;
             gl_FragColor = vec4(uRainColor, 0.48);

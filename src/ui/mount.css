@@ -715,8 +715,8 @@
   border-radius: 16px;
   font: inherit;
   font-size: 14.5px;
-  letter-spacing: 2px;
-  color: var(--ink2);
+  letter-spacing: 1px;
+  color: var(--ink);
   cursor: pointer;
 }
 .sbar button:hover {
@@ -918,8 +918,8 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 13.5px;
-  letter-spacing: 3px;
-  color: var(--ink2);
+  letter-spacing: 1px;
+  color: var(--ink);
   margin-right: 4px;
 }
 .tourbar button {
