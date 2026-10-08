@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useApp } from '../app/AppStore'
 import type { SearchResult } from '../features/poetry/PoetrySearchService'
 import { Icon } from './icons'
@@ -11,10 +11,20 @@ export function SearchPanel() {
   const q = useApp((s) => s.search)
   const panel = useApp((s) => s.panelState)
   const [hl, setHl] = useState(0)
+  const input = useRef<HTMLInputElement>(null)
+  const list = useRef<HTMLDivElement>(null)
   const results = useMemo(() => search.search(q), [q, search])
+  const cur = Math.min(hl, results.length - 1)
+
+  /* 方向键走到列表外时，高亮项滚进可见区 */
+  useEffect(() => {
+    list.current?.querySelector('.hl')?.scrollIntoView({ block: 'nearest' })
+  }, [cur])
 
   const choose = (r: SearchResult) => {
     store.set({ search: '' })
+    // 收起手机软键盘，也免得看不见的输入框继续接键盘
+    input.current?.blur()
     if (r.kind === 'place') navigation.selectPlace(r.id)
     else if (r.kind === 'poem') navigation.selectPoem(r.id)
     else navigation.selectAuthor(r.id)
@@ -25,6 +35,7 @@ export function SearchPanel() {
       <div className="panel box">
         <Icon name="search" />
         <input
+          ref={input}
           value={q}
           placeholder={`寻诗：诗题 · 诗人 · 地名${trails.all().length ? ' · 诗句' : ''}`}
           onChange={(e) => {
@@ -32,9 +43,13 @@ export function SearchPanel() {
             setHl(0)
           }}
           onKeyDown={(e) => {
-            if (e.key === 'ArrowDown') setHl((h) => Math.min(results.length - 1, h + 1))
-            else if (e.key === 'ArrowUp') setHl((h) => Math.max(0, h - 1))
-            else if (e.key === 'Enter' && results[hl]) choose(results[hl])
+            // 输入法还在选字：Enter 是上屏、Esc 是取消候选，都不归搜索框管
+            if (e.nativeEvent.isComposing || e.keyCode === 229) return
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+              if (!results.length) return
+              e.preventDefault()
+              setHl(Math.max(0, Math.min(results.length - 1, cur + (e.key === 'ArrowDown' ? 1 : -1))))
+            } else if (e.key === 'Enter' && results[cur]) choose(results[cur])
             else if (e.key === 'Escape') store.set({ search: '' })
           }}
           aria-label="搜索诗词"
@@ -44,9 +59,9 @@ export function SearchPanel() {
         </button>
       </div>
       {results.length > 0 && (
-        <div className="panel results">
+        <div className="panel results" ref={list}>
           {results.map((r, i) => (
-            <button key={`${r.kind}-${r.id}-${i}`} className={i === hl ? 'hl' : ''} onClick={() => choose(r)} onMouseEnter={() => setHl(i)}>
+            <button key={`${r.kind}-${r.id}-${i}`} className={i === cur ? 'hl' : ''} onClick={() => choose(r)} onMouseEnter={() => setHl(i)}>
               <div className="t">
                 <span className="k">{KIND[r.kind]}</span>
                 {r.title}

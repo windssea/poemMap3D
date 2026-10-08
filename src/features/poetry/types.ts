@@ -74,3 +74,20 @@ export const fameOf = (p: Poem): number => p.fame?.score ?? 2
 export const isMasterpiece = (p: Poem): boolean => fameOf(p) >= 4
 /** 最有名的上下句（没有打标的用末两句） */
 export const famousLines = (p: Poem): string[] => (p.fame ? p.lines.slice(p.fame.line, p.fame.line + p.fame.count) : p.lines.slice(-2))
+
+/** 朝代先后（品牌副标题「先秦至清」按数据里最早、最晚的朝代取） */
+const DYNASTY_ORDER = ['先秦', '秦', '汉', '魏晋', '南北朝', '隋', '唐', '五代', '宋', '辽', '金', '元', '明', '清', '近代']
+
+/** 「最早至最晚」；只有一个朝代时就是它；不认识的朝代不计 */
+export function dynastySpan(dynasties: Iterable<string>): string {
+  let lo = Infinity
+  let hi = -1
+  for (const d of dynasties) {
+    const i = DYNASTY_ORDER.indexOf(d)
+    if (i < 0) continue
+    lo = Math.min(lo, i)
+    hi = Math.max(hi, i)
+  }
+  if (hi < 0) return '历代'
+  return lo === hi ? DYNASTY_ORDER[lo] : `${DYNASTY_ORDER[lo]}至${DYNASTY_ORDER[hi]}`
+}

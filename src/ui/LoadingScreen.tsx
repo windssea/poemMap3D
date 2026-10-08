@@ -27,13 +27,18 @@ export function LoadingScreen() {
           诗
         </div>
         <h1>山河诗卷</h1>
-        <div className="bar">
-          <i style={{ width: `${Math.round(loading.progress * 100)}%` }} />
-        </div>
-        <small>{loading.label}</small>
+        {/* 出错了就不再显示进度条与「研墨」，免得看着像还在载入 */}
+        {!loading.error && (
+          <>
+            <div className="bar">
+              <i style={{ width: `${Math.round(loading.progress * 100)}%` }} />
+            </div>
+            <small>{loading.label}</small>
+          </>
+        )}
         {loading.error && (
           <div className="err" role="alert">
-            {gl2 ? `载入失败：${loading.error}` : '这个浏览器不支持 WebGL 2，无法显示山河。请换用新版 Chrome、Edge、Firefox 或 Safari。'}
+            {gl2 ? `山河暂时无法显示：${loading.error}` : '这个浏览器不支持 WebGL 2，无法显示山河。请换用新版 Chrome、Edge、Firefox 或 Safari。'}
             {gl2 && (
               <div className="err-actions">
                 <button type="button" onClick={() => location.reload()}>

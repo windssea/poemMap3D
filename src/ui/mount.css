@@ -684,10 +684,14 @@
   z-index: 11;
   left: 0;
   right: 0;
-  bottom: 22px;
+  bottom: calc(22px + var(--safe-b));
   margin: 0 auto;
   width: max-content;
+  /* 窄屏放不下时换行，不把最右的「收卷」挤出屏幕 */
+  max-width: calc(100vw - 20px);
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   align-items: center;
   gap: 6px;
   padding: 5px;
@@ -888,6 +892,7 @@
   bottom: calc(18px + var(--safe-b));
   margin: 0 auto;
   width: max-content;
+  max-width: calc(100vw - 20px);
   display: flex;
   align-items: center;
   gap: 6px;
@@ -903,15 +908,22 @@
   height: 7px;
   border-radius: 50%;
   background: var(--c-zhusha);
+  flex: none;
   animation: pulse 1.8s ease-in-out infinite;
 }
+/* 地名长了就省略，「设置」「停止」始终留在条上 */
 .tourbar .tb-t {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 13.5px;
   letter-spacing: 3px;
   color: var(--ink2);
   margin-right: 4px;
 }
 .tourbar button {
+  flex: none;
   border: 0;
   height: 30px;
   padding: 0 14px;
@@ -1300,6 +1312,17 @@ body.trail-on .hint {
     height: calc(100vh - 150px);
     bottom: 60px;
   }
+  .sbar {
+    bottom: calc(10px + var(--safe-b));
+    gap: 4px;
+  }
+  .sbar button {
+    padding: 0 10px;
+    letter-spacing: 1px;
+  }
+  .sbar .cnt {
+    letter-spacing: 1px;
+  }
   .trailp {
     left: 10px;
     width: min(420px, calc(100vw - 20px));
@@ -1410,4 +1433,12 @@ body.trail-on .hint {
 }
 .tr-card b {
   font-size: 17px;
+}
+
+/* 窄手机：诗卷底栏只留箭头、诗目、计数、分享、收卷（诗人足迹仍可从搜索框旁的足迹按钮进） */
+@media (max-width: 560px) {
+  .sbar .sb-w,
+  .sbar .sb-trail {
+    display: none;
+  }
 }

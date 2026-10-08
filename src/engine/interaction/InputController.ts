@@ -17,6 +17,8 @@ export class InputController {
   private downPos = { x: 0, y: 0 }
   private moved = 0
   private pinch = 0
+  /** 这一轮手势里出现过两指或被系统取消：不再算轻点，剩下的一指也不接着转镜头 */
+  private multi = false
   private readonly off: (() => void)[] = []
   enabled = true
 
@@ -31,7 +33,7 @@ export class InputController {
     on('pointerdown', (e) => this.down(e))
     on('pointermove', (e) => this.move(e))
     on('pointerup', (e) => this.up(e))
-    on('pointercancel', (e) => this.up(e))
+    on('pointercancel', (e) => this.up(e, true))
     on('wheel', (e) => this.wheel(e), { passive: false })
     on('contextmenu', (e) => e.preventDefault())
   }
@@ -53,7 +55,9 @@ export class InputController {
       this.downAt = performance.now()
       this.downPos = p
       this.moved = 0
+      this.multi = false
     }
+    if (this.pointers.size >= 2) this.multi = true
     if (this.pointers.size === 2) this.pinch = this.pinchDist()
     this.el.classList.add('grabbing')
     this.h.onStart()
@@ -86,15 +90,18 @@ export class InputController {
     }
     prev.x = p.x
     prev.y = p.y
+    if (this.multi) return
     if (prev.button === 2 || e.shiftKey) this.h.pan(dx, dy)
     else this.h.rotate(dx, dy)
   }
 
-  private up(e: PointerEvent): void {
+  /** 抬指；系统取消只清理，不算轻点 */
+  private up(e: PointerEvent, cancel = false): void {
     const had = this.pointers.delete(e.pointerId)
+    if (cancel && had) this.multi = true
     if (this.pointers.size < 2) this.pinch = 0
     if (!this.pointers.size) this.el.classList.remove('grabbing')
-    if (had && !this.pointers.size && this.moved < 7 && performance.now() - this.downAt < 400) this.h.tap(this.downPos.x, this.downPos.y)
+    if (had && !this.pointers.size && !this.multi && this.moved < 7 && performance.now() - this.downAt < 400) this.h.tap(this.downPos.x, this.downPos.y)
   }
 
   private wheel(e: WheelEvent): void {

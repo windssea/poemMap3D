@@ -303,16 +303,25 @@ function HandScroll({ open }: { open: boolean }) {
         </div>
       </div>
       <div className={`sbar ${open ? 'on' : ''}`}>
-        {list.length > 1 && <button onClick={() => step(-1)}>‹ 上一首</button>}
+        {list.length > 1 && (
+          <button aria-label="上一首" onClick={() => step(-1)}>
+            ‹<span className="sb-w"> 上一首</span>
+          </button>
+        )}
         {list.length > 1 && <button onClick={() => navigation.closePanel()}>诗目</button>}
         {list.length > 1 && (
           <span className="cnt">
             {cnum(idx + 1)} / {cnum(list.length)}
           </span>
         )}
-        {list.length > 1 && <button onClick={() => step(1)}>下一首 ›</button>}
+        {list.length > 1 && (
+          <button aria-label="下一首" onClick={() => step(1)}>
+            <span className="sb-w">下一首 </span>›
+          </button>
+        )}
         {q && trails.get(q.author) && (
           <button
+            className="sb-trail"
             title="在全国地图上看诗人一生的足迹"
             onClick={() => {
               navigation.selectPlace(null)
