@@ -85,7 +85,7 @@ button {
   left: 18px;
   display: flex;
   gap: 12px;
-  align-items: flex-start;
+  align-items: center;
   pointer-events: none;
 }
 .seal {
@@ -112,15 +112,7 @@ button {
   letter-spacing: 4px;
   text-shadow: 0 0 12px rgb(var(--rgb-xuanzhi) / 0.9);
 }
-.brand p {
-  margin: 6px 0 0;
-  font-size: 12.5px;
-  letter-spacing: 1px;
-  color: var(--ink);
-  text-shadow: 0 0 8px rgb(var(--rgb-xuanzhi) / 0.95);
-}
-.night .brand h1,
-.night .brand p {
+.night .brand h1 {
   color: var(--c-xuanzhi);
   text-shadow: 0 0 10px rgb(var(--rgb-daiqing) / 0.8);
 }
@@ -1009,48 +1001,198 @@ body.reading .tabbar {
   text-shadow: 0 0 10px rgb(var(--rgb-daiqing) / 0.9);
 }
 
-/* ———— 载入 ———— */
+/* ———— 载入：宣纸、水墨山晕开、淡墨洇开、朱印落下、一笔墨线写出进度 ———— */
 .loading {
   position: fixed;
   inset: 0;
   z-index: 50;
   display: grid;
   place-items: center;
-  background: var(--c-xuanzhi);
-  transition: opacity 0.9s ease;
+  overflow: hidden;
+  /* 纸心略亮、四边旧纸色压暗，像一张有年头的宣纸 */
+  background:
+    radial-gradient(ellipse 85% 75% at 50% 42%, var(--c-paper-light) 0%, var(--c-xuanzhi) 58%, var(--c-paper-old) 100%),
+    var(--c-xuanzhi);
+  transition:
+    opacity 1.1s ease,
+    filter 1.1s ease,
+    transform 1.4s ease;
 }
+/* 载入完：墨散——淡出时带一点模糊、微微放大 */
 .loading.done {
   opacity: 0;
+  filter: blur(5px);
+  transform: scale(1.025);
   pointer-events: none;
 }
+.loading .ld-paper {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.loading .ld-hill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 52vh;
+  pointer-events: none;
+  animation: ldInk 2.8s cubic-bezier(0.2, 0.6, 0.2, 1) both;
+}
+.loading .ld-hill.far {
+  height: 58vh;
+  animation-delay: 0.1s;
+}
+.loading .ld-hill.mid {
+  animation-delay: 0.55s;
+}
+.loading .ld-hill.near {
+  height: 44vh;
+  animation-delay: 1s;
+}
+/* 墨落纸上：先是一团模糊的淡影，慢慢收紧、浓起来 */
+@keyframes ldInk {
+  from {
+    opacity: 0;
+    filter: blur(18px);
+    transform: translateY(14px) scale(1.04);
+  }
+  60% {
+    opacity: 0.85;
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: none;
+  }
+}
 .loading .inner {
+  position: relative;
   display: grid;
   justify-items: center;
-  gap: 14px;
+  gap: 18px;
+  transform: translateY(-7vh);
+}
+.loading .ld-blot {
+  position: absolute;
+  left: 50%;
+  top: -40px;
+  width: 460px;
+  max-width: 96vw;
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: -1;
+  animation: ldBlot 3s ease-out both;
+}
+@keyframes ldBlot {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.5);
+    filter: blur(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+    filter: blur(0);
+  }
+}
+.loading .ld-title {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
 }
 .loading h1 {
   font-family: var(--brush);
   font-weight: 400;
-  font-size: 54px;
-  letter-spacing: 12px;
+  font-size: 60px;
+  line-height: 1;
+  letter-spacing: 14px;
   margin: 0;
+  color: var(--c-ink-deep);
+  /* 墨在纸上微微洇开的边 */
+  text-shadow:
+    0 0 1px rgb(var(--rgb-ink-deep) / 0.5),
+    0 0 6px rgb(var(--rgb-ink-deep) / 0.12);
+  animation: ldWrite 1.8s 0.35s cubic-bezier(0.2, 0.6, 0.2, 1) both;
 }
-.loading .bar {
-  width: 220px;
-  height: 3px;
-  background: rgb(var(--rgb-mo) / 0.1);
-  border-radius: 2px;
-  overflow: hidden;
+@keyframes ldWrite {
+  from {
+    opacity: 0;
+    filter: blur(8px);
+    letter-spacing: 24px;
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    letter-spacing: 14px;
+  }
 }
-.loading .bar i {
-  display: block;
-  height: 100%;
-  background: var(--c-zhusha);
-  transition: width 0.4s ease;
+/* 朱印：标题落款处盖下 */
+.loading .ld-seal {
+  width: 34px;
+  height: 34px;
+  font-size: 22px;
+  margin-bottom: 4px;
+  box-shadow: inset 0 0 0 2px rgb(var(--rgb-xuanzhi) / 0.35);
+  opacity: 0.92;
+  animation: ldStamp 0.55s 1.5s cubic-bezier(0.3, 1.4, 0.5, 1) both;
+}
+@keyframes ldStamp {
+  from {
+    opacity: 0;
+    transform: scale(1.7) rotate(-8deg);
+  }
+  to {
+    opacity: 0.92;
+    transform: rotate(-2deg);
+  }
+}
+/* 进度：一笔墨线随进度写出 */
+.loading .ld-stroke {
+  width: 240px;
+  height: 26px;
+  overflow: visible;
+  animation: ldFade 0.8s 1.2s ease both;
+}
+.loading .ld-stroke path {
+  fill: none;
+  stroke-linecap: round;
+  stroke-dasharray: 1 1;
+}
+.loading .ld-stroke .track {
+  stroke: rgb(var(--rgb-mo) / 0.08);
+  stroke-width: 3;
+}
+.loading .ld-stroke .ink {
+  stroke: rgb(var(--rgb-ink-deep) / 0.78);
+  stroke-width: 4.5;
+  transition: stroke-dashoffset 0.6s ease;
 }
 .loading small {
-  color: var(--ink3);
-  letter-spacing: 3px;
+  font-family: var(--kai);
+  font-size: 14px;
+  color: var(--ink2);
+  letter-spacing: 6px;
+  animation: ldFade 0.8s 1.3s ease both;
+}
+@keyframes ldFade {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .loading *,
+  .loading *::before {
+    animation: none !important;
+  }
+  .loading.done {
+    filter: none;
+    transform: none;
+  }
 }
 .loading .err {
   color: var(--c-zhusha);
@@ -1177,9 +1319,6 @@ body.reading .tabbar {
   .brand h1 {
     font-size: 24px;
     letter-spacing: 3px;
-  }
-  .brand p {
-    display: none;
   }
   .corner {
     top: max(12px, env(safe-area-inset-top));
@@ -1322,4 +1461,19 @@ textarea,
 /* 搜索框加一道细内框（像装裱的边线），与方块世界的方正一致 */
 .search .box {
   box-shadow: inset 0 0 0 1px rgb(var(--rgb-mo) / 0.14), 0 2px 10px rgb(var(--rgb-mo) / 0.12);
+}
+
+/* 版本指纹：设置面板底部、出错页 */
+.set-ver,
+.loading .err-ver {
+  margin: 10px 0 0;
+  font-family: var(--ui);
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  color: var(--ink3);
+  text-align: right;
+}
+.loading .err-ver {
+  text-align: center;
+  user-select: text;
 }

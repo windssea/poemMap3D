@@ -34,6 +34,7 @@ export function DebugPanel() {
 Worker    ${s.workers.busy}/${s.workers.workers} 忙  队列 ${s.workers.queued}  完成 ${s.workers.done}
 耗时      生成 ${c.avgGenMs.toFixed(1)}ms  网格 ${c.avgMeshMs.toFixed(1)}ms
 三角形    近景 ${(c.triangles / 1000).toFixed(0)}k  远景 ${(c.farTriangles / 1000).toFixed(0)}k  合计 ${(s.worldTriangles / 1000).toFixed(0)}k  覆盖图 ${(s.overviewTriangles / 1000).toFixed(0)}k（${Math.round(s.overview * 100)}%）
+倒影      ${s.reflection.on ? `${s.reflection.w}×${s.reflection.h}  每 ${s.reflection.every} 帧一刷  ${s.reflection.perSec} 张/秒` : '关'}
 `}
       {hover &&
         `—— 地形取样 ——

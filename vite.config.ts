@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
@@ -14,6 +15,35 @@ function worldBuild(): string {
   const h = createHash('sha1')
   for (const f of WORLD_SOURCES.flatMap(walk)) h.update(relative(import.meta.dirname, f)).update(readFileSync(f))
   return h.digest('hex').slice(0, 12)
+}
+
+/** 版本指纹：提交号（工作区有未提交改动时末尾带 +；部署环境没有 .git 时取环境变量 BUILD_COMMIT）、构建时间（北京时间）、世界构建号 */
+function buildInfo(world: string): { commit: string; builtAt: string; world: string } {
+  const git = (args: string): string => {
+    try {
+      return execSync(`git ${args}`, { cwd: import.meta.dirname, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim()
+    } catch {
+      return ''
+    }
+  }
+  const sha = process.env.BUILD_COMMIT?.slice(0, 7) || git('rev-parse --short HEAD') || 'unknown'
+  const dirty = !process.env.BUILD_COMMIT && git('status --porcelain --untracked-files=no') ? '+' : ''
+  const builtAt = new Date(Date.now() + 8 * 3600e3).toISOString().slice(0, 16).replace('T', ' ')
+  return { commit: sha + dirty, builtAt, world }
+}
+
+const WORLD = worldBuild()
+const BUILD = buildInfo(WORLD)
+
+/** 把版本指纹写进页面 meta，并输出 version.json——线上打开就知道对应哪个提交，不必猜打包文件名 */
+function buildStamp(): Plugin {
+  return {
+    name: 'build-stamp',
+    transformIndexHtml: (html) => html.replace('</head>', `  <meta name="build" content="${BUILD.commit} ${BUILD.builtAt} world:${BUILD.world}" />\n  </head>`),
+    generateBundle() {
+      this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify(BUILD, null, 2) + '\n' })
+    },
+  }
 }
 
 /**
@@ -37,9 +67,9 @@ function worldCacheReset(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [react(), worldCacheReset()],
+  plugins: [react(), worldCacheReset(), buildStamp()],
   worker: { format: 'es' },
-  define: { __WORLD_BUILD__: JSON.stringify(worldBuild()) },
+  define: { __WORLD_BUILD__: JSON.stringify(WORLD), __BUILD_INFO__: JSON.stringify(BUILD) },
   server: { port: 5188 },
   build: { target: 'es2022', chunkSizeWarningLimit: 1200 },
   test: { include: ['tests/**/*.test.ts'], environment: 'node' },

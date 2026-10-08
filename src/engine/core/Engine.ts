@@ -58,7 +58,8 @@ export class Engine {
   readonly renderer: RendererManager
   readonly scene = new SceneManager()
   readonly shared = createSharedUniforms()
-  private readonly reflection = new WaterReflection(this.shared)
+  /** 水面倒影（调试面板读它的 info） */
+  readonly reflection = new WaterReflection(this.shared)
   readonly materials: MaterialLibrary
   readonly shadows: ShadowManager
   readonly trail = new TrailRenderer()
@@ -215,7 +216,8 @@ export class Engine {
       }
     }
     this.reflection.setArea(area)
-    this.reflection.update(this.renderer.renderer, this.scene.scene, this.camera.camera as THREE.PerspectiveCamera, !!area)
+    // 反射图上限：衡 512、高 1024（轻画质不开）
+    this.reflection.update(this.renderer.renderer, this.scene.scene, this.camera.camera as THREE.PerspectiveCamera, !!area, this.quality.quality === 'high' ? 1024 : 512)
   }
 
   private pickReflection(focus: THREE.Vector3, distance: number): { x: number; z: number; y: number; r: number } | null {

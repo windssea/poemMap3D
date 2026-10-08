@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import type { TourSettings } from '../app/AppStore'
 import { useApp } from '../app/AppStore'
+import { buildLabel } from '../app/buildInfo'
 import { MUSIC_MODES, NATURE_MODES, SOUND_NAMES, type SoundMode } from '../app/AmbientSound'
 import { QUALITY_PRESETS, type Quality, VIEW_RANGES, type ViewRange } from '../engine/rendering/QualityManager'
 import { useServices } from './ServicesContext'
@@ -144,6 +145,7 @@ export function SettingsPanel({ onImmerse }: { onImmerse: () => void }) {
             </button>
           </div>
         </section>
+        <p className="set-ver">{buildLabel()}</p>
       </div>
     </div>
   )
