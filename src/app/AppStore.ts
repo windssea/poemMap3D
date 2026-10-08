@@ -7,8 +7,8 @@ import type { TrailPhase } from '../features/poetTrail/TrailDirector'
 
 export type PanelState = 'none' | 'place' | 'poem'
 
-/** 同一时刻只开一张：寻诗（手机）、视角（手机）、意境（手机）、设置 */
-export type Sheet = 'search' | 'view' | 'ambience' | 'settings'
+/** 同一时刻只开一张：寻诗（手机）、意境（手机）、设置 */
+export type Sheet = 'search' | 'ambience' | 'settings'
 
 /** 手指点了画面：在哪儿点的、离哪处名胜最近（手机上先出预览小签，再点才展开） */
 export interface TouchTap {

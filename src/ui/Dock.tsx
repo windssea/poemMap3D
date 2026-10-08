@@ -5,7 +5,7 @@ import { AmbienceControls } from './AmbienceControls'
 import { Icon, type IconName } from './icons'
 import { useServices } from './ServicesContext'
 import { useMobile } from './useMobile'
-import { ViewSwitcher } from './ViewSwitcher'
+import { HomeButton, ViewSwitcher } from './ViewSwitcher'
 
 const LAST_SOUND = 'shsd-last'
 
@@ -37,17 +37,17 @@ function useSheet(): [Sheet | null, (s: Sheet) => void, () => void] {
   return [sheet, toggle, close]
 }
 
-/** 图标 + 两字说明的按钮（手机上 title 提示看不到，说明直接写出来） */
-function Tool({ icon, label, on, onClick, pop, title }: { icon: IconName; label: string; on?: boolean; onClick: () => void; pop?: boolean; title?: string }) {
+/** 图标 + 两字说明的按钮（手机上 title 提示看不到，说明直接写出来）；row：宽屏底栏里图标与字并排，矮一些 */
+function Tool({ icon, label, on, onClick, pop, title, row }: { icon: IconName; label: string; on?: boolean; onClick: () => void; pop?: boolean; title?: string; row?: boolean }) {
   return (
-    <button className={`tool ${on ? 'on' : ''}`} aria-pressed={on} title={title} data-pop-toggle={pop || undefined} onClick={onClick}>
+    <button className={`tool ${row ? 'row' : ''} ${on ? 'on' : ''}`} aria-pressed={on} title={title} data-pop-toggle={pop || undefined} onClick={onClick}>
       <Icon name={icon} size={19} />
       <span>{label}</span>
     </button>
   )
 }
 
-/** 底栏：宽屏一条（视角 · 意境 · 漫游/足迹/声/设置，都一下就到）；手机一排图标 + 抽屉 */
+/** 底栏：宽屏一条（全国 · 意境 · 漫游/足迹/声/设置，都一下就到）；手机一排图标 + 抽屉 */
 export function Dock() {
   return useMobile() ? <MobileDock /> : <DesktopDock />
 }
@@ -60,14 +60,14 @@ function DesktopDock() {
   const [soundOn, soundName, toggleSound] = useSoundToggle()
   return (
     <div className="chrome dock fade">
-      <div className="panel bar">
+      <div className="panel dbar">
         <ViewSwitcher />
         <AmbienceControls />
-        <div className="seg tools">
-          <Tool icon={touring ? 'stop' : 'play'} label="漫游" on={touring} title={touring ? '停止漫游' : '开始漫游：自动依次游览各地与诗'} onClick={() => (touring ? facade.stopTour() : facade.startTour())} />
-          <Tool icon="footprints" label="足迹" on={picking} title="诗人一生的足迹" onClick={() => store.set((s) => ({ trailState: { ...s.trailState, picking: !s.trailState.picking } }))} />
-          <Tool icon={soundOn ? 'sound' : 'mute'} label={soundOn ? soundName : '静音'} on={soundOn} title={soundOn ? '关掉声音' : '打开声音'} onClick={toggleSound} />
-          <Tool icon="gear" label="设置" on={sheet === 'settings'} pop onClick={() => toggleSheet('settings')} />
+        <div className="dseg tools">
+          <Tool row icon={touring ? 'stop' : 'play'} label="漫游" on={touring} title={touring ? '停止漫游' : '开始漫游：自动依次游览各地与诗'} onClick={() => (touring ? facade.stopTour() : facade.startTour())} />
+          <Tool row icon="footprints" label="足迹" on={picking} title="诗人一生的足迹" onClick={() => store.set((s) => ({ trailState: { ...s.trailState, picking: !s.trailState.picking } }))} />
+          <Tool row icon={soundOn ? 'sound' : 'mute'} label={soundOn ? soundName : '静音'} on={soundOn} title={soundOn ? '关掉声音' : '打开声音'} onClick={toggleSound} />
+          <Tool row icon="gear" label="设置" on={sheet === 'settings'} pop onClick={() => toggleSheet('settings')} />
         </div>
       </div>
     </div>
@@ -99,7 +99,10 @@ function MobileDock() {
     <>
       <nav className="chrome tabbar fade" aria-label="主要操作">
         <Tool icon="search" label="寻诗" on={sheet === 'search'} pop onClick={() => toggleSheet('search')} />
-        <Tool icon="map" label="视角" on={sheet === 'view'} pop onClick={() => toggleSheet('view')} />
+        <HomeButton className="tool">
+          <Icon name="home" size={19} />
+          <span>全国</span>
+        </HomeButton>
         <Tool icon="sun" label="意境" on={sheet === 'ambience'} pop onClick={() => toggleSheet('ambience')} />
         <Tool
           icon={touring ? 'stop' : 'play'}
@@ -113,11 +116,6 @@ function MobileDock() {
         />
         <Tool icon="gear" label="设置" on={sheet === 'settings'} pop onClick={() => toggleSheet('settings')} />
       </nav>
-      {sheet === 'view' && (
-        <SheetBox title="视角">
-          <ViewSwitcher onPick={close} />
-        </SheetBox>
-      )}
       {sheet === 'ambience' && (
         <SheetBox
           title="意境"

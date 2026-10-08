@@ -1,5 +1,4 @@
 import * as THREE from 'three'
-import { snowClimateAt } from '../../world/climate/Climate'
 import { smoothstep } from '../../utils/math'
 import { WeatherTint, WinterTokens } from '../../config/palette'
 import type { SceneManager } from '../rendering/SceneManager'
@@ -126,6 +125,7 @@ export class EnvironmentManager {
     u.uAutumn.value = S.autumn
     u.uBlossom.value = S.blossom
     u.uSnow.value = this.weather.cover
+    u.uSnowFall.value = this.weather.snow
     const lotusWant = this.season.key === 'summer' ? 1 : this.season.key === 'spring' ? 0.3 : this.season.key === 'autumn' ? 0.4 : 0
     u.uLotus.value += (lotusWant - u.uLotus.value) * Math.min(1, dt * 1.2)
     /* 山岚：晨起最浓，暮色次之，白天淡；雨雪加浓 */
@@ -200,8 +200,8 @@ export class EnvironmentManager {
     // 雾天：雾色向乳白灰靠（夜里压暗，不发亮）
     fogCol.lerp(this.mistSky, mistK * 0.7 * (1 - 0.7 * L.night))
     this.fog.update(distance, fogCol, W.fog, !tw || tw.fog, mistK)
-    const clim = snowClimateAt(focus.y, focus.z)
-    this.precipitation.update(elapsed, focus, distance, Math.min(1, this.weather.rain + this.weather.snow * (1 - clim)), this.weather.snow * clim, pixelRatio)
+    // 下雪就是雪：南方不再按气候掺成雨夹雪
+    this.precipitation.update(elapsed, focus, distance, this.weather.rain, this.weather.snow, pixelRatio)
     this.particles.update(elapsed, focus, distance, this.season.key, wet, pixelRatio)
     this.clouds.update(dt, elapsed, focus, distance, this.cameraCtrl.viewDir, L.cloud, this.rainSky, wet)
   }

@@ -18,6 +18,8 @@ export function createSharedUniforms() {
     uBlossom: { value: 1 },
     /** 地面积雪 0–1 */
     uSnow: { value: 0 },
+    /** 正在下雪 0–1：下雪时积雪不受南北气候限制 */
+    uSnowFall: { value: 0 },
     /** 夜晚程度 0–1（灯笼自发光、水面） */
     uNight: { value: 0 },
     /** 雨湿程度 0–1 */

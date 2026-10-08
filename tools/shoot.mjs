@@ -57,6 +57,8 @@ const proc = spawn(exe, [
   '--enable-webgl',
   '--hide-scrollbars',
   '--mute-audio',
+  /* 允许不经点击就起声（仍静音），探测背景音时 AudioContext 才会真正运行 */
+  '--autoplay-policy=no-user-gesture-required',
   /* 验收浏览器与本机的 Edge 账号隔离：不登录、不同步、不装扩展。否则 Edge 会隐式登录系统账号，
      把书签、扩展同步进来并弹出同步确认页（扩展开的标签页与弹窗会让页面卡住、截图挂起） */
   '--no-first-run',

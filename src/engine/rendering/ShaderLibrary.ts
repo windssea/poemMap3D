@@ -33,6 +33,7 @@ uniform vec3 uSeasonFoliage;
 uniform float uAutumn;
 uniform float uBlossom;
 uniform float uSnow;
+uniform float uSnowFall;
 uniform float uNight;
 uniform float uWet;
 uniform float uSaturation;
@@ -91,10 +92,13 @@ float skyCurve(float s) {
 }
 `
 
-/** 积雪：climate 为该处的积雪气候系数（北方满、江南薄、岭南无，高山皆有） */
+/**
+ * 积雪：climate 为该处的积雪气候系数（北方满、江南薄、岭南无，高山皆有）。
+ * 正在下大雪（uSnowFall）时不分南北一样积白——江南的雪也是大雪；雪停后回到按气候的积雪。
+ */
 export const GLSL_SNOW = /* glsl */ `
 vec3 applySnow(vec3 col, vec3 wnormal, vec3 wpos, vec3 snowColor, float climate) {
-  float amount = uSnow * climate;
+  float amount = uSnow * max(climate, uSnowFall * 0.92);
   if (amount <= 0.001 || wnormal.y < 0.55) return col;
   float patchN = hash12(floor(wpos.xz));
   float cover = smoothstep(0.0, 1.0, amount * 1.6 - patchN * 0.6);

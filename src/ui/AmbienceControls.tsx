@@ -14,7 +14,7 @@ export function AmbienceControls() {
   const wet = weather === 'rain' || weather === 'snow'
   return (
     <>
-      <div className="seg" role="group" aria-label="时辰">
+      <div className="dseg" role="group" aria-label="时辰">
         <span className="lab">时辰</span>
         {TIMES.map((t) => (
           <button key={t} className={`chip ${t === time ? 'on' : ''}`} aria-pressed={t === time} onClick={() => facade.setTime(t)}>
@@ -22,7 +22,7 @@ export function AmbienceControls() {
           </button>
         ))}
       </div>
-      <div className="seg" role="group" aria-label="四季">
+      <div className="dseg" role="group" aria-label="四季">
         <span className="lab">四季</span>
         {SEASONS.map((s) => (
           <button key={s} className={`chip ${s === season ? 'on' : ''}`} aria-pressed={s === season} onClick={() => facade.setSeason(s)}>
@@ -30,7 +30,7 @@ export function AmbienceControls() {
           </button>
         ))}
       </div>
-      <div className="seg" role="group" aria-label="天气">
+      <div className="dseg" role="group" aria-label="天气">
         <span className="lab">天气</span>
         <button className={`chip ${weather === 'clear' ? 'on' : ''}`} aria-pressed={weather === 'clear'} onClick={() => facade.setWeather('clear')}>
           晴
