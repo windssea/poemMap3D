@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import type * as THREE from 'three'
 import { useApp } from '../app/AppStore'
+import { labelHits } from './labelHits'
 import { useServices } from './ServicesContext'
 
 interface LabelItem {
@@ -88,9 +89,15 @@ export function LabelLayer() {
           const it = sorted[occIdx++ % sorted.length]
           if (it.anchor && it.kind === 'place') occluded.set(it.key, facade.isOccluded(it.anchor))
         }
-      if (tick++ % 30 === 0) panels = [...document.querySelectorAll('.chrome')].map((e) => e.getBoundingClientRect()).filter((r) => r.width > 0 && r.width < innerWidth * 0.9)
+      // 界面面板让开地名；淡出、收起（透明）的面板不算
+      if (tick++ % 30 === 0)
+        panels = [...document.querySelectorAll('.chrome')]
+          .filter((e) => parseFloat(getComputedStyle(e).opacity) > 0.05)
+          .map((e) => e.getBoundingClientRect())
+          .filter((r) => r.width > 0 && r.width < innerWidth * 0.9)
       const { selected: sel, level: lv } = state.current
       const placed: { x0: number; y0: number; x1: number; y1: number }[] = []
+      labelHits.length = 0
       let shown = 0
       const cap = lv === 'national' ? 12 : lv === 'regional' ? 16 : 7
       const order = sel ? [...sorted.filter((i) => i.placeId === sel), ...sorted.filter((i) => i.placeId !== sel)] : sorted
@@ -117,7 +124,10 @@ export function LabelLayer() {
           if (inView && !tooFar && (isSel || (!hit && !underPanel && !nearSel && (it.kind !== 'place' || shown < cap)))) {
             on = true
             placed.push(r)
-            if (it.kind === 'place') shown++
+            if (it.kind === 'place') {
+              shown++
+              labelHits.push({ placeId: it.placeId!, ...r })
+            }
             if (isSel) selPos = { x: pos.x, y: pos.y }
             el.style.transform = `translate3d(${pos.x.toFixed(1)}px, ${pos.y.toFixed(1)}px, 0)`
           }
@@ -127,7 +137,10 @@ export function LabelLayer() {
         el.classList.toggle('dim', !!sel && !isSel && it.kind === 'place')
       }
     })
-    return off
+    return () => {
+      off()
+      labelHits.length = 0
+    }
   }, [items, facade])
 
   return (

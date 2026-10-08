@@ -3,6 +3,7 @@ import { useApp } from '../app/AppStore'
 import type { SearchResult } from '../features/poetry/PoetrySearchService'
 import { Icon } from './icons'
 import { useServices } from './ServicesContext'
+import { useMobile } from './useMobile'
 
 const KIND = { poem: '诗', author: '人', place: '地' } as const
 
@@ -10,6 +11,8 @@ export function SearchPanel() {
   const { search, navigation, store, trails } = useServices()
   const q = useApp((s) => s.search)
   const panel = useApp((s) => s.panelState)
+  const sheetOpen = useApp((s) => s.ui.sheet === 'search')
+  const mobile = useMobile()
   const [hl, setHl] = useState(0)
   const input = useRef<HTMLInputElement>(null)
   const list = useRef<HTMLDivElement>(null)
@@ -21,8 +24,15 @@ export function SearchPanel() {
     list.current?.querySelector('.hl')?.scrollIntoView({ block: 'nearest' })
   }, [cur])
 
+  /* 手机：点「寻诗」打开时直接进入输入 */
+  useEffect(() => {
+    if (mobile && sheetOpen) input.current?.focus()
+  }, [mobile, sheetOpen])
+
+  const closeSheet = () => store.set((s) => ({ ui: { ...s.ui, sheet: null } }))
+
   const choose = (r: SearchResult) => {
-    store.set({ search: '' })
+    store.set((s) => ({ search: '', ui: { ...s.ui, sheet: null } }))
     // 收起手机软键盘，也免得看不见的输入框继续接键盘
     input.current?.blur()
     if (r.kind === 'place') navigation.selectPlace(r.id)
@@ -30,8 +40,11 @@ export function SearchPanel() {
     else navigation.selectAuthor(r.id)
   }
 
+  // 手机上搜索是「寻诗」抽屉：不点开就不占地方
+  if (mobile && !sheetOpen) return null
+  const off = !mobile && panel !== 'none'
   return (
-    <div className="chrome search" style={{ opacity: panel !== 'none' ? 0 : 1, pointerEvents: panel !== 'none' ? 'none' : 'auto' }}>
+    <div className={`chrome search ${mobile ? 'm' : 'fade'}`} data-pop={mobile || undefined} style={{ opacity: off ? 0 : 1, pointerEvents: off ? 'none' : 'auto' }}>
       <div className="panel box">
         <Icon name="search" />
         <input
@@ -50,13 +63,24 @@ export function SearchPanel() {
               e.preventDefault()
               setHl(Math.max(0, Math.min(results.length - 1, cur + (e.key === 'ArrowDown' ? 1 : -1))))
             } else if (e.key === 'Enter' && results[cur]) choose(results[cur])
-            else if (e.key === 'Escape') store.set({ search: '' })
+            else if (e.key === 'Escape') {
+              if (q) store.set({ search: '' })
+              else if (mobile) closeSheet()
+              else input.current?.blur()
+            }
           }}
           aria-label="搜索诗词"
         />
-        <button className="ico" title="诗人足迹" onClick={() => store.set((s) => ({ trailState: { ...s.trailState, picking: !s.trailState.picking } }))}>
-          <Icon name="footprints" size={20} />
-        </button>
+        {mobile && (
+          <>
+            <button className="ico" aria-label="诗人足迹" onClick={() => store.set((s) => ({ ui: { ...s.ui, sheet: null }, trailState: { ...s.trailState, picking: true } }))}>
+              <Icon name="footprints" size={20} />
+            </button>
+            <button className="ico" aria-label="关闭" onClick={closeSheet}>
+              <Icon name="close" size={18} />
+            </button>
+          </>
+        )}
       </div>
       {results.length > 0 && (
         <div className="panel results" ref={list}>

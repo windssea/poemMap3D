@@ -7,6 +7,18 @@ import type { TrailPhase } from '../features/poetTrail/TrailDirector'
 
 export type PanelState = 'none' | 'place' | 'poem'
 
+/** 同一时刻只开一张：寻诗（手机）、视角（手机）、意境（手机）、设置 */
+export type Sheet = 'search' | 'view' | 'ambience' | 'settings'
+
+/** 手指点了画面：在哪儿点的、离哪处名胜最近（手机上先出预览小签，再点才展开） */
+export interface TouchTap {
+  x: number
+  y: number
+  placeId: string | null
+  /** 每点一次加一，同一处连点两次也能触发 */
+  n: number
+}
+
 export interface TourSettings {
   speed: 1 | 1.5 | 2
   count: 'normal' | 'more' | 'endless'
@@ -51,7 +63,9 @@ export interface AppState {
   viewRange: ViewRange
   tourState: TourState
   trailState: { poet: string | null; picking: boolean; phase: TrailPhase; prog: number; verseIdx: number }
-  ui: { ambienceOpen: boolean; hidden: boolean; tourSettingsOpen: boolean; settingsOpen: boolean }
+  /** hidden：沉浸模式（界面与地名全收）；idleFade：一阵子不操作时界面淡出 */
+  ui: { hidden: boolean; sheet: Sheet | null; idleFade: boolean }
+  touchTap: TouchTap | null
   /** 点地标时镜头自动取景 */
   autoCamera: boolean
   /** 背景音 */
@@ -101,7 +115,8 @@ function initial(): AppState {
     viewRange: Number(read<string>('shv', (v) => ['0', '1', '2', '3'].includes(v), '0')) as ViewRange,
     tourState: { active: false, paused: false, region: '', stopName: '', poemId: null, round: 0, index: 0, total: 0, settings: DEFAULT_TOUR_SETTINGS },
     trailState: { poet: null, picking: false, phase: 'done', prog: 0, verseIdx: -1 },
-    ui: { ambienceOpen: false, hidden: false, tourSettingsOpen: false, settingsOpen: false },
+    ui: { hidden: false, sheet: null, idleFade: read<string>('shidle', (v) => v === '0' || v === '1', '1') === '1' },
+    touchTap: null,
     autoCamera: read<string>('shac', (v) => v === '0' || v === '1', '0') === '1',
     sound: read<SoundMode>('shsd', (v) => (SOUND_MODES as readonly string[]).includes(v), 'off'),
     debug: { chunks: params.has('debug'), terrain: params.has('debug') },
@@ -110,11 +125,8 @@ function initial(): AppState {
 
 type Listener = () => void
 
-/** 按钮组的弹出层（意境、漫游设置、设置） */
-const POPS = ['ambienceOpen', 'tourSettingsOpen', 'settingsOpen'] as const
-
-/** 关掉所有弹出层 */
-export const closedPops = (ui: AppState['ui']): AppState['ui'] => ({ ...ui, ambienceOpen: false, tourSettingsOpen: false, settingsOpen: false })
+/** 关掉弹出的面板 */
+export const closedPops = (ui: AppState['ui']): AppState['ui'] => ({ ...ui, sheet: null })
 
 /** 极简外部 store：React 用 useSyncExternalStore 订阅 */
 export class AppStore {
@@ -125,12 +137,6 @@ export class AppStore {
 
   set = (patch: Partial<AppState> | ((s: AppState) => Partial<AppState>)): void => {
     const p = typeof patch === 'function' ? patch(this.state) : patch
-    /* 按钮组的弹出层互斥：这次新打开了哪一个，其余的一并关上 */
-    if (p.ui) {
-      const prev = this.state.ui
-      const opened = POPS.find((k) => p.ui![k] && !prev[k])
-      if (opened) p.ui = { ...p.ui, ...Object.fromEntries(POPS.filter((k) => k !== opened).map((k) => [k, false])) }
-    }
     this.state = { ...this.state, ...p }
     this.persist(p)
     for (const l of this.listeners) l()
@@ -150,6 +156,7 @@ export class AppStore {
       if (p.viewRange !== undefined) localStorage.setItem('shv', String(p.viewRange))
       if (p.autoCamera !== undefined) localStorage.setItem('shac', p.autoCamera ? '1' : '0')
       if (p.sound) localStorage.setItem('shsd', p.sound)
+      if (p.ui) localStorage.setItem('shidle', p.ui.idleFade ? '1' : '0')
     } catch {
       /* 隐私模式下不记忆 */
     }

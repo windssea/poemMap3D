@@ -32,7 +32,7 @@ import { RenderLoop } from './RenderLoop'
 export interface EngineEvents {
   frame: FrameContext
   level: CameraLevel
-  select: { placeId: string | null; point: THREE.Vector3 | null }
+  select: { placeId: string | null; point: THREE.Vector3 | null; x: number; y: number; touch: boolean }
   hover: RayHit | null
   hoverPlace: string | null
   progress: { label: string; value: number }
@@ -160,9 +160,9 @@ export class Engine {
       rotate: (dx, dy) => this.camera.orbit.rotate(dx, dy),
       pan: (dx, dy) => this.camera.pan(dx, dy, this.renderer.height),
       zoom: (delta, x, y) => this.camera.zoom(delta, this.pick(x, y)?.point ?? null),
-      tap: (x, y) => {
+      tap: (x, y, touch) => {
         const hit = this.pick(x, y)
-        this.events.emit('select', { placeId: this.selection.pick(hit), point: hit?.point ?? null })
+        this.events.emit('select', { placeId: this.selection.pick(hit), point: hit?.point ?? null, x, y, touch })
       },
       hover: (x, y) => (this.hoverPending = { x, y }),
     })

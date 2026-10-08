@@ -15,7 +15,7 @@ function setup() {
   const h = { onStart: vi.fn(), rotate: vi.fn(), pan: vi.fn(), zoom: vi.fn(), tap: vi.fn(), hover: vi.fn() }
   new InputController(el as unknown as HTMLElement, h)
   const fire = (type: string, id: number, x: number, y: number) =>
-    fns.get(type)!({ pointerId: id, clientX: x, clientY: y, button: 0, shiftKey: false, preventDefault: () => {} })
+    fns.get(type)!({ pointerId: id, pointerType: 'touch', clientX: x, clientY: y, button: 0, shiftKey: false, preventDefault: () => {} })
   return { h, fire }
 }
 
@@ -24,7 +24,7 @@ describe('触控手势分类', () => {
     const { h, fire } = setup()
     fire('pointerdown', 1, 100, 100)
     fire('pointerup', 1, 100, 100)
-    expect(h.tap).toHaveBeenCalledWith(100, 100)
+    expect(h.tap).toHaveBeenCalledWith(100, 100, true)
   })
 
   it('系统取消不算轻点', () => {
@@ -62,6 +62,6 @@ describe('触控手势分类', () => {
     fire('pointerdown', 4, 70, 70)
     fire('pointerup', 4, 70, 70)
     expect(h.tap).toHaveBeenCalledTimes(1)
-    expect(h.tap).toHaveBeenCalledWith(70, 70)
+    expect(h.tap).toHaveBeenCalledWith(70, 70, true)
   })
 })

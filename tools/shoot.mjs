@@ -121,10 +121,10 @@ const SEED = `(() => { let s = 20260929; Math.random = () => ((s = (s * 1664525 
 const HIDE_UI = `
   (() => {
     const st = document.createElement('style')
-    st.textContent = '.light-debug, .chrome, .labels, .panel { display: none !important }'
+    st.textContent = '.light-debug, .chrome, .labels, .panel, .vignette, .restore, .peek { display: none !important }'
     document.head.appendChild(st)
     const { store } = window.__shanhe
-    store.set((s) => ({ ui: { ...s.ui, hidden: true, ambienceOpen: false } }))
+    store.set((s) => ({ ui: { ...s.ui, hidden: true, sheet: null } }))
   })()`
 
 try {

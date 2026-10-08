@@ -3,7 +3,8 @@ export interface InputHandlers {
   rotate(dx: number, dy: number): void
   pan(dx: number, dy: number): void
   zoom(delta: number, x: number, y: number): void
-  tap(x: number, y: number): void
+  /** touch：这一下是手指点的（手机上点画面只出预览，不直接展开） */
+  tap(x: number, y: number, touch: boolean): void
   hover(x: number, y: number): void
 }
 
@@ -15,6 +16,7 @@ export class InputController {
   private readonly pointers = new Map<number, { x: number; y: number; button: number }>()
   private downAt = 0
   private downPos = { x: 0, y: 0 }
+  private downTouch = false
   private moved = 0
   private pinch = 0
   /** 这一轮手势里出现过两指或被系统取消：不再算轻点，剩下的一指也不接着转镜头 */
@@ -54,6 +56,7 @@ export class InputController {
     if (this.pointers.size === 1) {
       this.downAt = performance.now()
       this.downPos = p
+      this.downTouch = e.pointerType === 'touch'
       this.moved = 0
       this.multi = false
     }
@@ -101,7 +104,7 @@ export class InputController {
     if (cancel && had) this.multi = true
     if (this.pointers.size < 2) this.pinch = 0
     if (!this.pointers.size) this.el.classList.remove('grabbing')
-    if (had && !this.pointers.size && !this.multi && this.moved < 7 && performance.now() - this.downAt < 400) this.h.tap(this.downPos.x, this.downPos.y)
+    if (had && !this.pointers.size && !this.multi && this.moved < 7 && performance.now() - this.downAt < 400) this.h.tap(this.downPos.x, this.downPos.y, this.downTouch)
   }
 
   private wheel(e: WheelEvent): void {

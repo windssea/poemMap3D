@@ -74,11 +74,17 @@ export async function bootstrap(container: HTMLElement): Promise<AppServices> {
 
   /* 接线：引擎事件 → 应用状态 */
   engine.events.on('level', (l) => store.set({ cameraLevel: l }))
-  engine.events.on('select', ({ placeId }) => {
+  engine.events.on('select', ({ placeId, x, y, touch }) => {
     if (store.get().tourState.active) return
+    // 手指点画面：手机屏小、拖动前的轻触也算点，直接展开太容易误触——先交给界面出预览小签（点中地名签则直接展开）
+    if (touch) {
+      store.set((s) => ({ touchTap: { x, y, placeId, n: (s.touchTap?.n ?? 0) + 1 } }))
+      return
+    }
     if (placeId) navigation.selectPlace(placeId, store.get().autoCamera)
   })
   engine.events.on('interact', () => {
+    if (store.get().touchTap) store.set({ touchTap: null })
     if (store.get().tourState.active) tour.stop()
     // 用户自己动了镜头：不再停在哪个机位、哪个视角上
     const st = store.get()
