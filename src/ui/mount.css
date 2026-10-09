@@ -700,11 +700,13 @@
   box-shadow: 0 8px 22px rgb(var(--rgb-ink-deep) / 0.25);
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.4s 0.3s;
+  /* 收卷时立刻淡出（不等），展开时等卷轴展开一会儿再出 */
+  transition: opacity 0.2s;
 }
 .sbar.on {
   opacity: 1;
   pointer-events: auto;
+  transition: opacity 0.4s 0.3s;
 }
 .sbar button {
   white-space: nowrap;

@@ -535,7 +535,7 @@ body.idle .fade {
   pointer-events: none !important;
   transition: opacity 1.4s ease !important;
 }
-/* 读诗时底栏让给诗卷底栏 */
+/* 读诗时（含收卷动画，见 PoetryPanel）底栏让给诗卷底栏 */
 body.reading .dock,
 body.reading .tabbar {
   opacity: 0;

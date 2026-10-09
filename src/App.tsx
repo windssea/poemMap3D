@@ -25,7 +25,6 @@ export function App() {
   const onReady = useCallback((s: AppServices) => setServices(s), [])
   const hidden = useApp((s) => s.ui.hidden)
   const time = useApp((s) => s.time)
-  const reading = useApp((s) => s.panelState === 'poem')
 
   /* 点到弹出面板以外的地方，面板收起 */
   useEffect(() => {
@@ -81,8 +80,7 @@ export function App() {
   useEffect(() => {
     document.body.classList.toggle('ui-hidden', hidden)
     document.body.classList.toggle('night', time === 'night')
-    document.body.classList.toggle('reading', reading)
-  }, [hidden, time, reading])
+  }, [hidden, time])
 
   /* 沉浸观景：收起全部界面与地名，地图照样能转；角上留一枚小印恢复 */
   const immerse = useCallback(() => {

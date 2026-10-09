@@ -135,6 +135,11 @@ function HandScroll({ open }: { open: boolean }) {
       return () => clearTimeout(t)
     }
   }, [phase])
+  /* 读诗中（含收卷动画）底栏让给诗卷底栏：收卷播完才把底栏放回来，两组按钮不重叠 */
+  useEffect(() => {
+    document.body.classList.toggle('reading', phase !== 'off')
+    return () => document.body.classList.remove('reading')
+  }, [phase])
   useEffect(() => {
     if (track.current) track.current.scrollLeft = 0
   }, [shown])
