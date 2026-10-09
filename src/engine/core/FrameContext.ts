@@ -14,6 +14,8 @@ export interface FrameContext {
   distance: number
   /** 真实镜头到焦点的距离（取景距离 × 焦段倍数；深度、雾按它） */
   eyeDistance: number
+  /** 景深对焦距离（中心自动对焦；景深关着时等于 eyeDistance） */
+  focusDistance: number
 }
 
 /** 可被渲染循环驱动的系统 */

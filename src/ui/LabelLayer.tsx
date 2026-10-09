@@ -119,7 +119,7 @@ export function LabelLayer() {
           const ed = f.eyeDistance
           const farLimit = lv === 'local' ? Math.max(110, ed * 1.35) : lv === 'regional' ? Math.max(420, ed * 1.45) : Infinity
           // 景深之外（画面那一块已经虚了）的地名也藏起来；选中的照常显示
-          const blurred = it.kind === 'place' && !isSel && outOfFocus(dofMode, q, lv, pos.depth, pos.y, innerHeight, ed, f.distance)
+          const blurred = it.kind === 'place' && !isSel && outOfFocus(dofMode, q, lv, pos.depth, pos.y, innerHeight, ed, f.distance, f.focusDistance)
           const tooFar = it.kind === 'place' && !isSel && (blurred || pos.depth > farLimit || (lv !== 'national' && occluded.get(it.key) === true))
           const h = it.name.length * 16 + 34
           const w = 34

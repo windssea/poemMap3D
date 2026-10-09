@@ -34,3 +34,11 @@ describe('景深之外的地名签藏起来', () => {
     expect(outOfFocus('mini', 'mid', 'local', 200, 800, H, 200, 200)).toBe(true)
   })
 })
+
+describe('地名随中心自动对焦', () => {
+  it('对焦到画面中心的楼（比注视点近）：楼旁的签清楚，注视点那一层反而在焦外', () => {
+    // 注视点 200，中心自动对焦到 140 处的楼
+    expect(outOfFocus('deep', 'high', 'local', 145, 450, H, 200, 200, 140)).toBe(false)
+    expect(outOfFocus('deep', 'high', 'local', 200, 450, H, 200, 200, 140)).toBe(true)
+  })
+})

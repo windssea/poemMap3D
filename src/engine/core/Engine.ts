@@ -191,6 +191,42 @@ export class Engine {
     return { target: new THREE.Vector3(c.x, P.groundHeightAt(c.x, c.z), c.z), yaw: 0.42, pitch: 0.98, distance: 2700 }
   }
 
+  /** 景深对焦距离（真实镜头距离）：中心自动对焦的结果，平滑追随 */
+  focusDistance = 100
+  private afWant = 0
+  private afFrame = 0
+
+  /**
+   * 中心自动对焦：像相机的中央对焦点——每隔几帧从画面正中与周围四点各打一条射线，取中位数
+   * （细栏杆、树梢擦过一点不至于把焦点拉走），对到画面正中实际看到的楼、树、山上；看到天空就对远处。
+   * 对焦距离在对数空间平滑追随（约 0.2 秒合焦），不一跳。只在真实景深开着时探测。
+   */
+  private updateAutoFocus(dt: number): void {
+    const eye = this.camera.eyeDistance
+    if (!this.pipeline.dofActive) {
+      this.focusDistance = eye
+      this.afWant = 0
+      return
+    }
+    if (this.afWant === 0 || this.afFrame++ % 4 === 0) {
+      const far = eye * 4
+      const ds: number[] = []
+      for (const [ox, oy] of [
+        [0, 0],
+        [-0.05, 0],
+        [0.05, 0],
+        [0, -0.06],
+        [0, 0.06],
+      ])
+        ds.push(Math.min(far, this.raycast.fromScreen(this.camera.camera, ox, oy, far)?.distance ?? far))
+      ds.sort((a, b) => a - b)
+      this.afWant = Math.max(eye * 0.25, ds[2])
+      if (this.focusDistance <= 0) this.focusDistance = this.afWant
+    }
+    const k = 1 - Math.exp(-dt * 10)
+    this.focusDistance = Math.exp(Math.log(this.focusDistance) + (Math.log(this.afWant) - Math.log(this.focusDistance)) * k)
+  }
+
   private pick(x: number, y: number): RayHit | null {
     const nx = (x / this.renderer.width) * 2 - 1
     const ny = -(y / this.renderer.height) * 2 + 1
@@ -264,8 +300,9 @@ export class Engine {
     this.camera.update(dt)
     const cam = this.camera.camera
     const pose = this.camera.effective
-    // 景深自动对焦在注视点；全国视角不虚化
-    this.pipeline.setFocus(this.camera.eyeDistance, this.camera.level !== 'national', this.camera.lensScale)
+    // 景深自动对焦：画面中心实际看到的东西（楼、树、山）；全国视角不虚化
+    this.updateAutoFocus(dt)
+    this.pipeline.setFocus(this.focusDistance, this.camera.level !== 'national', this.camera.lensScale)
     this.world.update(dt, cam, pose.target, pose.distance, this.camera.destination)
     this.applyDebugWorld()
     this.env.update(dt, time, cam, pose.target, pose.distance, this.renderer.renderer.getPixelRatio(), this.camera.eyeDistance)
@@ -299,7 +336,7 @@ export class Engine {
     }
     this.chunkDebug?.update(this.world.chunks)
     this.updateReflection(pose.target, pose.distance)
-    this.events.emit('frame', { dt, time, frame: this.loop.frame, camera: cam, focus: pose.target, distance: pose.distance, eyeDistance: this.camera.eyeDistance })
+    this.events.emit('frame', { dt, time, frame: this.loop.frame, camera: cam, focus: pose.target, distance: pose.distance, eyeDistance: this.camera.eyeDistance, focusDistance: this.focusDistance })
   }
 
   /* ================= 对外能力（由 EngineFacade 调用） ================= */

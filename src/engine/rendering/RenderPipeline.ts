@@ -206,6 +206,11 @@ export class RenderPipeline {
     this.sizeTilt(w, h)
   }
 
+  /** 真实景深此刻是否在用（开着、未被全国视角压掉、非「轻」画质）：引擎据此决定要不要做自动对焦的探测 */
+  get dofActive(): boolean {
+    return !!this.dof && this.dofWant > 0 && this.dofAllow
+  }
+
   /** 真实景深：最大弥散圆半径（像素，按 900 高计；0 关）。只在「衡」「高」有效 */
   setDof(maxR: number): void {
     this.dofWant = maxR
