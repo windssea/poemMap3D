@@ -113,6 +113,9 @@ export async function bootstrap(container: HTMLElement): Promise<AppServices> {
     }
     window.addEventListener('pointerdown', wake)
   }
+  // 上次选的焦段、景深（焦段启动时一步到位，不做推拉）
+  engine.setLens(store.get().lens, true)
+  engine.setDof(store.get().dof)
   store.set({ quality: engine.quality.quality, loading: { ready: true, label: '', progress: 1, error: null } })
   if (store.get().debug.chunks) engine.setChunkDebug(true)
   res.lazy('font-poems')

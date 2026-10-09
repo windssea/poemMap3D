@@ -8,8 +8,18 @@ import { FlightController, type FlightOptions } from './FlightController'
 import { FocusController } from './FocusController'
 import { type OrbitBounds, OrbitController } from './OrbitController'
 
-/** 三级视角阈值（镜头距离，方块），带回差不抖 */
+/** 三级视角阈值（取景距离，方块），带回差不抖 */
 const LEVELS = { nationalIn: 1300, nationalOut: 1150, localIn: 240, localOut: 285 }
+
+/** 标准镜头的竖直视场角（约合全画幅 31mm）；名胜机位、视角预设都按它构图 */
+export const BASE_FOV = 42
+
+/**
+ * 焦段：竖直视场角（全画幅 24mm 高的底片上折算）。换焦段时镜头同时前后移，让注视点处的画面一样大——
+ * 变的只是透视：长焦把远近山水压在一起，广角把近景拉开、纵深夸张。
+ */
+export const LENSES = { wide: 53.1, standard: BASE_FOV, human: 27, tele: 16.1 } as const
+export type Lens = keyof typeof LENSES
 
 /**
  * 镜头控制：姿态平滑、环绕、飞行、聚焦、避山与三级视角。
@@ -31,6 +41,17 @@ export class CameraController {
   private resolved: CameraPose
   /** 聚焦名楼后保持注视点高度（看楼身而不是楼脚）；用户一平移就恢复贴地 */
   private holdY = false
+  /** 当前焦段（竖直视场角，竖屏另加宽）：lensFov 平滑追 lensWant，换焦段是一段推拉变焦而不是一跳 */
+  private lensWant: number = BASE_FOV
+  private lensFov: number = BASE_FOV
+  /**
+   * 取景距离 → 真实镜头距离的倍数：tan(标准半视场) / tan(当前半视场)。
+   * pose.distance 一律是「取景距离」（同一画面在标准镜头下的距离）——三级视角、区块半径、地名疏密、平移速度、
+   * 名胜机位都按它算，换焦段不变；只有摆相机、雾、裁剪面、地名深度用真实距离（eyeDistance）。
+   */
+  lensScale = 1
+  /** 避山后真实镜头所在的姿态（distance 为真实距离） */
+  private resolvedEye: CameraPose
 
   constructor(
     private readonly sampler: WorldSampler,
@@ -41,21 +62,45 @@ export class CameraController {
     this.pose = clonePose(initial)
     this.goal = clonePose(initial)
     this.resolved = clonePose(initial)
+    this.resolvedEye = clonePose(initial)
     this.orbit = new OrbitController(this.goal, bounds)
     this.collision = new CollisionResolver(sampler)
     this.flight = new FlightController(this.collision)
     this.presets = new CameraPresetRepository(sampler)
   }
 
-  /** 竖屏加宽视场角：宽高比 0.8 以下由 42° 渐变到 0.5 时的 62°（竖屏 42° 的水平视角只剩二十来度，像长焦） */
-  private fovFor(aspect: number): number {
-    return aspect >= 0.8 ? this.baseFov : this.baseFov + 20 * Math.min(1, (0.8 - aspect) / 0.3)
+  /** 竖屏加宽视场角：宽高比 0.8 以下渐变到 0.5 时加宽约一半（标准镜头 42°→62°；竖屏 42° 的水平视角只剩二十来度，像长焦） */
+  private fovFor(aspect: number, base = this.lensFov): number {
+    return aspect >= 0.8 ? base : base + 20 * (base / BASE_FOV) * Math.min(1, (0.8 - aspect) / 0.3)
+  }
+
+  /** 按当前焦段与宽高比定视场角与取景倍数 */
+  private applyLens(): void {
+    if (this.fixed) return
+    const a = this.camera.aspect
+    this.camera.fov = this.fovFor(a)
+    this.lensScale = Math.tan((this.fovFor(a, BASE_FOV) * Math.PI) / 360) / Math.tan((this.camera.fov * Math.PI) / 360)
+    this.camera.updateProjectionMatrix()
   }
 
   setAspect(aspect: number): void {
     this.camera.aspect = aspect
-    if (!this.fixed) this.camera.fov = this.fovFor(aspect)
-    this.camera.updateProjectionMatrix()
+    if (this.fixed) this.camera.updateProjectionMatrix()
+    else this.applyLens()
+  }
+
+  /** 换焦段（竖直视场角）；instant 为真时一步到位（启动时） */
+  setLens(fov: number, instant = false): void {
+    this.lensWant = fov
+    if (instant) {
+      this.lensFov = fov
+      this.applyLens()
+    }
+  }
+
+  /** 真实镜头到注视点的距离（取景距离 × 焦段倍数） */
+  get eyeDistance(): number {
+    return this.resolvedEye.distance
   }
 
   /** 用户开始操作：打断飞行与环绕 */
@@ -119,7 +164,7 @@ export class CameraController {
 
   /** 固定机位：直接给眼点、注视点与视场角，绕过平滑、飞行与避山（地面人视校准、验收截图用） */
   private fixed: { eye: THREE.Vector3; look: THREE.Vector3; fov: number } | null = null
-  private readonly baseFov = 42
+  private readonly baseFov = BASE_FOV
 
   setFixed(eye: THREE.Vector3, look: THREE.Vector3, fov = this.baseFov): void {
     this.flight.cancel()
@@ -131,8 +176,7 @@ export class CameraController {
   clearFixed(): void {
     if (!this.fixed) return
     this.fixed = null
-    this.camera.fov = this.fovFor(this.camera.aspect)
-    this.camera.updateProjectionMatrix()
+    this.applyLens()
     this.collision.reset()
   }
 
@@ -162,6 +206,7 @@ export class CameraController {
       Object.assign(this.goal, { yaw: p.yaw, pitch: p.pitch, distance: d })
       this.goal.target.copy(look)
       this.resolved = clonePose(p)
+      this.resolvedEye = this.resolved
       if (this.camera.fov !== fov) {
         this.camera.fov = fov
         this.camera.updateProjectionMatrix()
@@ -189,23 +234,33 @@ export class CameraController {
       const cap = 0.04 * Math.max(1, dt * 60)
       this.pose.distance = Math.exp(Math.log(this.pose.distance) + Math.max(-cap, Math.min(cap, step)))
     }
-    this.resolved = this.collision.resolve(this.pose, dt)
+    /* 焦段推拉：视场角每帧追一点（约半秒到位），取景距离不变、真实距离随之变——推拉变焦 */
+    if (Math.abs(this.lensWant - this.lensFov) > 0.01) {
+      this.lensFov += (this.lensWant - this.lensFov) * (1 - Math.exp(-dt * 6))
+      if (Math.abs(this.lensWant - this.lensFov) < 0.02) this.lensFov = this.lensWant
+      this.applyLens()
+    }
+    // 避山按真实镜头位置算；给其余系统的姿态换回取景距离
+    const k = this.lensScale
+    this.resolvedEye = this.collision.resolve({ target: this.pose.target, yaw: this.pose.yaw, pitch: this.pose.pitch, distance: this.pose.distance * k }, dt)
+    this.resolved = { ...this.resolvedEye, distance: this.resolvedEye.distance / k }
     this.applyResolved()
   }
 
   /** 把解算后的姿态写到相机：位置、裁剪面、朝向与三级视角 */
   private applyResolved(): void {
-    const pos = poseToPosition(this.resolved, this.camera.position)
-    /* 远近裁剪随距离缓变；远裁剪面贴着雾的尽头，雾外的覆盖图块直接被视锥剔除 */
-    const near = Math.max(0.3, this.resolved.distance * 0.004)
-    const far = Math.max(1500, this.resolved.distance * 3.6 + 1200)
+    const eye = this.resolvedEye
+    const pos = poseToPosition(eye, this.camera.position)
+    /* 远近裁剪随（真实）距离缓变；远裁剪面贴着雾的尽头，雾外的覆盖图块直接被视锥剔除 */
+    const near = Math.max(0.3, eye.distance * 0.004)
+    const far = Math.max(1500, eye.distance * 3.6 + 1200)
     if (Math.abs(near - this.camera.near) > near * 0.05 || Math.abs(far - this.camera.far) > far * 0.05) {
       this.camera.near = near
       this.camera.far = far
       this.camera.updateProjectionMatrix()
     }
     this.camera.position.copy(pos)
-    this.camera.lookAt(this.resolved.target)
+    this.camera.lookAt(eye.target)
     this.updateViewDir()
     this.updateLevel()
   }

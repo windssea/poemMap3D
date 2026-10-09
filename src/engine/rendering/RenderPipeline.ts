@@ -2,9 +2,9 @@ import * as THREE from 'three'
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js'
 import { GTAOPass } from 'three/examples/jsm/postprocessing/GTAOPass.js'
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
-import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js'
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js'
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js'
+import { DepthOfFieldPass, SceneRenderPass } from './DepthOfFieldPass'
 import type { Quality } from './QualityManager'
 
 /**
@@ -60,6 +60,54 @@ const GradeShader = {
 }
 
 /**
+ * 移轴（微缩）：画面中间一条横带清楚，往上往下渐渐虚化——方块山河像一盘微缩模型。
+ * 横、竖两遍可分离的高斯模糊（各 13 次取样），半径随离中线的远近加大；竖的一遍顺手提一点饱和度（微缩模型的色彩感）。
+ * 镜头总是看着注视点，主景就在画面中线上，清楚带固定在中间即可。uAmount 0–1 渐变开关。
+ */
+const TiltShiftShader = {
+  uniforms: {
+    tDiffuse: { value: null },
+    uDir: { value: new THREE.Vector2(1, 0) },
+    uAmount: { value: 0 },
+    uMaxR: { value: 9 },
+    uSat: { value: 0 },
+  },
+  vertexShader: /* glsl */ `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }`,
+  fragmentShader: /* glsl */ `
+    uniform sampler2D tDiffuse;
+    uniform vec2 uDir;
+    uniform float uAmount;
+    uniform float uMaxR;
+    uniform float uSat;
+    varying vec2 vUv;
+    void main() {
+      // 中线上下各一成清楚，再往外三成半里渐虚到最大半径
+      float t = smoothstep(0.1, 0.45, abs(vUv.y - 0.5)) * uAmount;
+      float r = t * uMaxR;
+      vec4 c = texture2D(tDiffuse, vUv);
+      if (r > 0.35) {
+        vec4 acc = vec4(0.0);
+        float ws = 0.0;
+        for (int i = -6; i <= 6; i++) {
+          float x = float(i) / 6.0;
+          float w = exp(-x * x * 2.0);
+          acc += texture2D(tDiffuse, vUv + uDir * x * r) * w;
+          ws += w;
+        }
+        c = acc / ws;
+      }
+      float l = dot(c.rgb, vec3(0.299, 0.587, 0.114));
+      c.rgb = mix(vec3(l), c.rgb, 1.0 + uSat * uAmount);
+      gl_FragColor = c;
+    }`,
+}
+
+/**
  * 渲染流水线：
  *  - 「轻」：单次前向渲染；
  *  - 「衡」：+ 泛光 + 调色；
@@ -71,6 +119,18 @@ export class RenderPipeline {
   private bloom: UnrealBloomPass | null = null
   private ao: GTAOPass | null = null
   private grade: ShaderPass | null = null
+  private tiltH: ShaderPass | null = null
+  private tiltV: ShaderPass | null = null
+  /** 移轴：想要的强度（0 / 1）与当前强度（每帧追一点，渐变开关） */
+  private tiltWant = 0
+  private tiltAmount = 0
+  /** 真实景深：想要的最大弥散圆（0 关）、当前值（渐变）；全国视角等不宜虚化时 allow 为假 */
+  private dof: DepthOfFieldPass | null = null
+  private dofWant = 0
+  private dofR = 0
+  private dofAllow = true
+  /** 焦段倍数：画面大小不变时，弥散圆约与焦距成正比——长焦背景更虚、广角景深更深 */
+  private dofLens = 1
   private quality: Quality = 'low'
   private night = -1
   private warm = -1
@@ -95,10 +155,13 @@ export class RenderPipeline {
     // 离屏缓冲显式开 4× 多重采样：渲染器的 antialias 只管直接画到屏幕（「轻」），
     // EffectComposer 默认的离屏目标不带采样，「衡」「高」此前完全没有抗锯齿——瓦脊、栏杆、窗棂边缘一动就闪
     const target = new THREE.WebGLRenderTarget(Math.max(1, size.x * this.renderer.getPixelRatio()), Math.max(1, size.y * this.renderer.getPixelRatio()), { type: THREE.HalfFloatType, samples: MSAA_SAMPLES })
+    // 深度贴图：景深从这里读场景深度（多重采样缓冲渲完会把深度一并解析到这张贴图）
+    target.depthTexture = new THREE.DepthTexture(target.width, target.height, THREE.UnsignedIntType)
     const composer = new EffectComposer(this.renderer, target)
     composer.setPixelRatio(this.renderer.getPixelRatio())
     composer.setSize(size.x, size.y)
-    composer.addPass(new RenderPass(this.scene, this.camera))
+    const scenePass = new SceneRenderPass(this.scene, this.camera)
+    composer.addPass(scenePass)
     if (q === 'high') {
       const ao = new GTAOPass(this.scene, this.camera, size.x, size.y)
       ao.output = GTAOPass.OUTPUT.Default
@@ -109,6 +172,18 @@ export class RenderPipeline {
       composer.addPass(ao)
       this.ao = ao
     }
+    this.tiltH = new ShaderPass(TiltShiftShader)
+    this.tiltV = new ShaderPass(TiltShiftShader)
+    ;(this.tiltV.uniforms.uSat as { value: number }).value = 0.14
+    composer.addPass(this.tiltH)
+    composer.addPass(this.tiltV)
+    this.sizeTilt(size.x, size.y)
+    this.tiltAmount = 0
+    this.applyTilt()
+    this.dof = new DepthOfFieldPass(this.camera as THREE.PerspectiveCamera, scenePass)
+    composer.addPass(this.dof)
+    this.dofR = 0
+    this.dof.enabled = false
     this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x / 2, size.y / 2), 0.1, 0.5, 1.3)
     composer.addPass(this.bloom)
     composer.addPass(new OutputPass())
@@ -128,6 +203,52 @@ export class RenderPipeline {
     if (!this.composer) return
     this.composer.setPixelRatio(this.renderer.getPixelRatio())
     this.composer.setSize(w, h)
+    this.sizeTilt(w, h)
+  }
+
+  /** 真实景深：最大弥散圆半径（像素，按 900 高计；0 关）。只在「衡」「高」有效 */
+  setDof(maxR: number): void {
+    this.dofWant = maxR
+  }
+
+  /**
+   * 每帧：对焦距离（镜头到注视点的真实距离）；allow 为假时景深渐隐（全国视角整片地图都在一个面上，虚化没有意义）；
+   * lensScale 为焦段倍数（标准 1、长焦约 2.7、广角约 0.77），按它放大或收小虚化（限 0.75–2 倍）
+   */
+  setFocus(distance: number, allow: boolean, lensScale = 1): void {
+    if (this.dof) this.dof.focus = distance
+    this.dofAllow = allow
+    this.dofLens = Math.min(2, Math.max(0.75, lensScale))
+  }
+
+  /** 移轴开关（只在「衡」「高」有效，「轻」没有后期流水线） */
+  setTiltShift(on: boolean): void {
+    this.tiltWant = on ? 1 : 0
+  }
+
+  /** 取样步长按像素算；最大模糊半径随画面高度（900 高时约 9 像素） */
+  private sizeTilt(w: number, h: number): void {
+    const pr = this.renderer.getPixelRatio()
+    const W = Math.max(1, w * pr)
+    const H = Math.max(1, h * pr)
+    const r = 9 * (H / 900)
+    if (this.tiltH) {
+      ;(this.tiltH.uniforms.uDir as { value: THREE.Vector2 }).value.set(1 / W, 0)
+      ;(this.tiltH.uniforms.uMaxR as { value: number }).value = r
+    }
+    if (this.tiltV) {
+      ;(this.tiltV.uniforms.uDir as { value: THREE.Vector2 }).value.set(0, 1 / H)
+      ;(this.tiltV.uniforms.uMaxR as { value: number }).value = r
+    }
+  }
+
+  private applyTilt(): void {
+    for (const p of [this.tiltH, this.tiltV]) {
+      if (!p) continue
+      ;(p.uniforms.uAmount as { value: number }).value = this.tiltAmount
+      // 完全关掉时整遍跳过，不花一点开销
+      p.enabled = this.tiltAmount > 0.003
+    }
   }
 
   /**
@@ -183,6 +304,21 @@ export class RenderPipeline {
   }
 
   render(): void {
+    if (this.tiltAmount !== this.tiltWant) {
+      this.tiltAmount += (this.tiltWant - this.tiltAmount) * 0.08
+      if (Math.abs(this.tiltWant - this.tiltAmount) < 0.004) this.tiltAmount = this.tiltWant
+      this.applyTilt()
+    }
+    if (this.dof) {
+      const want = this.dofAllow ? this.dofWant : 0
+      if (this.dofR !== want) {
+        this.dofR += (want - this.dofR) * 0.08
+        if (Math.abs(want - this.dofR) < 0.05) this.dofR = want
+      }
+      this.dof.maxR = this.dofR * this.dofLens
+      // 完全关掉时整遍跳过
+      this.dof.enabled = this.dofR > 0.05
+    }
     if (this.composer) this.composer.render()
     else this.renderer.render(this.scene, this.camera)
   }
@@ -196,10 +332,16 @@ export class RenderPipeline {
   dispose(): void {
     // composer.dispose 只释放它的两张读写缓冲，各个 pass 自己的资源要逐个释放
     for (const p of this.composer?.passes ?? []) p.dispose()
+    // 两张读写缓冲各带一张深度贴图（复制出来的那张也是），缓冲释放时不会连带释放
+    this.composer?.renderTarget1.depthTexture?.dispose()
+    this.composer?.renderTarget2.depthTexture?.dispose()
     this.composer?.dispose()
     this.composer = null
     this.bloom = null
     this.ao = null
     this.grade = null
+    this.tiltH = null
+    this.tiltV = null
+    this.dof = null
   }
 }

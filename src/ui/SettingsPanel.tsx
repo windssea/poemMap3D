@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import type { TourSettings } from '../app/AppStore'
 import { useApp } from '../app/AppStore'
+import type { Lens } from '../engine/camera/CameraController'
 import { buildLabel } from '../app/buildInfo'
 import { MUSIC_MODES, NATURE_MODES, SOUND_NAMES, type SoundMode } from '../app/AmbientSound'
 import { QUALITY_PRESETS, type Quality, VIEW_RANGES, type ViewRange } from '../engine/rendering/QualityManager'
@@ -10,6 +11,14 @@ const QUALITIES: { q: Quality; sub: string; tip: string }[] = [
   { q: 'low', sub: '省电', tip: '无阴影，适合低配与手机' },
   { q: 'mid', sub: '标准', tip: '两级阴影、泛光与调色' },
   { q: 'high', sub: '精细', tip: '三级阴影、屏幕空间环境光' },
+]
+
+/** 焦段：名字 + 等效焦距（全画幅） */
+const LENS_OPTIONS: { lens: Lens; name: string; mm: string; tip: string }[] = [
+  { lens: 'wide', name: '广角', mm: '24', tip: '近景拉开、纵深夸张，适合楼阁城郭' },
+  { lens: 'standard', name: '标准', mm: '31', tip: '默认视角' },
+  { lens: 'human', name: '人文', mm: '50', tip: '接近人眼，透视平和' },
+  { lens: 'tele', name: '长焦', mm: '85', tip: '远近山水压在一起，层峦叠嶂' },
 ]
 
 const TOUR_OPTIONS: { key: keyof TourSettings; label: string; values: [TourSettings[keyof TourSettings], string][] }[] = [
@@ -46,6 +55,8 @@ export function SettingsPanel({ onImmerse }: { onImmerse: () => void }) {
   const quality = useApp((s) => s.quality)
   const view = useApp((s) => s.viewRange)
   const autoCam = useApp((s) => s.autoCamera)
+  const lens = useApp((s) => s.lens)
+  const dof = useApp((s) => s.dof)
   const sound = useApp((s) => s.sound)
   const tourSettings = useApp((s) => s.tourState.settings)
   const idleFade = useApp((s) => s.ui.idleFade)
@@ -84,6 +95,29 @@ export function SettingsPanel({ onImmerse }: { onImmerse: () => void }) {
         </section>
         <section>
           <h4>镜头</h4>
+          <Row k="焦段">
+            {LENS_OPTIONS.map((o) => (
+              <Chip key={o.lens} on={o.lens === lens} title={o.tip} onClick={() => facade.setLens(o.lens)}>
+                {o.name}
+                <small>{o.mm}</small>
+              </Chip>
+            ))}
+          </Row>
+          <Row k="景深">
+            <Chip on={dof === 'off'} onClick={() => facade.setDof('off')}>
+              关
+            </Chip>
+            <Chip on={dof === 'shallow'} title="对焦在注视处，前后景略虚" onClick={() => facade.setDof('shallow')}>
+              浅<small>f/4</small>
+            </Chip>
+            <Chip on={dof === 'deep'} title="对焦在注视处，前后景大片虚化" onClick={() => facade.setDof('deep')}>
+              极浅<small>f/1.8</small>
+            </Chip>
+            <Chip on={dof === 'mini'} title="画面上下渐虚，山河像一盘微缩模型（移轴）" onClick={() => facade.setDof('mini')}>
+              微缩<small>移轴</small>
+            </Chip>
+          </Row>
+          {dof !== 'off' && quality === 'low' && <p className="set-note">景深需「衡」或「高」画质才看得到。</p>}
           <Row k="点地名时自动移动镜头">
             <Chip on={autoCam} onClick={() => store.set({ autoCamera: true })}>
               开

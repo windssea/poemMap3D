@@ -88,7 +88,8 @@ export class EnvironmentManager {
     this.weather.set(w, instant)
   }
 
-  update(dt: number, elapsed: number, camera: THREE.PerspectiveCamera, focus: THREE.Vector3, distance: number, pixelRatio: number): void {
+  /** distance：取景距离（雨雪箱、云、阴影范围按它）；eyeDistance：真实镜头距离（雾、山岚按它，长焦退远了不至于雾蒙蒙） */
+  update(dt: number, elapsed: number, camera: THREE.PerspectiveCamera, focus: THREE.Vector3, distance: number, pixelRatio: number, eyeDistance = distance): void {
     this.time.update(dt)
     this.season.update(dt)
     this.weather.update(dt, this.season.cur.snow)
@@ -134,7 +135,7 @@ export class EnvironmentManager {
     u.uMist.value += (mistWant - u.uMist.value) * Math.min(1, dt * 1.5)
     u.uMistY.value += (focus.y + 3 - u.uMistY.value) * Math.min(1, dt * 2)
     // 雾天山岚从更近处起（注视点之后不远就一层层白下去）
-    u.uMistNear.value = distance * (1 - 0.6 * this.weather.mist)
+    u.uMistNear.value = eyeDistance * (1 - 0.6 * this.weather.mist)
     u.uWet.value = this.weather.rain
     /* 冬：画面偏冷、略褪色；阔叶落尽，水面结冰 */
     const winter = S.snow
@@ -199,7 +200,7 @@ export class EnvironmentManager {
     if (L.night < 0.15) fogCol.lerp(mid, 0.3)
     // 雾天：雾色向乳白灰靠（夜里压暗，不发亮）
     fogCol.lerp(this.mistSky, mistK * 0.7 * (1 - 0.7 * L.night))
-    this.fog.update(distance, fogCol, W.fog, !tw || tw.fog, mistK)
+    this.fog.update(eyeDistance, fogCol, W.fog, !tw || tw.fog, mistK)
     // 下雪就是雪：南方不再按气候掺成雨夹雪
     this.precipitation.update(elapsed, focus, distance, this.weather.rain, this.weather.snow, pixelRatio)
     this.particles.update(elapsed, focus, distance, this.season.key, wet, pixelRatio)

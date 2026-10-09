@@ -189,9 +189,12 @@ export class WorldManager {
     const lead = this.vel.clone().multiplyScalar(0.8)
     const maxLead = r * 16 * 0.6
     if (lead.length() > maxLead) lead.setLength(maxLead)
-    /* 细节圈的中心从注视点往镜头方向挪三成：画面下方（离镜头最近处）才是最该精细的地方 */
-    const cx = focus.x + (camera.position.x - focus.x) * 0.3
-    const cz = focus.z + (camera.position.z - focus.z) * 0.3
+    /* 细节圈的中心从注视点往镜头方向挪三成：画面下方（离镜头最近处）才是最该精细的地方。
+       按取景距离挪：长焦时镜头退得远，照真实距离挪会把细节圈挪离主景 */
+    const eye = camera.position.distanceTo(focus)
+    const toward = 0.3 * Math.min(1, distance / Math.max(1, eye))
+    const cx = focus.x + (camera.position.x - focus.x) * toward
+    const cz = focus.z + (camera.position.z - focus.z) * toward
     const back = Math.hypot(cx - focus.x, cz - focus.z)
     const k = back > r * 16 * 0.5 ? (r * 16 * 0.5) / back : 1
     this.chunks.setFocus(focus.x + (cx - focus.x) * k + lead.x, focus.z + (cz - focus.z) * k + lead.y, r, Math.round(r * this.quality.farFactor), this.quality.coarseRadius, camera)

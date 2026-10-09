@@ -3,7 +3,7 @@ import * as THREE from 'three'
 import { AmbientBaker } from '../rendering/AmbientBaker'
 import type { PlaceAnchor } from '../../world/landmark/LandmarkDefinition'
 import { WorldManager } from '../../world/WorldManager'
-import { CameraController } from '../camera/CameraController'
+import { CameraController, LENSES, type Lens } from '../camera/CameraController'
 import { type CameraLevel, type CameraPose, poseToPosition } from '../camera/CameraPose'
 import type { FlightOptions } from '../camera/FlightController'
 import { NightLanterns } from '../effects/NightLanterns'
@@ -264,9 +264,11 @@ export class Engine {
     this.camera.update(dt)
     const cam = this.camera.camera
     const pose = this.camera.effective
+    // 景深自动对焦在注视点；全国视角不虚化
+    this.pipeline.setFocus(this.camera.eyeDistance, this.camera.level !== 'national', this.camera.lensScale)
     this.world.update(dt, cam, pose.target, pose.distance, this.camera.destination)
     this.applyDebugWorld()
-    this.env.update(dt, time, cam, pose.target, pose.distance, this.renderer.renderer.getPixelRatio())
+    this.env.update(dt, time, cam, pose.target, pose.distance, this.renderer.renderer.getPixelRatio(), this.camera.eyeDistance)
     this.trail.update(time)
     this.lanterns.update(dt, time, pose.target, pose.distance, this.shared.uNight.value)
     // 晨暮（太阳低）调色更暖
@@ -297,7 +299,7 @@ export class Engine {
     }
     this.chunkDebug?.update(this.world.chunks)
     this.updateReflection(pose.target, pose.distance)
-    this.events.emit('frame', { dt, time, frame: this.loop.frame, camera: cam, focus: pose.target, distance: pose.distance })
+    this.events.emit('frame', { dt, time, frame: this.loop.frame, camera: cam, focus: pose.target, distance: pose.distance, eyeDistance: this.camera.eyeDistance })
   }
 
   /* ================= 对外能力（由 EngineFacade 调用） ================= */
@@ -355,6 +357,20 @@ export class Engine {
   /** 渲染视距：近景 / 远景 / 远景片的半径与缓存一起放大（见 VIEW_RANGES） */
   setViewRange(v: ViewRange): void {
     this.quality.setViewRange(v)
+  }
+
+  /** 换焦段：镜头推拉变焦到新视场角，主景大小不变；instant 为真时一步到位（启动时） */
+  setLens(lens: Lens, instant = false): void {
+    this.camera.setLens(LENSES[lens], instant)
+  }
+
+  /**
+   * 景深：关 / 微缩（移轴）/ 浅（约 f/4）/ 极浅（约 f/1.8）。后两档是真实景深，对焦在注视点，
+   * 最大弥散圆按 900 像素高计 6、12 像素。「轻」画质没有后期流水线，都不生效。
+   */
+  setDof(mode: 'off' | 'mini' | 'shallow' | 'deep'): void {
+    this.pipeline.setTiltShift(mode === 'mini')
+    this.pipeline.setDof(mode === 'shallow' ? 6 : mode === 'deep' ? 12 : 0)
   }
   setThemeFog(k: number): void {
     this.env.fog.extra = k
@@ -499,7 +515,8 @@ export class Engine {
       const wpp = (2 * dist * Math.tan((cam.fov * Math.PI) / 360)) / H
       tgt.addScaledVector(right, -dx * wpp).addScaledVector(fwd, (-dy * wpp) / Math.sin(pitch) * 0.9)
     }
-    return { target: tgt, yaw, pitch, distance: dist }
+    // 上面按真实镜头量的距离，换回取景距离（换焦段时镜头会再乘回去）
+    return { target: tgt, yaw, pitch, distance: dist / this.camera.lensScale }
   }
 
   isFlying(): boolean {

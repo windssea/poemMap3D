@@ -1,11 +1,15 @@
 import { useSyncExternalStore } from 'react'
 import { SOUND_MODES, type SoundMode } from './AmbientSound'
+import type { Lens } from '../engine/camera/CameraController'
 import type { CameraLevel } from '../engine/camera/CameraPose'
 import type { Season, TimeOfDay, Weather } from '../engine/environment/types'
 import { pickQuality, type Quality, type ViewRange } from '../engine/rendering/QualityManager'
 import type { TrailPhase } from '../features/poetTrail/TrailDirector'
 
 export type PanelState = 'none' | 'place' | 'poem'
+
+/** 景深：关、微缩（移轴）、浅（约 f/4）、极浅（约 f/1.8）——后两档是对焦在注视点的真实景深 */
+export type Dof = 'off' | 'mini' | 'shallow' | 'deep'
 
 /** 同一时刻只开一张：寻诗（手机）、意境（手机）、设置 */
 export type Sheet = 'search' | 'ambience' | 'settings'
@@ -68,6 +72,10 @@ export interface AppState {
   touchTap: TouchTap | null
   /** 点地标时镜头自动取景 */
   autoCamera: boolean
+  /** 焦段 */
+  lens: Lens
+  /** 景深 */
+  dof: Dof
   /** 背景音 */
   sound: SoundMode
   debug: { chunks: boolean; terrain: boolean }
@@ -118,6 +126,8 @@ function initial(): AppState {
     ui: { hidden: false, sheet: null, idleFade: read<string>('shidle', (v) => v === '0' || v === '1', '1') === '1' },
     touchTap: null,
     autoCamera: read<string>('shac', (v) => v === '0' || v === '1', '0') === '1',
+    lens: read<Lens>('shln', (v) => ['wide', 'standard', 'human', 'tele'].includes(v), 'standard'),
+    dof: read<Dof>('shdf', (v) => ['off', 'mini', 'shallow', 'deep'].includes(v), 'off'),
     sound: read<SoundMode>('shsd', (v) => (SOUND_MODES as readonly string[]).includes(v), 'off'),
     debug: { chunks: params.has('debug'), terrain: params.has('debug') },
   }
@@ -155,6 +165,8 @@ export class AppStore {
       if (p.quality) localStorage.setItem('shq', p.quality)
       if (p.viewRange !== undefined) localStorage.setItem('shv', String(p.viewRange))
       if (p.autoCamera !== undefined) localStorage.setItem('shac', p.autoCamera ? '1' : '0')
+      if (p.lens) localStorage.setItem('shln', p.lens)
+      if (p.dof) localStorage.setItem('shdf', p.dof)
       if (p.sound) localStorage.setItem('shsd', p.sound)
       if (p.ui) localStorage.setItem('shidle', p.ui.idleFade ? '1' : '0')
     } catch {

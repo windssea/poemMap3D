@@ -10,8 +10,10 @@ export interface FrameContext {
   camera: THREE.PerspectiveCamera
   /** 镜头焦点（世界渲染坐标） */
   focus: THREE.Vector3
-  /** 镜头到焦点的距离 */
+  /** 镜头到焦点的取景距离（同一画面在标准镜头下的距离；三级视角、区块、疏密按它） */
   distance: number
+  /** 真实镜头到焦点的距离（取景距离 × 焦段倍数；深度、雾按它） */
+  eyeDistance: number
 }
 
 /** 可被渲染循环驱动的系统 */

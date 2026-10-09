@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import type * as THREE from 'three'
 import { useApp } from '../app/AppStore'
+import { outOfFocus } from './labelFocus'
 import { labelHits } from './labelHits'
 import { useServices } from './ServicesContext'
 
@@ -35,9 +36,11 @@ export function LabelLayer() {
   const selected = useApp((s) => s.selectedPlaceId)
   const level = useApp((s) => s.cameraLevel)
   const tourActive = useApp((s) => s.tourState.active)
+  const dof = useApp((s) => s.dof)
+  const quality = useApp((s) => s.quality)
   const refs = useRef(new Map<string, HTMLDivElement>())
-  const state = useRef({ selected, level, tourActive })
-  state.current = { selected, level, tourActive }
+  const state = useRef({ selected, level, tourActive, dof, quality })
+  state.current = { selected, level, tourActive, dof, quality }
 
   const items = useMemo<LabelItem[]>(() => {
     const out: LabelItem[] = aggregator.all().map((s) => ({
@@ -95,7 +98,7 @@ export function LabelLayer() {
           .filter((e) => parseFloat(getComputedStyle(e).opacity) > 0.05)
           .map((e) => e.getBoundingClientRect())
           .filter((r) => r.width > 0 && r.width < innerWidth * 0.9)
-      const { selected: sel, level: lv } = state.current
+      const { selected: sel, level: lv, dof: dofMode, quality: q } = state.current
       const placed: { x0: number; y0: number; x1: number; y1: number }[] = []
       labelHits.length = 0
       let shown = 0
@@ -112,8 +115,12 @@ export function LabelLayer() {
         if (allow && facade.project(it.anchor, pos)) {
           // 太远的不显示：近看只留镜头附近的，区域视角也收一收；被遮挡的不显示
           // 近看：只留镜头附近的；区域视角：也只留较近的——走近了再显示
-          const farLimit = lv === 'local' ? Math.max(110, f.distance * 1.35) : lv === 'regional' ? Math.max(420, f.distance * 1.45) : Infinity
-          const tooFar = it.kind === 'place' && !isSel && (pos.depth > farLimit || (lv !== 'national' && occluded.get(it.key) === true))
+          // 屏幕深度是真实镜头距离：按真实距离比（长焦退远了，主景附近的签不至于被当成太远）
+          const ed = f.eyeDistance
+          const farLimit = lv === 'local' ? Math.max(110, ed * 1.35) : lv === 'regional' ? Math.max(420, ed * 1.45) : Infinity
+          // 景深之外（画面那一块已经虚了）的地名也藏起来；选中的照常显示
+          const blurred = it.kind === 'place' && !isSel && outOfFocus(dofMode, q, lv, pos.depth, pos.y, innerHeight, ed, f.distance)
+          const tooFar = it.kind === 'place' && !isSel && (blurred || pos.depth > farLimit || (lv !== 'national' && occluded.get(it.key) === true))
           const h = it.name.length * 16 + 34
           const w = 34
           const r = { x0: pos.x - w / 2, y0: pos.y - h, x1: pos.x + w / 2, y1: pos.y + 4 }

@@ -1,3 +1,4 @@
+import type { Lens } from '../engine/camera/CameraController'
 import type { FlightOptions } from '../engine/camera/FlightController'
 import type * as THREE from 'three'
 import type { Engine } from '../engine/core/Engine'
@@ -8,7 +9,7 @@ import type { LightingTweaks } from '../engine/rendering/LightingDebug'
 import type { Quality, ViewRange } from '../engine/rendering/QualityManager'
 import type { TrailDirector, TrailPort } from '../features/poetTrail/TrailDirector'
 import type { TourPort, TourService } from '../features/tour/TourService'
-import type { AppStore } from './AppStore'
+import type { AppStore, Dof } from './AppStore'
 
 /**
  * React 操作引擎的唯一接口。
@@ -28,6 +29,10 @@ export interface EngineFacade {
 
   setQuality(level: Quality): void
   setViewRange(v: ViewRange): void
+  /** 焦段（广角 / 标准 / 人文 / 长焦） */
+  setLens(lens: Lens): void
+  /** 景深：关 / 微缩（移轴） */
+  setDof(dof: Dof): void
   setLighting(patch: Partial<LightingTweaks>): void
   resetLighting(): void
   lighting(): LightingTweaks
@@ -155,6 +160,16 @@ export class EngineFacadeImpl implements EngineFacade, TourPort, TrailPort {
   setViewRange(v: ViewRange): void {
     this.engine.setViewRange(v)
     this.store.set({ viewRange: v })
+  }
+
+  setLens(lens: Lens): void {
+    this.engine.setLens(lens)
+    this.store.set({ lens })
+  }
+
+  setDof(dof: Dof): void {
+    this.engine.setDof(dof)
+    this.store.set({ dof })
   }
 
   setLighting(patch: Partial<LightingTweaks>): void {
