@@ -1,7 +1,7 @@
-import type { ReactNode } from 'react'
+import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { type Sheet, useApp } from '../app/AppStore'
 import { SOUND_MODES, SOUND_NAMES, type SoundMode } from '../app/AmbientSound'
-import { AmbienceControls } from './AmbienceControls'
+import { AmbienceControls, AmbiencePickers } from './AmbienceControls'
 import { Icon, type IconName } from './icons'
 import { useServices } from './ServicesContext'
 import { useMobile } from './useMobile'
@@ -52,17 +52,56 @@ export function Dock() {
   return useMobile() ? <MobileDock /> : <DesktopDock />
 }
 
+/** 底栏离开多久收起（毫秒） */
+const DOCK_HIDE_MS = 1200
+/** 鼠标离屏幕底边多近就展开（像素） */
+const DOCK_NEAR = 110
+
+/**
+ * 不用时收成底部一条半透明细横条；鼠标移到底边附近或指到横条就展开，开着弹层时不收。
+ * 触屏（没有悬停）一直展开。
+ */
+function useDockOpen(pinned: boolean): [boolean, () => void] {
+  const hover = typeof matchMedia !== 'undefined' && matchMedia('(hover: hover)').matches
+  const [near, setNear] = useState(true)
+  const timer = useRef(0)
+  useEffect(() => {
+    if (!hover) return
+    const show = () => {
+      clearTimeout(timer.current)
+      setNear(true)
+    }
+    const hideSoon = () => {
+      clearTimeout(timer.current)
+      timer.current = window.setTimeout(() => setNear(false), DOCK_HIDE_MS)
+    }
+    const move = (e: PointerEvent) => (innerHeight - e.clientY < DOCK_NEAR ? show() : hideSoon())
+    const leave = () => hideSoon()
+    hideSoon()
+    addEventListener('pointermove', move, { passive: true })
+    document.addEventListener('pointerleave', leave)
+    return () => {
+      clearTimeout(timer.current)
+      removeEventListener('pointermove', move)
+      document.removeEventListener('pointerleave', leave)
+    }
+  }, [hover])
+  return [!hover || near || pinned, () => setNear(true)]
+}
+
 function DesktopDock() {
   const { facade, store } = useServices()
   const touring = useApp((s) => s.tourState.active)
   const picking = useApp((s) => s.trailState.picking)
   const [sheet, toggleSheet] = useSheet()
   const [soundOn, soundName, toggleSound] = useSoundToggle()
+  const [open, reveal] = useDockOpen(!!sheet)
   return (
-    <div className="chrome dock fade">
-      <div className="panel dbar">
+    <div className={`chrome dock fade ${open ? '' : 'mini'}`}>
+      <button className="dock-handle" aria-label="展开底栏" tabIndex={open ? -1 : 0} onPointerEnter={reveal} onFocus={reveal} onClick={reveal} />
+      <div className="panel dbar" onFocusCapture={reveal}>
         <ViewSwitcher />
-        <AmbienceControls />
+        <AmbiencePickers />
         <div className="dseg tools">
           <Tool row icon={touring ? 'stop' : 'play'} label="漫游" on={touring} title={touring ? '停止漫游' : '开始漫游：自动依次游览各地与诗'} onClick={() => (touring ? facade.stopTour() : facade.startTour())} />
           <Tool row icon="footprints" label="足迹" on={picking} title="诗人一生的足迹" onClick={() => store.set((s) => ({ trailState: { ...s.trailState, picking: !s.trailState.picking } }))} />

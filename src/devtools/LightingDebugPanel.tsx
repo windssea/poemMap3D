@@ -15,10 +15,38 @@ const VIEWS: { id: LightView; label: string }[] = [
   { id: 'final', label: '完整' },
 ]
 
+const OPEN_KEY = 'sh-light-debug'
+
 /**
  * 开发环境的光照对照。每个滑条和开关都写进引擎：灯的强度、阴影开关、雾、顶点 AO 和着色器视图。
+ * 平时收成右上角一个小按钮（开发时不挡画面），点开才展开；开合记在本机。
  */
 export function LightingDebugPanel() {
+  const [open, setOpen] = useState(() => {
+    try {
+      return localStorage.getItem(OPEN_KEY) === '1'
+    } catch {
+      return false
+    }
+  })
+  const toggle = (v: boolean) => {
+    setOpen(v)
+    try {
+      localStorage.setItem(OPEN_KEY, v ? '1' : '0')
+    } catch {
+      /* 无痕模式等 */
+    }
+  }
+  if (!open)
+    return (
+      <button className="chrome light-debug-tog" title="光照调试" onClick={() => toggle(true)}>
+        光
+      </button>
+    )
+  return <LightingDebugBody onClose={() => toggle(false)} />
+}
+
+function LightingDebugBody({ onClose }: { onClose: () => void }) {
   const { facade } = useServices()
   const time = useApp((s) => s.time)
   const [t, setT] = useState<LightingTweaks>(() => facade.lighting())
@@ -30,7 +58,12 @@ export function LightingDebugPanel() {
 
   return (
     <div className="chrome panel light-debug" data-pop>
-      <h3>光照</h3>
+      <h3>
+        光照
+        <button className="light-debug-x" aria-label="收起" onClick={onClose}>
+          ×
+        </button>
+      </h3>
       <div className="row">
         {ISOLATION.map((p) => (
           <button key={p.id} className="chip" onClick={() => apply(p.patch)}>

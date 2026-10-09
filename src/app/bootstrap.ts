@@ -76,6 +76,8 @@ export async function bootstrap(container: HTMLElement): Promise<AppServices> {
   engine.events.on('level', (l) => store.set({ cameraLevel: l }))
   engine.events.on('select', ({ placeId, x, y, touch }) => {
     if (store.get().tourState.active) return
+    // 点在地图空白处（没点到名胜）：当作取消选择，诗目收起（读诗卷时不动）
+    if (!placeId && store.get().panelState === 'place') navigation.selectPlace(null)
     // 手指点画面：手机屏小、拖动前的轻触也算点，直接展开太容易误触——先交给界面出预览小签（点中地名签则直接展开）
     if (touch) {
       store.set((s) => ({ touchTap: { x, y, placeId, n: (s.touchTap?.n ?? 0) + 1 } }))

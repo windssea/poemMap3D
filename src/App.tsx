@@ -38,6 +38,30 @@ export function App() {
     return () => window.removeEventListener('pointerdown', onDown, true)
   }, [services])
 
+  /* 拖地图时底栏淡下去（只认按在画面上的拖动），松手半秒后回来 */
+  useEffect(() => {
+    let t = 0
+    const down = (e: PointerEvent) => {
+      if (!(e.target as Element | null)?.closest?.('canvas')) return
+      clearTimeout(t)
+      t = window.setTimeout(() => document.body.classList.add('dragging'), 180)
+    }
+    const up = () => {
+      clearTimeout(t)
+      t = window.setTimeout(() => document.body.classList.remove('dragging'), 500)
+    }
+    addEventListener('pointerdown', down, true)
+    addEventListener('pointerup', up, true)
+    addEventListener('pointercancel', up, true)
+    return () => {
+      clearTimeout(t)
+      removeEventListener('pointerdown', down, true)
+      removeEventListener('pointerup', up, true)
+      removeEventListener('pointercancel', up, true)
+      document.body.classList.remove('dragging')
+    }
+  }, [])
+
   /* Esc：先收面板，再退出沉浸 */
   useEffect(() => {
     if (!services) return

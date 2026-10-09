@@ -11,8 +11,8 @@ export type PanelState = 'none' | 'place' | 'poem'
 /** 景深：关、微缩（移轴）、浅（约 f/4）、极浅（约 f/1.8）——后两档是对焦在注视点的真实景深 */
 export type Dof = 'off' | 'mini' | 'shallow' | 'deep'
 
-/** 同一时刻只开一张：寻诗（手机）、意境（手机）、设置 */
-export type Sheet = 'search' | 'ambience' | 'settings'
+/** 同一时刻只开一张：寻诗（手机）、意境（手机）、设置；宽屏底栏的时辰、四季、天气小弹层 */
+export type Sheet = 'search' | 'ambience' | 'settings' | 'time' | 'season' | 'weather'
 
 /** 手指点了画面：在哪儿点的、离哪处名胜最近（手机上先出预览小签，再点才展开） */
 export interface TouchTap {

@@ -206,13 +206,22 @@ button {
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
+/* 底栏更轻：单线细边、宣纸略透，与题跋的淡墨一路 */
 .dbar {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   align-items: center;
   row-gap: 2px;
-  padding: 6px 8px;
+  padding: 4px 8px;
+  /* 毛玻璃：与题跋同一路 */
+  background: linear-gradient(160deg, rgb(var(--rgb-paper-light) / 0.5), rgb(var(--rgb-xuanzhi) / 0.34));
+  -webkit-backdrop-filter: blur(5px) saturate(1.08);
+  backdrop-filter: blur(5px) saturate(1.08);
+  border-color: rgb(var(--rgb-paper-light) / 0.6);
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--rgb-zhe) / 0.12),
+    0 12px 30px rgb(var(--rgb-ink-deep) / 0.16);
 }
 .dseg {
   position: relative;
@@ -257,14 +266,27 @@ button {
 .chip:hover {
   background: rgb(var(--rgb-zhusha) / 0.08);
 }
-/* 选中：一方朱印（朱砂底、纸色字） */
+/* 选中：朱字下一道短朱线（不再是整块朱底） */
+.chip {
+  position: relative;
+}
 .chip.on {
+  background: transparent;
+  color: var(--c-zhusha);
+}
+.chip.on::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 3px;
+  width: 14px;
+  height: 2px;
+  border-radius: 1px;
   background: var(--c-zhusha);
-  color: var(--c-paper-light);
-  box-shadow: inset 0 0 0 1px rgb(var(--rgb-paper-light) / 0.25);
+  transform: translateX(-50%);
 }
 .chip.on small {
-  color: rgb(var(--rgb-paper-light) / 0.8);
+  color: rgb(var(--rgb-zhusha) / 0.75);
 }
 .chip small {
   margin-left: 3px;
@@ -911,9 +933,12 @@ body.reading .tabbar {
     0 4px 9px rgb(var(--rgb-mo) / 0.26);
 }
 /* 诗数只在选中、指到时显示，平时地名签更轻 */
+/* 诗数：角标贴在地名右下角（绝对定位），显出来时不把签顶起 */
 .lbl b {
   display: none;
-  margin-top: 5px;
+  position: absolute;
+  left: calc(50% + 7px);
+  bottom: 2px;
   font-weight: 400;
   font-size: 10.5px;
   line-height: 1;
@@ -1476,4 +1501,190 @@ textarea,
 .loading .err-ver {
   text-align: center;
   user-select: text;
+}
+
+/* ———— 地名签（含长江、黄河、长城）：一律书法字，不用纸签——平时半透明，指到、选中时不透明；
+   描一道宣纸色边，压在地面上也看得清；江河、长城用各自的颜色 ———— */
+.lbl span {
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 2px 0;
+  font-family: var(--brush);
+  font-size: 16px;
+  color: var(--c-ink-deep);
+  -webkit-text-stroke: 3.5px rgb(var(--rgb-paper-light) / 0.92);
+  paint-order: stroke fill;
+  text-shadow: 0 1px 4px rgb(var(--rgb-ink-deep) / 0.25);
+}
+.lbl span::before,
+.lbl span::after {
+  display: none;
+}
+.lbl .in {
+  opacity: 0.68;
+  transition: opacity 0.25s;
+}
+.lbl.sel .in,
+.lbl.hov .in,
+.lbl .in:hover {
+  opacity: 1;
+}
+.lbl.sel span {
+  color: var(--c-zhusha);
+}
+.lbl.geo span {
+  font-size: 18px;
+  letter-spacing: 6px;
+}
+.lbl.geo.jiang span {
+  color: var(--c-shiqing);
+}
+.lbl.geo.he span {
+  color: var(--c-zhe);
+}
+.lbl.geo.wall span {
+  color: var(--c-zhusha);
+  font-size: 19px;
+}
+.lbl .dot {
+  width: 6px;
+  height: 6px;
+  box-shadow: 0 0 0 1.5px rgb(var(--rgb-xuanzhi) / 0.85);
+}
+.night .lbl:not(.sel) span {
+  color: var(--c-paper-light);
+  -webkit-text-stroke-color: rgb(var(--rgb-ink-deep) / 0.85);
+}
+
+/* 光照调试：收起时是右上角（沉浸按钮下方）一个小按钮 */
+.light-debug-tog {
+  top: calc(max(16px, env(safe-area-inset-top)) + 48px);
+  right: 18px;
+  z-index: 8;
+  width: 40px;
+  height: 28px;
+  border: 1px dashed rgb(var(--rgb-zhe) / 0.5);
+  border-radius: 3px;
+  background: rgb(var(--rgb-paper-light) / 0.85);
+  font-family: var(--ui);
+  font-size: 12px;
+  color: var(--ink2);
+  cursor: pointer;
+}
+.light-debug h3 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.light-debug-x {
+  border: 0;
+  background: none;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--ink2);
+  cursor: pointer;
+}
+
+/* ———— 宽屏底栏的时辰、四季、天气：收成「时辰 昼」这样的小按钮，点开上方弹出选项 ———— */
+.pickers {
+  gap: 2px;
+}
+.picker {
+  position: relative;
+}
+.pk {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 9px 0 7px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
+  color: var(--ink);
+}
+.pk:hover,
+.pk.open {
+  background: rgb(var(--rgb-zhusha) / 0.08);
+}
+.pk-l {
+  font-size: 11px;
+  color: var(--c-zhe);
+  letter-spacing: 1px;
+}
+.pk b {
+  font-weight: 400;
+  font-size: 15px;
+  color: var(--c-zhusha);
+}
+.pk-pop {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 10px);
+  transform: translateX(-50%);
+  display: flex;
+  gap: 2px;
+  padding: 5px;
+  border-radius: 4px;
+  background: rgb(var(--rgb-paper-light) / 0.97);
+  border: 1px solid rgb(var(--rgb-zhe) / 0.22);
+  box-shadow: 0 10px 26px rgb(var(--rgb-ink-deep) / 0.18);
+  animation: fadeIn 0.15s ease both;
+}
+.pk-pop .chip {
+  min-width: 38px;
+  height: 34px;
+  font-size: 15px;
+}
+
+/* 拖地图时底栏淡下去，松手一会儿回来 */
+body.dragging .dock,
+body.dragging .tabbar {
+  opacity: 0.12;
+  transition: opacity 0.35s ease;
+}
+
+/* ———— 底栏收起：底部一条半透明细横条，鼠标靠近展开 ———— */
+.dbar {
+  transition:
+    opacity 0.3s ease,
+    transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.dock.mini .dbar {
+  opacity: 0;
+  transform: translateY(calc(100% + 20px));
+  pointer-events: none;
+}
+.dock-handle {
+  position: absolute;
+  left: 50%;
+  bottom: -4px;
+  width: 140px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  transform: translateX(-50%);
+  opacity: 0;
+  pointer-events: none;
+  cursor: pointer;
+  transition: opacity 0.3s ease;
+}
+.dock-handle::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 6px;
+  height: 5px;
+  border-radius: 3px;
+  background: rgb(var(--rgb-paper-light) / 0.55);
+  box-shadow:
+    0 0 0 1px rgb(var(--rgb-zhe) / 0.2),
+    0 2px 8px rgb(var(--rgb-ink-deep) / 0.18);
+}
+.dock.mini .dock-handle {
+  opacity: 1;
+  pointer-events: auto;
 }

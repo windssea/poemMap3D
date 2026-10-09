@@ -46,3 +46,11 @@ describe('诗词文本', () => {
     expect([...VARIANTS].filter((c) => text.includes(c))).toEqual([])
   })
 })
+
+describe('文字校订', () => {
+  it('岳阳楼记：其必曰「先天下之忧而忧，后天下之乐而乐」乎', () => {
+    const raw = fs.readFileSync('public/data/poems.json', 'utf8')
+    expect(raw).toContain('后天下之乐而乐」乎')
+    expect(raw).not.toContain('后天下之乐而乐」欤')
+  })
+})

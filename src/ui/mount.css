@@ -1440,3 +1440,522 @@ body.trail-on .hint {
     display: none;
   }
 }
+
+/* ———— 题跋 + 印谱：题在画面留白处（地标另一侧的上方），不加框、不加底；下面一行按朝代排的小印 ———— */
+.ins {
+  position: fixed;
+  z-index: 9;
+  top: max(84px, 11vh);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 18px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.5s ease;
+}
+.ins.on {
+  opacity: 1;
+}
+.ins.on .ins-text,
+.ins.on .ins-pu {
+  pointer-events: auto;
+}
+/* 毛玻璃：题跋整块垫一层模糊的宣纸色玻璃（细边、柔影），地面再花，诗句也清清楚楚 */
+.ins {
+  padding: 22px 22px 16px;
+  border-radius: 6px;
+  background: linear-gradient(160deg, rgb(var(--rgb-paper-light) / 0.2), rgb(var(--rgb-xuanzhi) / 0.08));
+  -webkit-backdrop-filter: blur(5px) saturate(1.08);
+  backdrop-filter: blur(5px) saturate(1.08);
+  border: 1px solid rgb(var(--rgb-paper-light) / 0.55);
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--rgb-zhe) / 0.12),
+    0 18px 40px rgb(var(--rgb-ink-deep) / 0.18);
+}
+.ins.r {
+  right: max(24px, 4vw);
+}
+.ins.l {
+  left: max(24px, 4vw);
+}
+.night .ins {
+  background: linear-gradient(160deg, rgb(var(--rgb-ink-deep) / 0.36), rgb(var(--rgb-ink-deep) / 0.24));
+  border-color: rgb(var(--rgb-paper-light) / 0.14);
+}
+.ins-text {
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: flex-start;
+  gap: 0.55em;
+  border: 0;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  writing-mode: horizontal-tb;
+  font-size: clamp(32px, 3vw, 44px);
+  /* 整块固定高：一列七字；换哪首诗都一样高，下面的印不动 */
+  height: calc(7 * 1.14em);
+  /* 各列从顶上齐头起笔（按钮默认居中，短句会掉下去半截） */
+  text-align: start;
+  /* 占满题跋宽：诗句靠右，落款靠左 */
+  align-self: stretch;
+}
+.ins-text p {
+  margin: 0;
+  writing-mode: vertical-rl;
+  /* 一列固定七字高：五言留白、长句换列，切换诗时题跋的高度不变 */
+  height: calc(7 * 1.14em);
+  font-family: var(--brush-poem);
+  font-size: 1em;
+  line-height: 1.15;
+  letter-spacing: 0.14em;
+  color: var(--c-ink-deep);
+  /* 有玻璃底托着，字不再加晕光（叠在玻璃上会晕出一团底色） */
+  clip-path: inset(0 0 100% 0);
+  opacity: 0.15;
+}
+.ins.on .ins-text p {
+  animation: brush var(--t) cubic-bezier(0.35, 0.1, 0.3, 1) forwards;
+  animation-delay: var(--d);
+}
+/* 落款：两列（〔朝代〕作者、诗题），从第二字起落笔，各自截在一列诗高之内；推到题跋最左 */
+.ins-k {
+  margin-left: 0 !important;
+  margin-right: auto !important;
+  display: flex;
+  flex-direction: row-reverse;
+  gap: 2px;
+  align-self: stretch;
+  margin-right: 0.45em;
+  padding-top: 1.14em;
+  box-sizing: border-box;
+  font-family: var(--kai);
+  font-size: 16px;
+  letter-spacing: 0.22em;
+  color: var(--ink);
+  opacity: 0;
+}
+.ins-k > span {
+  writing-mode: vertical-rl;
+  max-height: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.ins-s > span,
+.ins-seal > span {
+  writing-mode: vertical-rl;
+  display: block;
+}
+/* 三字一列、字略小；四字两列 */
+.ins-s > span.n3 {
+  font-size: 13px;
+}
+/* 「全部」：空心朱框的印，与小印同大 */
+.ins-s.ins-all {
+  background: rgb(var(--rgb-paper-light) / 0.85);
+  color: var(--c-zhusha);
+  box-shadow:
+    inset 0 0 0 1.5px var(--c-zhusha),
+    0 2px 6px rgb(var(--rgb-ink-deep) / 0.15);
+  font-size: 14px;
+}
+.ins-s.ins-all:hover {
+  background: var(--c-paper-light);
+}
+.ins-s > span.n4,
+.ins-seal > span.n4 {
+  max-height: 2.1em;
+  font-size: 15px;
+}
+.ins-seal {
+  align-self: flex-end;
+  margin-right: 0.35em;
+  font-style: normal;
+  padding: 5px 4px;
+  background: var(--c-zhusha);
+  color: var(--c-paper-light);
+  font-family: var(--brush);
+  font-size: 15px;
+  line-height: 1.05;
+  letter-spacing: 2px;
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 1.5px rgb(var(--rgb-paper-light) / 0.45);
+  opacity: 0;
+  transform: rotate(-3deg);
+}
+.ins.on .ins-k {
+  animation: fadeIn 0.8s ease forwards;
+  animation-delay: var(--d);
+}
+.ins.on .ins-seal {
+  animation: insStamp 0.45s cubic-bezier(0.3, 1.4, 0.5, 1) forwards;
+  animation-delay: var(--d);
+}
+@keyframes insStamp {
+  from {
+    opacity: 0;
+    transform: scale(1.6) rotate(-10deg);
+  }
+  to {
+    opacity: 0.95;
+    transform: rotate(-3deg);
+  }
+}
+/* 指到题诗：落款旁浮出一个楷书小字「展卷」（不用浏览器的提示框） */
+.ins-go {
+  position: absolute;
+  left: 50%;
+  bottom: -26px;
+  transform: translateX(-50%);
+  font-family: var(--kai);
+  font-size: 13px;
+  letter-spacing: 6px;
+  color: var(--c-zhusha);
+  opacity: 0;
+  transition: opacity 0.25s;
+  white-space: nowrap;
+}
+.ins-text:hover .ins-go {
+  opacity: 1;
+}
+/* 印谱 */
+.ins-pu {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  max-width: min(460px, 40vw);
+  opacity: 0;
+  transform: translateY(6px);
+  transition:
+    opacity 0.6s ease 0.9s,
+    transform 0.6s ease 0.9s;
+}
+.ins.l .ins-pu,
+.ins.l {
+  align-items: flex-start;
+}
+.ins.on .ins-pu {
+  opacity: 1;
+  transform: none;
+}
+.ins-h {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--kai);
+}
+/* 目录 · 收起：与落款同一路楷书小字，不加框 */
+.ins-h button,
+.ins-more {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  font-family: var(--kai);
+  font-size: 16px;
+  letter-spacing: 2px;
+  color: var(--c-ink-deep);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.ins-h button:hover {
+  background: rgb(var(--rgb-zhusha) / 0.08);
+}
+.ins-h button:hover,
+.ins-h button[aria-pressed='true'],
+.ins-more:hover {
+  color: var(--c-zhusha);
+}
+.ins-h i {
+  font-style: normal;
+  color: var(--ink3);
+}
+.ins-h b + span {
+  margin-right: 6px;
+}
+.ins-more {
+  align-self: flex-end;
+  margin-left: 4px;
+  writing-mode: vertical-rl;
+  font-size: 12.5px;
+  letter-spacing: 1px;
+}
+.ins-h b {
+  font-family: var(--brush);
+  font-weight: 400;
+  font-size: 21px;
+  letter-spacing: 3px;
+  color: var(--c-ink-deep);
+}
+.ins-h span {
+  font-size: 16px;
+  letter-spacing: 2px;
+  color: var(--ink);
+}
+/* 打开目录时印谱让位（目录本身就是这处的诗） */
+.ins.cat .ins-pu {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+.ins-seals {
+  display: flex;
+  /* 固定一行，不换行（至多六方 +「全部」） */
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px 10px;
+}
+.ins.l .ins-seals {
+  justify-content: flex-start;
+}
+.ins-g {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+}
+/* 朝代：每组印前一个竖排书法字，左边一道细朱线把唐、宋两组隔开 */
+.ins-g {
+  align-items: center;
+}
+.ins-g + .ins-g {
+  margin-left: 4px;
+  padding-left: 10px;
+  border-left: 1.5px solid rgb(var(--rgb-zhusha) / 0.45);
+}
+/* 朝代：一方窄朱印（朱底纸色字），与诗人印同高、略窄 */
+.ins-g em {
+  writing-mode: vertical-rl;
+  font-style: normal;
+  font-family: var(--brush);
+  font-size: 15px;
+  line-height: 1;
+  width: 22px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  margin-right: 5px;
+  border-radius: 2px;
+  background: var(--c-zhusha);
+  color: var(--c-paper-light);
+  box-shadow: inset 0 0 0 1.5px rgb(var(--rgb-paper-light) / 0.5);
+}
+/* 一位诗人一方印；多首的右上角标首数，点开上方一张诗题小单 */
+.ins-a {
+  position: relative;
+}
+/* 一人多首：印右上角一个小红点 */
+.ins-dot {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--c-zhusha);
+  box-shadow: 0 0 0 1.5px rgb(var(--rgb-paper-light) / 0.9);
+}
+/* 诗题签：与题跋同一块毛玻璃，竖排楷书诗题自右向左排；多了横向滚动 */
+.ins-menu {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 10px);
+  z-index: 2;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: min(420px, 60vw);
+  padding: 12px 10px;
+  border-radius: 6px;
+  /* 盖在题诗上：比题跋的玻璃厚，下面的字只隐约可见，不打架 */
+  background: linear-gradient(160deg, rgb(var(--rgb-paper-light) / 0.86), rgb(var(--rgb-xuanzhi) / 0.78));
+  -webkit-backdrop-filter: blur(14px) saturate(1.08);
+  backdrop-filter: blur(14px) saturate(1.08);
+  border: 1px solid rgb(var(--rgb-paper-light) / 0.7);
+  box-shadow:
+    inset 0 0 0 1px rgb(var(--rgb-zhe) / 0.12),
+    0 12px 30px rgb(var(--rgb-ink-deep) / 0.16);
+  animation: fadeIn 0.15s ease both;
+}
+.ins-menu button {
+  flex: none;
+  writing-mode: vertical-rl;
+  max-height: 11em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 4px 3px;
+  border: 0;
+  background: none;
+  font-family: var(--kai);
+  font-size: 15px;
+  letter-spacing: 2px;
+  color: var(--c-ink-deep);
+  cursor: pointer;
+  border-right: 1px solid transparent;
+}
+.ins-menu-list {
+  display: flex;
+  flex-direction: row-reverse;
+  gap: 2px;
+  overflow-x: auto;
+  padding-top: 8px;
+}
+.ins-menu button + button {
+  border-right-color: rgb(var(--rgb-zhe) / 0.18);
+}
+.ins-menu button {
+  position: relative;
+  overflow: visible;
+  border-radius: 3px;
+}
+.ins-menu button:hover {
+  background: rgb(var(--rgb-paper-light) / 0.7);
+}
+/* 选中的那首：朱字、浅朱底、顶上一点朱——一眼看出选的是哪首 */
+.ins-menu button.cur {
+  color: var(--c-zhusha);
+  background: rgb(var(--rgb-zhusha) / 0.1);
+}
+.ins-menu button.cur::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -7px;
+  width: 6px;
+  height: 6px;
+  margin-left: -3px;
+  border-radius: 50%;
+  background: var(--c-zhusha);
+}
+.ins-menu-tip {
+  margin: 0;
+  text-align: center;
+  font-family: var(--kai);
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: var(--ink2);
+}
+/* 小印：一律 32×44，名字竖排居中 */
+.ins-s {
+  position: relative;
+  flex: none;
+  width: 32px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--brush);
+  font-size: 15.5px;
+  line-height: 1;
+  letter-spacing: 0;
+  /* 书法字小了显细：描一层同色细边加粗 */
+  -webkit-text-stroke: 0.35px currentColor;
+  color: var(--c-paper-light);
+  background: rgb(var(--rgb-zhusha) / 0.82);
+  box-shadow:
+    inset 0 0 0 1.5px rgb(var(--rgb-paper-light) / 0.4),
+    0 2px 6px rgb(var(--rgb-ink-deep) / 0.2);
+  cursor: pointer;
+  transition:
+    transform 0.2s,
+    background 0.2s;
+}
+.ins-s:hover,
+.ins-s.cur {
+  background: var(--c-zhusha);
+  transform: translateY(-3px);
+}
+.ins-s.cur {
+  box-shadow:
+    inset 0 0 0 1.5px rgb(var(--rgb-paper-light) / 0.7),
+    0 0 0 2px rgb(var(--rgb-zhusha) / 0.35),
+    0 4px 10px rgb(var(--rgb-ink-deep) / 0.25);
+}
+/* 夜里：浅色字 */
+.night .ins-text p {
+  color: var(--c-paper-light);
+}
+.night .ins-k,
+.night .ins-h b,
+.night .ins-h span,
+.night .ins-h button,
+.night .ins-more,
+.night .ins-g em {
+  color: var(--c-paper-light);
+}
+
+/* 手机：题诗在上方天空偏右，印谱是底部图标栏上方一条可横滑的印章条 */
+@media (max-width: 760px) {
+  .ins,
+  .ins.l,
+  .ins.r {
+    left: auto;
+    right: 14px;
+    top: max(64px, calc(env(safe-area-inset-top) + 56px));
+    align-items: flex-end;
+  }
+  /* 手机：印谱是固定在底部的一条；玻璃底若加在整块上会让它跟着题跋走（backdrop-filter 会接管 fixed 子元素），改垫在题诗上 */
+  .ins,
+  .night .ins {
+    padding: 0;
+    background: none;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    border: 0;
+    box-shadow: none;
+  }
+  .ins-text {
+    font-size: 26px;
+    box-sizing: content-box;
+    padding: 12px 10px;
+    border-radius: 6px;
+    background: rgb(var(--rgb-paper-light) / 0.55);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgb(var(--rgb-paper-light) / 0.7);
+  }
+  .ins-pu {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: calc(62px + var(--safe-b));
+    max-width: none;
+    align-items: stretch;
+    padding: 8px 12px 10px;
+    background: linear-gradient(180deg, var(--c-paper-light), var(--c-xuanzhi));
+    border-top: 1px solid rgb(var(--rgb-zhe) / 0.3);
+  }
+  .ins-seals {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    padding: 7px 7px 2px 0;
+  }
+  /* 印条横向可滚、会裁掉溢出：诗题小单改钉在印条上方 */
+  .ins-menu {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: calc(62px + var(--safe-b) + 108px);
+    transform: none;
+  }
+  .ins-s {
+    width: 34px;
+    height: 46px;
+  }
+  .ins-h {
+    text-shadow: none;
+  }
+  .ins-pu::before {
+    display: none;
+  }
+}
